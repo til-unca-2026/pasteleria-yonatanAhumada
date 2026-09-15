@@ -2,6 +2,7 @@
 
 > **Prototipo Interactivo Navegable:**  
 > [Ver y probar prototipo en Figma](https://www.figma.com/make/Wp04wzTJ50wfd8wJXp4Amq/Prototipo-de-pantallas?t=Bh26kAapyL9rnE35-20&fullscreen=1)
+> * [Prototipo Exploratorio Inicial / Versión Antigua (Stitch)](https://stitch.withgoogle.com/preview/16141327618063099485?node-id=8821e23528da4905863aba7a7c3440f4)
 
 El diseño de interfaz fue proyectado bajo un enfoque estricto **Mobile-First**, optimizando la densidad de información, la legibilidad y la reducción de fricción en la toma de pedidos.
 
