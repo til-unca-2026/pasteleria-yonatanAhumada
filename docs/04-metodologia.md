@@ -25,36 +25,36 @@ La selección técnica busca simplificar el desarrollo unificando todo en un ún
 Muestra los componentes principales del sistema y cómo se comunican entre sí:
 
 ```mermaid
-graph TD
-    subgraph CLIENTES ["1. Capa de Usuarios (Mobile-First)"]
-        A1["📱 Cliente Web<br>(Configurador de Pedidos)"]
-        A2["💻 Pastelero / Admin<br>(Panel de Control de Taller)"]
+flowchart TD
+    subgraph CLIENTES["1. Capa de Usuarios (Mobile-First)"]
+        A1["📱 Cliente Web<br/>(Configurador de Pedidos)"]
+        A2["💻 Pastelero / Admin<br/>(Panel de Control de Taller)"]
     end
 
-    subgraph APLICACION ["2. Capa de Aplicación (Next.js en Vercel)"]
-        B1["⚡ Frontend & Vistas<br>(React + Tailwind)"]
-        B2["🛡️ Lógica de Servidor & API<br>(Server Actions / Route Handlers)"]
+    subgraph APLICACION["2. Capa de Aplicación (Next.js en Vercel)"]
+        B1["⚡ Frontend y Vistas<br/>(React + Tailwind)"]
+        B2["🛡️ Lógica de Servidor y API<br/>(Server Actions / Route Handlers)"]
         B1 --> B2
     end
 
-    subgraph SERVICIOS ["3. Capa de Persistencia & BaaS (Supabase)"]
-        C1[("🗄️ PostgreSQL<br>(Pedidos, Cupos, Insumos)")]
-        C2["📁 Supabase Storage<br>(Comprobantes y Fotos)"]
-        C3["🔐 Supabase Auth<br>(Sesión Administrador)"]
+    subgraph SERVICIOS["3. Capa de Persistencia y BaaS (Supabase)"]
+        C1[("🗄️ PostgreSQL<br/>(Pedidos, Cupos, Insumos)")]
+        C2["📁 Supabase Storage<br/>(Comprobantes y Fotos)"]
+        C3["🔐 Supabase Auth<br/>(Sesión Administrador)"]
     end
 
-    subgraph MENSAJERIA ["4. Servicios Externos"]
-        D["✈️ Telegram Bot API<br>(Alertas al Taller)"]
+    subgraph MENSAJERIA["4. Servicios Externos"]
+        D["✈️ Telegram Bot API<br/>(Alertas al Taller)"]
     end
 
     %% Conexiones
-    A1 -->|"Envía pedido y comprobante"| B1
-    A2 -->|"Consulta comandas y gestiona cupos"| B1
+    A1 -->|Envía pedido y comprobante| B1
+    A2 -->|Consulta comandas y gestiona cupos| B1
 
-    B2 -->|"Transacciones y consultas"| C1
-    B2 -->|"Guarda imágenes"| C2
-    B2 -->|"Valida credenciales"| C3
-    B2 -->|"Dispara notificación de nuevo pedido"| D
+    B2 -->|Transacciones y consultas| C1
+    B2 -->|Guarda imágenes| C2
+    B2 -->|Valida credenciales| C3
+    B2 -->|Dispara notificación de nuevo pedido| D
 ```
 
 ---
