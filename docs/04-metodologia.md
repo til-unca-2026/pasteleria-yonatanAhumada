@@ -22,7 +22,7 @@ La selección técnica busca simplificar el desarrollo unificando todo en un ún
 
 ## 2. Diagrama de Arquitectura del Sistema
 
-Muestra los componentes principales del sistema y cómo se comunican entre sí:
+Representa la distribución física y lógica de los componentes de la solución, sus roles operativos y las fronteras de comunicación:
 
 ```mermaid
 flowchart TD
@@ -57,4 +57,128 @@ flowchart TD
     B2 -->|Dispara notificación de nuevo pedido| D
 ```
 
+### Explicación Técnica de la Arquitectura
+
+* **Capa de Usuarios (Clientes):** Define los dos perfiles de interacción. El cliente final accede a una SPA/PWA responsiva optimizada para navegación móvil, mientras que el pastelero opera un panel de control administrativo para despacho y planificación.
+* **Capa de Aplicación (Next.js en Vercel):** Implementa un modelo *Full-Stack unificado*. El frontend renderiza vistas reactivas, mientras que la capa de servidor (*Server Actions* y *Route Handlers*) procesa las mutaciones, valida datos con esquemas estrictos y actúa como barrera de seguridad hacia los servicios de datos.
+* **Capa de Persistencia y BaaS (Supabase):** 
+  * *PostgreSQL:* Gestiona el estado transaccional (ACID) del negocio (pedidos, cálculo de señas, bloqueo de cupos de producción).
+  * *Storage:* Bucket dedicado para el resguardo de imágenes de referencia y comprobantes de pago.
+  * *Auth:* Mecanismo de autenticación basado en JWT para restringir el acceso al portal de administración.
+* **Servicios Externos (Telegram Bot API):** Canal de mensajería asíncrono desacoplado del ciclo de renderizado web, utilizado como sistema de eventos *push* para alertar al taller de nuevas solicitudes en tiempo real sin costos adicionales.
+
 ---
+
+## 3. Diagrama de Paquetes y Modularización del Sistema
+
+Define la organización interna del código fuente, delimitando responsabilidades, contratos de interfaz y dependencias entre capas:
+
+```mermaid
+flowchart TB
+    subgraph UI["1. Capa de Presentación (UI / Next.js)"]
+        subgraph Customer["📦 customer_flow"]
+            C1["Home (/)"]
+            C2["Paso 1: Fecha y Peso"]
+            C3["Paso 2: Sabores y Rellenos"]
+            C4["Paso 3: Reserva y Comprobante"]
+        end
+
+        subgraph Admin["📦 admin_portal"]
+            A1["Pedidos Activos / Comandas"]
+            A2["Gestión de Cupos"]
+            A3["Catálogo e Insumos"]
+            A4["Métricas y Rendimiento"]
+        end
+
+        subgraph Shared["📦 shared_ui"]
+            S1["Componentes Reutilizables<br/>(Cards, Chips, Modals, Buttons)"]
+        end
+    end
+
+    subgraph Core["2. Capa de Lógica de Negocio (Core Services)"]
+        S_Order["OrderService<br/>(Precios, Señas y Máquina de Estados)"]
+        S_Cap["CapacityService<br/>(Control de Cupos y Disponibilidad)"]
+        S_Cat["CatalogService<br/>(Reglas de Masas y Rellenos)"]
+        S_Met["MetricsService<br/>(Consolidación y Estadísticas)"]
+    end
+
+    subgraph Integrations["3. Capa de Integraciones"]
+        T_Bot["TelegramService<br/>(Envío de Notificaciones y Alertas)"]
+        F_Store["StorageService<br/>(Subida y Lectura de Archivos)"]
+    end
+
+    subgraph Data["4. Capa de Persistencia y Repositorios"]
+        DB_Orders[("🗄️ Repositorio Pedidos")]
+        DB_Slots[("🗄️ Repositorio Cupos")]
+        DB_Cat[("🗄️ Repositorio Catálogo")]
+    end
+
+    %% Relaciones
+    Customer --> Core
+    Admin --> Core
+    Customer -.-> Shared
+    Admin -.-> Shared
+
+    Core --> Data
+    Core --> Integrations
+```
+
+### Explicación Técnica de la Estructura de Paquetes
+
+* **Capa de Presentación (`UI`):** Organizada bajo el principio de separación por dominio de usuario:
+  * `customer_flow`: Agrupa las rutas y controladores del flujo guiado de compra, manteniendo un estado local ligero enfocado en la experiencia de usuario.
+  * `admin_portal`: Contiene los paneles operativos del taller (gestión de comandas, bloqueo de calendario y análisis de producción).
+  * `shared_ui`: Paquete transversal que provee componentes atómicos y reutilizables, asegurando consistencia visual sin introducir acoplamiento de negocio.
+* **Capa de Lógica de Negocio (`Core Services`):** Centraliza las reglas de dominio del sistema para evitar duplicación de lógica entre vistas:
+  * `OrderService`: Coordina la creación del pedido, el cálculo determinístico de importes/señas y la transición entre estados (*Pendiente*, *Señado*, *En producción*, *Listo*).
+  * `CapacityService`: Aplica las validaciones de límite diario de producción antes de autorizar una reserva.
+  * `CatalogService` y `MetricsService`: Proveen catálogos válidos y agregaciones analíticas de demanda.
+* **Capa de Integraciones (`Integrations`):** Actúa como patrón *Adapter*, aislando a los servicios de dominio de los SDKs de terceros (Supabase Storage y Telegram Bot API). Si un proveedor cambia, únicamente se modifica el adaptador correspondiente.
+* **Capa de Persistencia y Repositorios (`Data`):** Encapsula el acceso a las entidades de base de datos relacional mediante consultas tipadas, garantizando integridad referencial y facilitando la migración o mockeo en pruebas.
+
+
+## 4. Diagrama de Entidad-Relación (Modelo de Datos)
+
+```mermaid
+erDiagram
+    CUPOS_DIARIOS {
+        date fecha PK
+        int capacidad_maxima
+        int cupos_ocupados
+        boolean bloqueado_manual
+    }
+
+    PEDIDOS {
+        uuid id PK
+        string cliente_nombre
+        string cliente_telefono
+        date fecha_entrega FK
+        float peso_kg
+        decimal total_estimado
+        decimal sena_requerida
+        string estado "Pendiente | Expirado | Señado | En producción | Listo"
+        string comprobante_url
+        string foto_referencia_url
+        timestamp expiracion_reserva
+        timestamp created_at
+    }
+
+    INSUMOS {
+        uuid id PK
+        string tipo "bizcochuelo | relleno | cobertura"
+        string nombre
+        string imagen_url
+        decimal recargo_extra
+        boolean activo
+    }
+
+    DETALLES_PEDIDO {
+        uuid id PK
+        uuid pedido_id FK
+        uuid insumo_id FK
+    }
+
+    CUPOS_DIARIOS ||--o{ PEDIDOS : "regula disponibilidad"
+    PEDIDOS ||--|{ DETALLES_PEDIDO : "contiene"
+    INSUMOS ||--o{ DETALLES_PEDIDO : "utilizado en"
+```
