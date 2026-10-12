@@ -1,11 +1,11 @@
-# 04 - Metodología y Arquitectura del Sistema
+# 05 - Metodología y Arquitectura del Sistema
 
 ## 1. Elección y Justificación del Stack Tecnológico
 
 La selección técnica busca simplificar el desarrollo unificando todo en un único lenguaje (TypeScript) y centralizando los servicios de backend:
 
 * **Next.js (React + TypeScript):**
-  * *Por qué:* Permite construir tanto la interfaz del cliente (configurador de tortas paso a paso) como el panel de administración en un solo proyecto unificado (*Full-Stack*). TypeScript evita errores en los cálculos de precios, pesos y señas.
+  * *Por qué:* Permite construir tanto la interfaz del cliente (configurador de tortas paso a paso) como el panel de administración en un solo proyecto unificado (*Full-Stack*). TypeScript evita errores en los cálculos de precios, pesos y presupuestos.
 * **Tailwind CSS:**
   * *Por qué:* Facilita el diseño *Mobile-First* adaptado a celulares de forma rápida y con bajo peso.
 * **Supabase (PostgreSQL + Auth + Storage):**
@@ -14,7 +14,7 @@ La selección técnica busca simplificar el desarrollo unificando todo en un ún
     2. **Storage:** Permite almacenar de forma segura las fotos de comprobantes de transferencia y fotos de referencia de decoración.
     3. **Autenticación:** Protege el acceso al panel administrativo del taller sin programar un sistema de autenticación desde cero.
 * **Telegram Bot API:**
-  * *Por qué:* Notifica al instante al pastelero ante nuevos pedidos y avisa al cliente cuando su seña fue aprobada, sin los costos ni trabas comerciales de la API de WhatsApp.
+  * *Por qué:* Notifica al instante al pastelero ante nuevos pedidos y avisa al cliente cuando su comprobante fue aprobado, sin los costos ni trabas comerciales de la API de WhatsApp.
 * **Vercel:**
   * *Por qué:* Plataforma de despliegue continuo vinculada a GitHub que publica automáticamente los cambios de forma gratuita.
 
@@ -96,7 +96,7 @@ flowchart TB
     end
 
     subgraph Core["2. Capa de Lógica de Negocio (Core Services)"]
-        S_Order["OrderService<br/>(Precios, Señas y Máquina de Estados)"]
+        S_Order["OrderService<br/>(Precios, Pagos y Máquina de Estados)"]
         S_Cap["CapacityService<br/>(Control de Cupos y Disponibilidad)"]
         S_Cat["CatalogService<br/>(Reglas de Masas y Rellenos)"]
         S_Met["MetricsService<br/>(Consolidación y Estadísticas)"]
@@ -130,7 +130,7 @@ flowchart TB
   * `admin_portal`: Contiene los paneles operativos del taller (gestión de comandas, bloqueo de calendario y análisis de producción).
   * `shared_ui`: Paquete transversal que provee componentes atómicos y reutilizables, asegurando consistencia visual sin introducir acoplamiento de negocio.
 * **Capa de Lógica de Negocio (`Core Services`):** Centraliza las reglas de dominio del sistema para evitar duplicación de lógica entre vistas:
-  * `OrderService`: Coordina la creación del pedido, el cálculo determinístico de importes/señas y la transición entre estados (*Pendiente*, *Señado*, *En producción*, *Listo*).
+  * `OrderService`: Coordina la creación del pedido, el cálculo determinístico de importes y la transición entre estados (*Pendiente*, *Confirmado*, *En producción*, *Listo*).
   * `CapacityService`: Aplica las validaciones de límite diario de producción antes de autorizar una reserva.
   * `CatalogService` y `MetricsService`: Proveen catálogos válidos y agregaciones analíticas de demanda.
 * **Capa de Integraciones (`Integrations`):** Actúa como patrón *Adapter*, aislando a los servicios de dominio de los SDKs de terceros (Supabase Storage y Telegram Bot API). Si un proveedor cambia, únicamente se modifica el adaptador correspondiente.

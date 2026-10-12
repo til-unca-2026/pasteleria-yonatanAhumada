@@ -1,4 +1,4 @@
-# 03 - Arquitectura Visual y Prototipo de Interfaz (Mockups)
+# 04 - Arquitectura Visual y Prototipo de Interfaz (Mockups)
 
 > **Prototipo Interactivo Navegable:**  
 > [Ver y probar prototipo en Figma](https://www.figma.com/make/Wp04wzTJ50wfd8wJXp4Amq/Prototipo-de-pantallas?t=Bh26kAapyL9rnE35-20&fullscreen=1)
