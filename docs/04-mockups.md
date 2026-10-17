@@ -20,7 +20,7 @@ A continuación se documentan las pantallas finales estructuradas en dos módulo
 ### 1.2 Selección de Fecha y Peso (`/pedido/paso-1`)
 ![Paso 1 - Fecha y Peso](assets/mockups/02-paso1-fecha-peso.png)
 * **Objetivo Asociado:** `OE 1 (Personalización y Cotización)` y `OE 2 (Control de Capacidad y Demanda)`.
-* **Descripción:** Selector de fecha de entrega con validación de cupos en vivo y tarjetas de selección de peso base con porciones sugeridas. Incluye barra fija inferior con el total acumulado y el desglose de la seña requerida.
+* **Descripción:** Selector de fecha de entrega con validación de cupos en vivo y tarjetas de selección de peso base con porciones sugeridas. Incluye barra fija inferior con el importe total a transferir bajo la modalidad de pago único anticipado.
 
 ### 1.3 Selección de Sabores y Rellenos (`/pedido/paso-2`)
 ![Paso 2 - Sabores](assets/mockups/03-paso2-sabores.png)
@@ -39,7 +39,7 @@ A continuación se documentan las pantallas finales estructuradas en dos módulo
 ### 2.1 Gestión Diaria de Comandas (`/admin/pedidos`)
 ![Pedidos Activos](assets/mockups/05-admin-pedidos.png)
 * **Objetivo Asociado:** `OE 3 (Gestión Operativa de Taller)`.
-* **Descripción:** Tablero de control de pedidos en curso, indicador de cupos diarios con barra de porcentaje, conmutador maestro de recepción, tarjetas individuales por comanda con filtros de estado y acción rápida para validación de señas.
+* **Descripción:** Tablero de control de pedidos en curso, indicador de cupos diarios con barra de porcentaje, conmutador maestro de recepción, tarjetas individuales por comanda con filtros de estado y acción rápida para validación de comprobantes de pago.
 
 ### 2.2 Gestión de Cupos y Capacidad (`/admin/cupos`)
 ![Gestión de Cupos](assets/mockups/06-admin-cupos.png)
@@ -59,4 +59,4 @@ A continuación se documentan las pantallas finales estructuradas en dos módulo
 ### 2.5 Tablero Analítico (`/admin/analitica`)
 ![Métricas](assets/mockups/08-admin-analitica.png)
 * **Objetivo Asociado:** `OE 5 (Analítica y Rendimiento)`.
-* **Descripción:** Métricas de rendimiento del negocio: balance de facturación total proyectada frente a señas cobradas, gráfico de ocupación semanal del taller y ranking de insumos más solicitados para previsión de compras.
+* **Descripción:** Métricas de rendimiento del negocio: balance de facturación total proyectada frente a pagos cobrados, gráfico de ocupación semanal del taller y ranking de insumos más solicitados para previsión de compras.

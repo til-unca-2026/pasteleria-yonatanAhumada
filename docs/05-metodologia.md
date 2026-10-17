@@ -62,7 +62,7 @@ flowchart TD
 * **Capa de Usuarios (Clientes):** Define los dos perfiles de interacción. El cliente final accede a una SPA/PWA responsiva optimizada para navegación móvil, mientras que el pastelero opera un panel de control administrativo para despacho y planificación.
 * **Capa de Aplicación (Next.js en Vercel):** Implementa un modelo *Full-Stack unificado*. El frontend renderiza vistas reactivas, mientras que la capa de servidor (*Server Actions* y *Route Handlers*) procesa las mutaciones, valida datos con esquemas estrictos y actúa como barrera de seguridad hacia los servicios de datos.
 * **Capa de Persistencia y BaaS (Supabase):** 
-  * *PostgreSQL:* Gestiona el estado transaccional (ACID) del negocio (pedidos, cálculo de señas, bloqueo de cupos de producción).
+  * *PostgreSQL:* Gestiona el estado transaccional (ACID) del negocio (pedidos, registro de pagos por transferencia, bloqueo de cupos de producción).
   * *Storage:* Bucket dedicado para el resguardo de imágenes de referencia y comprobantes de pago.
   * *Auth:* Mecanismo de autenticación basado en JWT para restringir el acceso al portal de administración.
 * **Servicios Externos (Telegram Bot API):** Canal de mensajería asíncrono desacoplado del ciclo de renderizado web, utilizado como sistema de eventos *push* para alertar al taller de nuevas solicitudes en tiempo real sin costos adicionales.
@@ -133,7 +133,7 @@ flowchart TB
   * `OrderService`: Coordina la creación del pedido, el cálculo determinístico de importes y la transición entre estados (*Pendiente*, *Confirmado*, *En producción*, *Listo*).
   * `CapacityService`: Aplica las validaciones de límite diario de producción antes de autorizar una reserva.
   * `CatalogService`: Administra el catálogo de tortas modelo (precios base por kg, tipología personalizable vs receta fija) y las matrices de insumos compatibles habilitados.
-  * `MetricsService`: Consolida indicadores de demanda agregada, porcentajes de ocupación de taller y balance financiero de señas.
+  * `MetricsService`: Consolida indicadores de demanda agregada, porcentajes de ocupación de taller y balance financiero de facturación y cobranzas.
 * **Capa de Integraciones (`Integrations`):** Actúa como patrón *Adapter*, aislando a los servicios de dominio de los SDKs de terceros (Supabase Storage y Telegram Bot API). Si un proveedor cambia, únicamente se modifica el adaptador correspondiente.
 * **Capa de Persistencia y Repositorios (`Data`):** Encapsula el acceso a las entidades de base de datos relacional mediante consultas tipadas, garantizando integridad referencial y facilitando la migración o mockeo en pruebas.
 
@@ -167,8 +167,8 @@ erDiagram
         date fecha_entrega FK
         float peso_kg
         decimal total_estimado
-        decimal sena_requerida
-        string estado "Pendiente | Expirado | Señado | En producción | Listo"
+        decimal sena_requerida "monto total a transferir"
+        string estado "Pendiente | Expirado | Señado_Pagado | En producción | Listo"
         string comprobante_url
         string foto_referencia_url
         timestamp expiracion_reserva
