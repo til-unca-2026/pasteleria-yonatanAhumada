@@ -98,7 +98,7 @@ flowchart TB
     subgraph Core["2. Capa de Lógica de Negocio (Core Services)"]
         S_Order["OrderService<br/>(Precios, Pagos y Máquina de Estados)"]
         S_Cap["CapacityService<br/>(Control de Cupos y Disponibilidad)"]
-        S_Cat["CatalogService<br/>(Reglas de Masas y Rellenos)"]
+        S_Cat["CatalogService<br/>(Tortas Modelo y Reglas de Insumos)"]
         S_Met["MetricsService<br/>(Consolidación y Estadísticas)"]
     end
 
@@ -132,7 +132,8 @@ flowchart TB
 * **Capa de Lógica de Negocio (`Core Services`):** Centraliza las reglas de dominio del sistema para evitar duplicación de lógica entre vistas:
   * `OrderService`: Coordina la creación del pedido, el cálculo determinístico de importes y la transición entre estados (*Pendiente*, *Confirmado*, *En producción*, *Listo*).
   * `CapacityService`: Aplica las validaciones de límite diario de producción antes de autorizar una reserva.
-  * `CatalogService` y `MetricsService`: Proveen catálogos válidos y agregaciones analíticas de demanda.
+  * `CatalogService`: Administra el catálogo de tortas modelo (precios base por kg, tipología personalizable vs receta fija) y las matrices de insumos compatibles habilitados.
+  * `MetricsService`: Consolida indicadores de demanda agregada, porcentajes de ocupación de taller y balance financiero de señas.
 * **Capa de Integraciones (`Integrations`):** Actúa como patrón *Adapter*, aislando a los servicios de dominio de los SDKs de terceros (Supabase Storage y Telegram Bot API). Si un proveedor cambia, únicamente se modifica el adaptador correspondiente.
 * **Capa de Persistencia y Repositorios (`Data`):** Encapsula el acceso a las entidades de base de datos relacional mediante consultas tipadas, garantizando integridad referencial y facilitando la migración o mockeo en pruebas.
 
@@ -148,8 +149,19 @@ erDiagram
         boolean bloqueado_manual
     }
 
+    TORTAS {
+        uuid id PK
+        string nombre
+        string descripcion
+        string tipo "personalizable | receta_fija"
+        decimal precio_base_kg
+        string imagen_url
+        boolean activo
+    }
+
     PEDIDOS {
         uuid id PK
+        uuid torta_id FK
         string cliente_nombre
         string cliente_telefono
         date fecha_entrega FK
@@ -178,7 +190,22 @@ erDiagram
         uuid insumo_id FK
     }
 
+    TORTAS_INSUMOS {
+        uuid torta_id PK,FK
+        uuid insumo_id PK,FK
+    }
+
     CUPOS_DIARIOS ||--o{ PEDIDOS : "regula disponibilidad"
+    TORTAS ||--o{ PEDIDOS : "torta base elegida"
+    TORTAS ||--|{ TORTAS_INSUMOS : "habilita"
+    INSUMOS ||--o{ TORTAS_INSUMOS : "disponible en"
     PEDIDOS ||--|{ DETALLES_PEDIDO : "contiene"
     INSUMOS ||--o{ DETALLES_PEDIDO : "utilizado en"
 ```
+
+### Explicación Técnica de las Entidades y Relaciones
+
+* **`TORTAS`:** Modela el catálogo de productos comerciales del taller. Define la tarifa base por kilo (`precio_base_kg`) y la estrategia de elaboración (`tipo`): *personalizable* (receta abierta con selección dinámica de capas) o *receta_fija* (fórmula estándar tradicional).
+* **`TORTAS_INSUMOS`:** Tabla de unión de muchos a muchos que implementa la matriz de compatibilidad, restringiendo qué bizcochuelos, rellenos o coberturas del catálogo general pueden seleccionarse para cada torta específica.
+* **`PEDIDOS`:** Entidad transaccional central. Asocia la torta modelo solicitada (`torta_id`), el peso parametrizado, los importes calculados y el control de estados del taller, vinculada con la fecha de producción en `CUPOS_DIARIOS`.
+* **`DETALLES_PEDIDO` e `INSUMOS`:** Normaliza los ingredientes puntuales elegidos por el cliente para la elaboración de la torta personalizada.

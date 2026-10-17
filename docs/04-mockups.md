@@ -12,10 +12,10 @@ A continuación se documentan las pantallas finales estructuradas en dos módulo
 
 ## Módulo 1: Flujo de Cotización y Reserva (Cliente)
 
-### 1.1 Portada y Acceso Principal (`/`)
-![Portada](assets/mockups/01-home.png)
+### 1.1 Portada y Catálogo de Productos (`/`)
+![Catálogo de Tortas](assets/mockups/home_v2.png)
 * **Objetivo Asociado:** `OE 1 (Personalización y Cotización)`.
-* **Descripción:** Pantalla de bienvenida con propuesta de valor clara (*"Tortas personalizadas a tu medida"*), microcopy aclaratorio sobre la confirmación mediante seña del 50%, chips informativos clave (fechas en tiempo real, opciones desde 1 kg, avisos automatizados) y acceso directo al flujo mediante el CTA principal.
+* **Descripción:** Vitrina interactiva de tortas modelo con indicador en tiempo real de recepción de pedidos. Expone tarjetas de producto con precio base por kg diferenciado, etiquetas de personalización (*100% Personalizable* para recetas abiertas vs *Receta Tradicional* para recetas fijas) y botones de acción contextuales (*Personalizar* o *Pedir clásica*). Incluye barra de navegación inferior persistente con accesos a Catálogo y Mis Pedidos.
 
 ### 1.2 Selección de Fecha y Peso (`/pedido/paso-1`)
 ![Paso 1 - Fecha y Peso](assets/mockups/02-paso1-fecha-peso.png)
@@ -46,12 +46,17 @@ A continuación se documentan las pantallas finales estructuradas en dos módulo
 * **Objetivo Asociado:** `OE 2 (Control de Capacidad y Demanda)`.
 * **Descripción:** Configuración de capacidad diaria estándar, mini calendario semanal con semáforo de disponibilidad y selector puntual por fecha con interruptor para bloqueo preventivo de reservas.
 
-### 2.3 Tarifario y Gestión de Catálogo (`/admin/catalogo`)
-![Gestión de Catálogo](assets/mockups/07-admin-catalogo.png)
+### 2.3 Administración del Catálogo de Tortas (`/admin/catalogo`)
+![Catálogo de Tortas en Admin](assets/mockups/admin_catalogo_v2.png)
 * **Objetivo Asociado:** `OE 1 (Personalización y Cotización)` y `OE 3 (Gestión Operativa de Taller)`.
-* **Descripción:** Ajuste del precio base por kilo ($13.000 / kg), navegación por pestañas de insumos, administración de recargos adicionales e interruptores inmediatos para pausar ingredientes sin stock.
+* **Descripción:** Tablero de control de productos publicados con contador de tortas activas, botón para incorporar nuevas tortas (*+ Nueva Torta*), switches de visibilidad inmediata por producto y accesos a la edición individual de cada modelo.
 
-### 2.4 Tablero Analítico (`/admin/analitica`)
+### 2.4 Configuración de Torta e Insumos Compatibles (`/admin/catalogo/[id]`)
+![Edición de Torta e Insumos](assets/mockups/admin_catalogo_id.png)
+* **Objetivo Asociado:** `OE 1 (Personalización y Cotización)` y `OE 3 (Gestión Operativa de Taller)`.
+* **Descripción:** Editor detallado de la torta seleccionada: carga de fotografía, nombre comercial, tarifa por kilo y descripción. Incluye selector modular de insumos compatibles agrupados por pestañas (Bizcochuelos, Rellenos, Coberturas) con conmutadores individuales para habilitar o restringir combinaciones y botón para crear nuevos ingredientes.
+
+### 2.5 Tablero Analítico (`/admin/analitica`)
 ![Métricas](assets/mockups/08-admin-analitica.png)
 * **Objetivo Asociado:** `OE 5 (Analítica y Rendimiento)`.
 * **Descripción:** Métricas de rendimiento del negocio: balance de facturación total proyectada frente a señas cobradas, gráfico de ocupación semanal del taller y ranking de insumos más solicitados para previsión de compras.
