@@ -159,6 +159,7 @@ export interface Paso2Props {
   onNext: () => void;
   isFixedRecipe?: boolean;
   tortaNombre?: string;
+  tortaSlug?: string;
   onConfirmFixedRecipe?: () => void;
 }
 
@@ -178,6 +179,7 @@ export function Paso2Sabores({
   onNext,
   isFixedRecipe = false,
   tortaNombre,
+  tortaSlug,
   onConfirmFixedRecipe,
 }: Paso2Props) {
   if (isFixedRecipe) {
@@ -333,16 +335,17 @@ export function Paso2Sabores({
     });
   }
 
+  const isFrutosRojos = tortaSlug === "torta-frutos-rojos";
+
   if (canCustomizeRellenos) {
     const sectionNum = activeSections.length + 1;
     activeSections.push({
       key: "relleno",
-      title: "Rellenos Artesanales",
-      subtitle:
-        rellenosObjs.length > 0
-          ? rellenosObjs.map((r) => r.nombre).join(" + ")
-          : "Elegí hasta 2 sabores",
-      badge: (
+      title: isFrutosRojos ? "Base / Relleno" : "Rellenos Artesanales",
+      subtitle: isFrutosRojos
+        ? (rellenosObjs.length > 0 ? rellenosObjs.map((r) => r.nombre).join(" + ") : "Elegí Crema pastelera o Crema chantilly")
+        : (rellenosObjs.length > 0 ? rellenosObjs.map((r) => r.nombre).join(" + ") : "Elegí hasta 2 sabores"),
+      badge: !isFrutosRojos ? (
         <div
           className={`rounded-full border px-[9px] py-[3px] flex items-center gap-[4px] ${
             selectedFillings.length > 0 ? "bg-[#fdf2f8] border-[#fbcfe8]" : "bg-[#f1f5f9] border-[#e2e8f0]"
@@ -353,21 +356,21 @@ export function Paso2Sabores({
             {selectedFillings.length}/{MAX_RELLENOS}
           </span>
         </div>
-      ),
+      ) : undefined,
       isDone: doneAccordions.has(sectionNum as AccordionStep) && rellenosOk,
       canConfirm: rellenosOk,
       renderContent: () => (
-        <div className="grid grid-cols-3 gap-[8px] mb-[8px]">
+        <div className="grid grid-cols-2 gap-[10px] mb-[8px]">
           {rellenos.map((r) => {
             const sel = selectedFillings.includes(r.id);
-            const disabled = !sel && selectedFillings.length >= MAX_RELLENOS;
+            const disabled = !sel && !isFrutosRojos && selectedFillings.length >= MAX_RELLENOS;
             return (
               <button
                 key={r.id}
                 type="button"
                 onClick={() => !disabled && onToggleFilling(r.id)}
                 disabled={disabled}
-                className={`rounded-[8px] p-[8px] flex flex-col items-start border cursor-pointer transition-all relative ${
+                className={`rounded-[10px] p-[10px] flex flex-col items-start border cursor-pointer transition-all relative ${
                   sel
                     ? "border-2 border-[#1e293b] bg-slate-50 shadow-sm"
                     : disabled
@@ -375,15 +378,15 @@ export function Paso2Sabores({
                     : "border-slate-200 bg-white hover:border-slate-300"
                 }`}
               >
-                <div className="w-full h-[52px] rounded-[6px] mb-[6px] relative overflow-hidden bg-amber-50 flex items-center justify-center border border-slate-100">
+                <div className="w-full h-[70px] rounded-[8px] mb-[8px] relative overflow-hidden bg-amber-50 flex items-center justify-center border border-slate-100">
                   {r.imagen_url ? (
                     <img src={r.imagen_url} alt={r.nombre} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-[20px]">🍯</span>
+                    <span className="text-[24px]">🍯</span>
                   )}
                   {sel ? <CheckBadge /> : <EmptyBadge />}
                 </div>
-                <span className="font-bold text-[#0f172a] text-[10px] leading-[13px] line-clamp-1">
+                <span className="font-bold text-[#0f172a] text-[11px] leading-[14px] line-clamp-1 capitalize">
                   {r.nombre}
                 </span>
                 {r.recargo_extra > 0 && (
@@ -403,15 +406,14 @@ export function Paso2Sabores({
     const sectionNum = activeSections.length + 1;
     activeSections.push({
       key: "cobertura",
-      title: "Cobertura Exterior",
-      subtitle:
-        coberturaObj
-          ? coberturaObj.nombre
-          : "Elegí la terminación de tu torta",
+      title: isFrutosRojos ? "Fruta Principal (Topping)" : "Cobertura Exterior",
+      subtitle: isFrutosRojos
+        ? (coberturaObj ? coberturaObj.nombre : "Elegí Frutillas solas o Mix de frutos rojos")
+        : (coberturaObj ? coberturaObj.nombre : "Elegí la terminación de tu torta"),
       isDone: doneAccordions.has(sectionNum as AccordionStep) && coberturaOk,
       canConfirm: coberturaOk,
       renderContent: () => (
-        <div className="grid grid-cols-3 gap-[8px] mb-[8px]">
+        <div className="grid grid-cols-2 gap-[10px] mb-[8px]">
           {coberturas.map((c) => {
             const sel = selectedCoverage === c.id;
             return (
@@ -419,21 +421,21 @@ export function Paso2Sabores({
                 key={c.id}
                 type="button"
                 onClick={() => onSelectCoverage(c.id)}
-                className={`rounded-[8px] p-[8px] flex flex-col items-start border cursor-pointer transition-all relative ${
+                className={`rounded-[10px] p-[10px] flex flex-col items-start border cursor-pointer transition-all relative ${
                   sel
                     ? "border-2 border-[#1e293b] bg-slate-50 shadow-sm"
                     : "border-slate-200 bg-white hover:border-slate-300"
                 }`}
               >
-                <div className="w-full h-[52px] rounded-[6px] mb-[6px] relative overflow-hidden bg-purple-50 flex items-center justify-center border border-slate-100">
+                <div className="w-full h-[70px] rounded-[8px] mb-[8px] relative overflow-hidden bg-purple-50 flex items-center justify-center border border-slate-100">
                   {c.imagen_url ? (
                     <img src={c.imagen_url} alt={c.nombre} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-[20px]">🧁</span>
+                    <span className="text-[24px]">🍓</span>
                   )}
                   {sel ? <CheckBadge /> : <EmptyBadge />}
                 </div>
-                <span className="font-bold text-[#0f172a] text-[10px] leading-[13px] line-clamp-1">
+                <span className="font-bold text-[#0f172a] text-[11px] leading-[14px] line-clamp-1 capitalize">
                   {c.nombre}
                 </span>
                 {c.recargo_extra > 0 && (
@@ -460,32 +462,6 @@ export function Paso2Sabores({
 
   return (
     <div className="flex flex-col gap-[10px] w-full animate-in fade-in duration-200">
-      {/* Banner de insumos fijos incluidos por receta del modelo */}
-      {(fixedBase || fixedRelleno || fixedCobertura) && (
-        <div className="bg-white rounded-[10px] border border-slate-200/80 px-3.5 py-2.5 flex items-center justify-between text-xs text-slate-700 shadow-2xs">
-          <div className="flex items-center gap-2">
-            <span className="text-amber-500 text-sm">✨</span>
-            <div>
-              <span className="font-semibold text-slate-800 block text-[11px]">
-                Insumos incluidos en la receta:
-              </span>
-              <span className="text-slate-500 text-[10px]">
-                {[
-                  fixedBase && `Base: ${fixedBase.nombre}`,
-                  fixedRelleno && `Relleno: ${fixedRelleno.nombre}`,
-                  fixedCobertura && `Cobertura: ${fixedCobertura.nombre}`,
-                ]
-                  .filter(Boolean)
-                  .join(" • ")}
-              </span>
-            </div>
-          </div>
-          <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-            Fijo
-          </span>
-        </div>
-      )}
-
       {/* Renderizado dinámico de los acordeones personalizables */}
       {activeSections.length === 0 ? (
         <div className="bg-white rounded-[12px] border border-slate-200 p-6 text-center">

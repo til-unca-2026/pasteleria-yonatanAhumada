@@ -325,7 +325,7 @@ export async function createNuevoPedido(params: {
 
   // 3. Crear el pedido
   const expiracion = new Date();
-  expiracion.setHours(expiracion.getHours() + 2); // 2 horas de reserva de cupo
+  expiracion.setHours(expiracion.getHours() + 24); // 24 horas de reserva de cupo
 
   const { data: pedido, error: errorPedido } = await supabase
     .from("pedidos")

@@ -30,14 +30,14 @@ const DEFAULT_RECIPES_BY_SLUG: Record<string, InsumosDefaults> = {
     coverageName: "fondant",
   },
   "torta-frutos-rojos": {
-    baseName: "vainilla",
-    fillingsNames: ["crema pastelera", "mix frutos rojos", "durazno"],
-    coverageName: "chantilly",
+    baseName: "",
+    fillingsNames: ["crema pastelera", "crema chantilly", "durazno"],
+    coverageName: "mix de frutos rojos",
   },
   "jardin-de-frutos": {
-    baseName: "vainilla",
-    fillingsNames: ["durazno"],
-    coverageName: "chantilly",
+    baseName: "",
+    fillingsNames: ["crema pastelera", "durazno"],
+    coverageName: "mix de frutos rojos",
   },
 };
 
@@ -265,6 +265,9 @@ function PedidoWizardContent() {
 
   const handleToggleFilling = (id: string) => {
     setSelectedFillings((prev) => {
+      if (tortaSlug === "torta-frutos-rojos") {
+        return [id];
+      }
       if (prev.includes(id)) return prev.filter((r) => r !== id);
       if (prev.length >= 2) return prev;
       return [...prev, id];
@@ -493,6 +496,9 @@ function PedidoWizardContent() {
         return "Continuar al Resumen";
       }
       const nextKey = customizableKeys[activeAccordion];
+      if (tortaSlug === "torta-frutos-rojos" && nextKey === "cobertura") {
+        return "Continuar a Fruta Principal";
+      }
       if (nextKey === "relleno") return "Continuar a Rellenos";
       if (nextKey === "cobertura") return "Continuar a Cobertura";
       return "Continuar al Resumen";
@@ -542,6 +548,7 @@ function PedidoWizardContent() {
             onNext={handleNext}
             isFixedRecipe={isFixedRecipe}
             tortaNombre={tortaNombre}
+            tortaSlug={tortaSlug}
             onConfirmFixedRecipe={() => {
               setCurrentStep(3);
               window.scrollTo({ top: 0, behavior: "smooth" });
@@ -566,6 +573,7 @@ function PedidoWizardContent() {
             referenciaFile={referenciaFile}
             onUploadReferencia={setReferenciaFile}
             tortaNombre={tortaNombre}
+            tortaSlug={tortaSlug}
             isFixedRecipe={isFixedRecipe}
           />
         )}

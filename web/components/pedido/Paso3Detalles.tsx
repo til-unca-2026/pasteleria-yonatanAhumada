@@ -19,6 +19,7 @@ interface Paso3Props {
   referenciaFile: File | null;
   onUploadReferencia: (file: File | null) => void;
   tortaNombre?: string;
+  tortaSlug?: string;
   isFixedRecipe?: boolean;
 }
 
@@ -38,6 +39,7 @@ export function Paso3Detalles({
   referenciaFile,
   onUploadReferencia,
   tortaNombre,
+  tortaSlug,
   isFixedRecipe = false,
 }: Paso3Props) {
   const referenciaInputRef = useRef<HTMLInputElement>(null);
@@ -198,8 +200,10 @@ export function Paso3Detalles({
 
                 {selectedFillingsNombres.length > 0 && (
                   <div className="flex items-start justify-between border-b border-slate-100 pb-2">
-                    <span className="text-slate-500 font-medium">🍯 Rellenos:</span>
-                    <span className="font-semibold text-slate-800 text-right max-w-[200px] truncate">
+                    <span className="text-slate-500 font-medium">
+                      {tortaSlug === "torta-frutos-rojos" ? "🍯 Base / Relleno:" : "🍯 Rellenos:"}
+                    </span>
+                    <span className="font-semibold text-slate-800 text-right max-w-[200px] truncate capitalize">
                       {selectedFillingsNombres.join(" + ")}
                     </span>
                   </div>
@@ -207,8 +211,10 @@ export function Paso3Detalles({
 
                 {selectedCoverageNombre && (
                   <div className="flex items-start justify-between pb-1">
-                    <span className="text-slate-500 font-medium">🧁 Cobertura:</span>
-                    <span className="font-semibold text-slate-800 text-right">{selectedCoverageNombre}</span>
+                    <span className="text-slate-500 font-medium">
+                      {tortaSlug === "torta-frutos-rojos" ? "🍓 Fruta Principal:" : "🧁 Cobertura:"}
+                    </span>
+                    <span className="font-semibold text-slate-800 text-right capitalize">{selectedCoverageNombre}</span>
                   </div>
                 )}
               </>
@@ -236,7 +242,7 @@ export function Paso3Detalles({
           <path d="M8 7V11M8 5.5V5" stroke="#64748b" strokeWidth="1.4" strokeLinecap="round" />
         </svg>
         <p className="text-[11px] text-slate-600 leading-[16px] m-0">
-          Al presionar <strong className="text-slate-900">Confirmar y Reservar Cupo</strong>, guardaremos tu pedido con reserva por 2 horas para que transfieras el total y subas tu comprobante desde la sección <em>Mis Pedidos</em>. El día de la entrega solo pasas a retirar.
+          Al presionar <strong className="text-slate-900">Confirmar y Reservar Cupo</strong>, guardaremos tu pedido con reserva por 24 horas para que transfieras el total y subas tu comprobante desde la sección <em>Mis Pedidos</em>. El día de la entrega solo pasas a retirar.
         </p>
       </div>
     </div>
