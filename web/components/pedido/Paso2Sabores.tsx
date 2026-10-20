@@ -159,6 +159,7 @@ export interface Paso2Props {
   onNext: () => void;
   isFixedRecipe?: boolean;
   tortaNombre?: string;
+  tortaSlug?: string;
   onConfirmFixedRecipe?: () => void;
 }
 
@@ -178,6 +179,7 @@ export function Paso2Sabores({
   onNext,
   isFixedRecipe = false,
   tortaNombre,
+  tortaSlug,
   onConfirmFixedRecipe,
 }: Paso2Props) {
   if (isFixedRecipe) {
@@ -264,6 +266,195 @@ export function Paso2Sabores({
   const rellenosOk = selectedFillings.length > 0;
   const coberturaOk = selectedCoverage !== null;
 
+  // Insumos fijos (solo 1 opción disponible en el modelo, no personalizables)
+  const fixedBase = bases.length === 1 ? bases[0] : null;
+  const fixedRelleno = rellenos.length === 1 ? rellenos[0] : null;
+  const fixedCobertura = coberturas.length === 1 ? coberturas[0] : null;
+
+  // Grupos personalizables (más de 1 opción para elegir)
+  const canCustomizeBases = bases.length > 1;
+  const canCustomizeRellenos = rellenos.length > 1;
+  const canCustomizeCoberturas = coberturas.length > 1;
+
+  interface ActiveSectionConfig {
+    key: "bizcochuelo" | "relleno" | "cobertura";
+    title: string;
+    subtitle: string;
+    badge?: React.ReactNode;
+    isDone: boolean;
+    canConfirm: boolean;
+    renderContent: () => React.ReactNode;
+  }
+
+  const activeSections: ActiveSectionConfig[] = [];
+
+  if (canCustomizeBases) {
+    const sectionNum = activeSections.length + 1;
+    activeSections.push({
+      key: "bizcochuelo",
+      title: "Bizcochuelo Base",
+      subtitle: baseObj ? baseObj.nombre : "Elegí tu masa",
+      isDone: doneAccordions.has(sectionNum as AccordionStep) && !!selectedBase,
+      canConfirm: !!selectedBase,
+      renderContent: () => (
+        <div className="grid grid-cols-3 gap-[8px] mb-[8px]">
+          {bases.map((b) => {
+            const sel = selectedBase === b.id;
+            return (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => onSelectBase(b.id)}
+                className={`rounded-[8px] p-[8px] flex flex-col items-start border cursor-pointer transition-all relative ${
+                  sel
+                    ? "border-2 border-[#1e293b] bg-slate-50 shadow-sm"
+                    : "border-slate-200 bg-white hover:border-slate-300"
+                }`}
+              >
+                <div className="w-full h-[52px] rounded-[6px] mb-[6px] relative overflow-hidden bg-pink-50 flex items-center justify-center border border-slate-100">
+                  {b.imagen_url ? (
+                    <img src={b.imagen_url} alt={b.nombre} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-[20px]">🍰</span>
+                  )}
+                  {sel ? <CheckBadge /> : <EmptyBadge />}
+                </div>
+                <span className="font-bold text-[#0f172a] text-[10px] leading-[13px] line-clamp-1">
+                  {b.nombre}
+                </span>
+                {b.recargo_extra > 0 && (
+                  <span className="font-semibold text-pink-600 text-[9px] mt-0.5">
+                    +${b.recargo_extra.toLocaleString("es-AR")}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      ),
+    });
+  }
+
+  const isFrutosRojos = tortaSlug === "torta-frutos-rojos";
+
+  if (canCustomizeRellenos) {
+    const sectionNum = activeSections.length + 1;
+    activeSections.push({
+      key: "relleno",
+      title: "Rellenos Artesanales",
+      subtitle:
+        rellenosObjs.length > 0
+          ? rellenosObjs.map((r) => r.nombre).join(" + ")
+          : isFrutosRojos
+          ? "Elegí tu relleno"
+          : "Elegí hasta 2 sabores",
+      badge: !isFrutosRojos ? (
+        <div
+          className={`rounded-full border px-[9px] py-[3px] flex items-center gap-[4px] ${
+            selectedFillings.length > 0 ? "bg-[#fdf2f8] border-[#fbcfe8]" : "bg-[#f1f5f9] border-[#e2e8f0]"
+          }`}
+        >
+          <div className={`rounded-full size-[6px] ${selectedFillings.length > 0 ? "bg-[#ec4899]" : "bg-[#94a3b8]"}`} />
+          <span className={`font-semibold text-[10px] ${selectedFillings.length > 0 ? "text-[#be185d]" : "text-[#64748b]"}`}>
+            {selectedFillings.length}/{MAX_RELLENOS}
+          </span>
+        </div>
+      ) : undefined,
+      isDone: doneAccordions.has(sectionNum as AccordionStep) && rellenosOk,
+      canConfirm: rellenosOk,
+      renderContent: () => (
+        <div className={`grid ${rellenos.length <= 2 ? "grid-cols-2" : "grid-cols-3"} gap-[10px] mb-[8px]`}>
+          {rellenos.map((r) => {
+            const sel = selectedFillings.includes(r.id);
+            const disabled = !sel && !isFrutosRojos && selectedFillings.length >= MAX_RELLENOS;
+            return (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => !disabled && onToggleFilling(r.id)}
+                disabled={disabled}
+                className={`rounded-[10px] p-[10px] flex flex-col items-start border cursor-pointer transition-all relative ${
+                  sel
+                    ? "border-2 border-[#1e293b] bg-slate-50 shadow-sm"
+                    : disabled
+                    ? "border-slate-200 bg-slate-50/50 opacity-40 cursor-not-allowed"
+                    : "border-slate-200 bg-white hover:border-slate-300"
+                }`}
+              >
+                <div className="w-full h-[70px] rounded-[8px] mb-[8px] relative overflow-hidden bg-amber-50 flex items-center justify-center border border-slate-100">
+                  {r.imagen_url ? (
+                    <img src={r.imagen_url} alt={r.nombre} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-[24px]">🍯</span>
+                  )}
+                  {sel ? <CheckBadge /> : <EmptyBadge />}
+                </div>
+                <span className="font-bold text-[#0f172a] text-[11px] leading-[14px] line-clamp-1 capitalize">
+                  {r.nombre}
+                </span>
+                {r.recargo_extra > 0 && (
+                  <span className="font-semibold text-pink-600 text-[9px] mt-0.5">
+                    +${r.recargo_extra.toLocaleString("es-AR")}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      ),
+    });
+  }
+
+  if (canCustomizeCoberturas) {
+    const sectionNum = activeSections.length + 1;
+    activeSections.push({
+      key: "cobertura",
+      title: "Cobertura / Topping",
+      subtitle:
+        coberturaObj
+          ? coberturaObj.nombre
+          : "Elegí tu cobertura o topping",
+      isDone: doneAccordions.has(sectionNum as AccordionStep) && coberturaOk,
+      canConfirm: coberturaOk,
+      renderContent: () => (
+        <div className={`grid ${coberturas.length <= 2 ? "grid-cols-2" : "grid-cols-3"} gap-[10px] mb-[8px]`}>
+          {coberturas.map((c) => {
+            const sel = selectedCoverage === c.id;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onSelectCoverage(c.id)}
+                className={`rounded-[10px] p-[10px] flex flex-col items-start border cursor-pointer transition-all relative ${
+                  sel
+                    ? "border-2 border-[#1e293b] bg-slate-50 shadow-sm"
+                    : "border-slate-200 bg-white hover:border-slate-300"
+                }`}
+              >
+                <div className="w-full h-[70px] rounded-[8px] mb-[8px] relative overflow-hidden bg-purple-50 flex items-center justify-center border border-slate-100">
+                  {c.imagen_url ? (
+                    <img src={c.imagen_url} alt={c.nombre} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-[24px]">🍓</span>
+                  )}
+                  {sel ? <CheckBadge /> : <EmptyBadge />}
+                </div>
+                <span className="font-bold text-[#0f172a] text-[11px] leading-[14px] line-clamp-1 capitalize">
+                  {c.nombre}
+                </span>
+                {c.recargo_extra > 0 && (
+                  <span className="font-semibold text-pink-600 text-[9px] mt-0.5">
+                    +${c.recargo_extra.toLocaleString("es-AR")}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      ),
+    });
+  }
+
   if (loadingInsumos) {
     return (
       <div className="py-12 flex flex-col items-center justify-center text-slate-400 gap-2">
@@ -275,192 +466,60 @@ export function Paso2Sabores({
 
   return (
     <div className="flex flex-col gap-[10px] w-full animate-in fade-in duration-200">
-      {/* ── Acordeón 1: Base ── */}
-      <Acordeon
-        n={1}
-        title="1. Bizcochuelo Base"
-        subtitle={baseObj ? baseObj.nombre : "Elegí tu masa"}
-        done={doneAccordions.has(1) && !!selectedBase}
-        active={activeAccordion === 1}
-        onOpen={() => setActiveAccordion(1)}
-      >
-        {bases.length === 0 ? (
-          <div className="py-4 text-center text-xs text-slate-400">
-            No hay bizcochuelos disponibles en el catálogo.
-          </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-[8px] mb-[8px]">
-            {bases.map((b) => {
-              const sel = selectedBase === b.id;
-              return (
-                <button
-                  key={b.id}
-                  type="button"
-                  onClick={() => onSelectBase(b.id)}
-                  className={`rounded-[8px] p-[8px] flex flex-col items-start border cursor-pointer transition-all relative ${
-                    sel
-                      ? "border-2 border-[#1e293b] bg-slate-50 shadow-sm"
-                      : "border-slate-200 bg-white hover:border-slate-300"
-                  }`}
-                >
-                  <div className="w-full h-[52px] rounded-[6px] mb-[6px] relative overflow-hidden bg-pink-50 flex items-center justify-center border border-slate-100">
-                    {b.imagen_url ? (
-                      <img src={b.imagen_url} alt={b.nombre} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-[20px]">🍰</span>
-                    )}
-                    {sel ? <CheckBadge /> : <EmptyBadge />}
-                  </div>
-                  <span className="font-bold text-[#0f172a] text-[10px] leading-[13px] line-clamp-1">
-                    {b.nombre}
-                  </span>
-                  {b.recargo_extra > 0 && (
-                    <span className="font-semibold text-pink-600 text-[9px] mt-0.5">
-                      +${b.recargo_extra.toLocaleString("es-AR")}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-        <ConfirmBtn label="Confirmar y Continuar a Rellenos" enabled={!!selectedBase} onClick={() => onCompleteAccordion(1, 2)} />
-      </Acordeon>
+      {/* Renderizado dinámico de los acordeones personalizables */}
+      {activeSections.length === 0 ? (
+        <div className="bg-white rounded-[12px] border border-slate-200 p-6 text-center">
+          <span className="text-2xl mb-2 block">🎂</span>
+          <h4 className="text-sm font-bold text-slate-800 mb-1">
+            Receta sin opciones personalizables adicionales
+          </h4>
+          <p className="text-xs text-slate-500 mb-4">
+            Este modelo se elabora con los insumos artesanales estandarizados del taller.
+          </p>
+          <ConfirmBtn
+            label="Continuar al Resumen"
+            enabled={true}
+            onClick={onNext}
+          />
+        </div>
+      ) : (
+        activeSections.map((sec, idx) => {
+          const stepNum = (idx + 1) as AccordionStep;
+          const isLast = idx === activeSections.length - 1;
+          const nextStepNum = (idx + 2) as AccordionStep;
+          const nextTitle = !isLast ? activeSections[idx + 1].title : "";
+          const canOpen = idx === 0 || doneAccordions.has(idx as AccordionStep);
 
-      {/* ── Acordeón 2: Rellenos ── */}
-      <Acordeon
-        n={2}
-        title="2. Rellenos Artesanales"
-        subtitle={
-          rellenosObjs.length > 0
-            ? rellenosObjs.map((r) => r.nombre).join(" + ")
-            : "Elegí hasta 2 sabores"
-        }
-        done={doneAccordions.has(2) && rellenosOk}
-        active={activeAccordion === 2}
-        onOpen={() => doneAccordions.has(1) && setActiveAccordion(2)}
-        badge={
-          <div
-            className={`rounded-full border px-[9px] py-[3px] flex items-center gap-[4px] ${
-              selectedFillings.length > 0 ? "bg-[#fdf2f8] border-[#fbcfe8]" : "bg-[#f1f5f9] border-[#e2e8f0]"
-            }`}
-          >
-            <div className={`rounded-full size-[6px] ${selectedFillings.length > 0 ? "bg-[#ec4899]" : "bg-[#94a3b8]"}`} />
-            <span className={`font-semibold text-[10px] ${selectedFillings.length > 0 ? "text-[#be185d]" : "text-[#64748b]"}`}>
-              {selectedFillings.length}/{MAX_RELLENOS}
-            </span>
-          </div>
-        }
-      >
-        {rellenos.length === 0 ? (
-          <div className="py-4 text-center text-xs text-slate-400">
-            No hay rellenos disponibles en el catálogo.
-          </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-[8px] mb-[8px]">
-            {rellenos.map((r) => {
-              const sel = selectedFillings.includes(r.id);
-              const disabled = !sel && selectedFillings.length >= MAX_RELLENOS;
-              return (
-                <button
-                  key={r.id}
-                  type="button"
-                  onClick={() => !disabled && onToggleFilling(r.id)}
-                  disabled={disabled}
-                  className={`rounded-[8px] p-[8px] flex flex-col items-start border cursor-pointer transition-all relative ${
-                    sel
-                      ? "border-2 border-[#1e293b] bg-slate-50 shadow-sm"
-                      : disabled
-                      ? "border-slate-200 bg-slate-50/50 opacity-40 cursor-not-allowed"
-                      : "border-slate-200 bg-white hover:border-slate-300"
-                  }`}
-                >
-                  <div className="w-full h-[52px] rounded-[6px] mb-[6px] relative overflow-hidden bg-amber-50 flex items-center justify-center border border-slate-100">
-                    {r.imagen_url ? (
-                      <img src={r.imagen_url} alt={r.nombre} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-[20px]">🍯</span>
-                    )}
-                    {sel ? <CheckBadge /> : <EmptyBadge />}
-                  </div>
-                  <span className="font-bold text-[#0f172a] text-[10px] leading-[13px] line-clamp-1">
-                    {r.nombre}
-                  </span>
-                  {r.recargo_extra > 0 && (
-                    <span className="font-semibold text-pink-600 text-[9px] mt-0.5">
-                      +${r.recargo_extra.toLocaleString("es-AR")}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-        <ConfirmBtn label="Confirmar y Continuar a Cobertura" enabled={rellenosOk} onClick={() => onCompleteAccordion(2, 3)} />
-      </Acordeon>
-
-      {/* ── Acordeón 3: Cobertura ── */}
-      <Acordeon
-        n={3}
-        title="3. Cobertura Exterior"
-        subtitle={
-          coberturaObj
-            ? coberturaObj.nombre
-            : "Elegí la terminación de tu torta"
-        }
-        done={doneAccordions.has(3) && coberturaOk}
-        active={activeAccordion === 3}
-        onOpen={() => doneAccordions.has(2) && setActiveAccordion(3)}
-      >
-        {coberturas.length === 0 ? (
-          <div className="py-4 text-center text-xs text-slate-400">
-            No hay coberturas disponibles en el catálogo.
-          </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-[8px] mb-[8px]">
-            {coberturas.map((c) => {
-              const sel = selectedCoverage === c.id;
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => onSelectCoverage(c.id)}
-                  className={`rounded-[8px] p-[8px] flex flex-col items-start border cursor-pointer transition-all relative ${
-                    sel
-                      ? "border-2 border-[#1e293b] bg-slate-50 shadow-sm"
-                      : "border-slate-200 bg-white hover:border-slate-300"
-                  }`}
-                >
-                  <div className="w-full h-[52px] rounded-[6px] mb-[6px] relative overflow-hidden bg-purple-50 flex items-center justify-center border border-slate-100">
-                    {c.imagen_url ? (
-                      <img src={c.imagen_url} alt={c.nombre} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-[20px]">🧁</span>
-                    )}
-                    {sel ? <CheckBadge /> : <EmptyBadge />}
-                  </div>
-                  <span className="font-bold text-[#0f172a] text-[10px] leading-[13px] line-clamp-1">
-                    {c.nombre}
-                  </span>
-                  {c.recargo_extra > 0 && (
-                    <span className="font-semibold text-pink-600 text-[9px] mt-0.5">
-                      +${c.recargo_extra.toLocaleString("es-AR")}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-        <ConfirmBtn
-          label="Confirmar y Continuar a Resumen"
-          enabled={coberturaOk}
-          onClick={() => {
-            onCompleteAccordion(3, 3);
-            onNext();
-          }}
-        />
-      </Acordeon>
+          return (
+            <Acordeon
+              key={sec.key}
+              n={idx + 1}
+              title={`${idx + 1}. ${sec.title}`}
+              subtitle={sec.subtitle}
+              done={sec.isDone}
+              active={activeAccordion === stepNum}
+              onOpen={() => canOpen && setActiveAccordion(stepNum)}
+              badge={sec.badge}
+            >
+              {sec.renderContent()}
+              <ConfirmBtn
+                label={
+                  isLast
+                    ? "Confirmar y Continuar a Resumen"
+                    : `Confirmar y Continuar a ${nextTitle}`
+                }
+                enabled={sec.canConfirm}
+                onClick={() => {
+                  onCompleteAccordion(stepNum, nextStepNum);
+                  if (isLast) {
+                    onNext();
+                  }
+                }}
+              />
+            </Acordeon>
+          );
+        })
+      )}
     </div>
   );
 }
