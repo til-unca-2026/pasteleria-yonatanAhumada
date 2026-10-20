@@ -55,6 +55,10 @@ function LoginContent() {
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTarget)}`,
+        queryParams: {
+          prompt: "select_account",
+          access_type: "offline",
+        },
       },
     });
 
