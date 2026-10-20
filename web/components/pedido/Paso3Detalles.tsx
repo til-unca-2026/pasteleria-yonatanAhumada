@@ -189,22 +189,28 @@ export function Paso3Detalles({
               </div>
             ) : (
               <>
-                <div className="flex items-start justify-between border-b border-slate-100 pb-2">
-                  <span className="text-slate-500 font-medium">🍰 Bizcochuelo:</span>
-                  <span className="font-semibold text-slate-800 text-right">{selectedBaseNombre}</span>
-                </div>
+                {selectedBaseNombre && (
+                  <div className="flex items-start justify-between border-b border-slate-100 pb-2">
+                    <span className="text-slate-500 font-medium">🍰 Bizcochuelo:</span>
+                    <span className="font-semibold text-slate-800 text-right">{selectedBaseNombre}</span>
+                  </div>
+                )}
 
-                <div className="flex items-start justify-between border-b border-slate-100 pb-2">
-                  <span className="text-slate-500 font-medium">🍯 Rellenos:</span>
-                  <span className="font-semibold text-slate-800 text-right max-w-[200px] truncate">
-                    {selectedFillingsNombres.length > 0 ? selectedFillingsNombres.join(" + ") : "Sin relleno"}
-                  </span>
-                </div>
+                {selectedFillingsNombres.length > 0 && (
+                  <div className="flex items-start justify-between border-b border-slate-100 pb-2">
+                    <span className="text-slate-500 font-medium">🍯 Rellenos:</span>
+                    <span className="font-semibold text-slate-800 text-right max-w-[200px] truncate">
+                      {selectedFillingsNombres.join(" + ")}
+                    </span>
+                  </div>
+                )}
 
-                <div className="flex items-start justify-between pb-1">
-                  <span className="text-slate-500 font-medium">🧁 Cobertura:</span>
-                  <span className="font-semibold text-slate-800 text-right">{selectedCoverageNombre}</span>
-                </div>
+                {selectedCoverageNombre && (
+                  <div className="flex items-start justify-between pb-1">
+                    <span className="text-slate-500 font-medium">🧁 Cobertura:</span>
+                    <span className="font-semibold text-slate-800 text-right">{selectedCoverageNombre}</span>
+                  </div>
+                )}
               </>
             )}
           </div>

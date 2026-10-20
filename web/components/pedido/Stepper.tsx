@@ -4,6 +4,7 @@ import { StepNumber } from "./types";
 interface StepperProps {
   currentStep: StepNumber;
   onSelectStep: (step: StepNumber) => void;
+  isFixedRecipe?: boolean;
 }
 
 export function StepBadge({
@@ -54,7 +55,38 @@ export function StepBadge({
   );
 }
 
-export function Stepper({ currentStep, onSelectStep }: StepperProps) {
+export function Stepper({ currentStep, onSelectStep, isFixedRecipe = false }: StepperProps) {
+  if (isFixedRecipe) {
+    return (
+      <div className="w-full bg-white border-b border-[#e2e8f0] flex items-center justify-between px-[20px] py-[10px] max-w-md mx-auto">
+        <button
+          type="button"
+          onClick={() => onSelectStep(1)}
+          className="bg-transparent border-0 cursor-pointer p-0"
+        >
+          <StepBadge
+            n={1}
+            label="Fecha & Peso"
+            state={currentStep > 1 ? "done" : "active"}
+          />
+        </button>
+
+        <span className="text-[#cbd5e1] text-[11px]">/</span>
+
+        <button
+          type="button"
+          onClick={() => onSelectStep(3)}
+          className="bg-transparent border-0 cursor-pointer p-0"
+        >
+          <StepBadge
+            n={2}
+            label="Confirmación"
+            state={currentStep === 3 ? "active" : "pending"}
+          />
+        </button>
+      </div>
+    );
+  }
   return (
     <div className="w-full bg-white border-b border-[#e2e8f0] flex items-center justify-between px-[16px] py-[10px] max-w-md mx-auto">
       <button

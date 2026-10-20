@@ -31,7 +31,7 @@ const DEFAULT_RECIPES_BY_SLUG: Record<string, InsumosDefaults> = {
   },
   "torta-frutos-rojos": {
     baseName: "vainilla",
-    fillingsNames: ["durazno"],
+    fillingsNames: ["crema pastelera", "mix frutos rojos", "durazno"],
     coverageName: "chantilly",
   },
   "jardin-de-frutos": {
@@ -271,6 +271,16 @@ function PedidoWizardContent() {
     });
   };
 
+  // Secciones personalizables dinámicas (más de 1 opción)
+  const basesInsumos = insumos.filter((i) => i.tipo === "bizcochuelo");
+  const rellenosInsumos = insumos.filter((i) => i.tipo === "relleno");
+  const coberturasInsumos = insumos.filter((i) => i.tipo === "cobertura");
+
+  const customizableKeys: Array<"bizcochuelo" | "relleno" | "cobertura"> = [];
+  if (basesInsumos.length > 1) customizableKeys.push("bizcochuelo");
+  if (rellenosInsumos.length > 1) customizableKeys.push("relleno");
+  if (coberturasInsumos.length > 1) customizableKeys.push("cobertura");
+
   const handleCompleteAccordion = (step: AccordionStep, next: AccordionStep) => {
     setDoneAccordions((prev) => new Set(prev).add(step));
     setActiveAccordion(next);
@@ -278,8 +288,13 @@ function PedidoWizardContent() {
 
   const handleBack = () => {
     if (currentStep === 3) {
-      setCurrentStep(2);
-      setActiveAccordion(3);
+      if (isFixedRecipe) {
+        setCurrentStep(1);
+      } else {
+        setCurrentStep(2);
+        const count = customizableKeys.length;
+        setActiveAccordion((count > 0 ? count : 1) as AccordionStep);
+      }
     } else if (currentStep === 2) {
       if (activeAccordion > 1) {
         setActiveAccordion((prev) => (prev - 1) as AccordionStep);
@@ -294,6 +309,15 @@ function PedidoWizardContent() {
   const handleSelectStep = (step: StepNumber) => {
     if (step === 1) {
       setCurrentStep(1);
+      return;
+    }
+    if (isFixedRecipe) {
+      // En receta fija el stepper de 2 pasos mapea el paso 2 a confirmación (step 3)
+      if (!deliveryDateStr) {
+        showToast("Por favor selecciona una fecha de entrega en el Paso 1.");
+        return;
+      }
+      setCurrentStep(3);
       return;
     }
     if (step === 2) {
@@ -311,15 +335,15 @@ function PedidoWizardContent() {
         return;
       }
       if (!isFixedRecipe) {
-        if (!selectedBase) {
+        if (basesInsumos.length > 1 && !selectedBase) {
           showToast("Por favor selecciona el bizcochuelo base en el Paso 2.");
           return;
         }
-        if (selectedFillings.length === 0) {
+        if (rellenosInsumos.length > 1 && selectedFillings.length === 0) {
           showToast("Por favor selecciona al menos 1 relleno artesanal en el Paso 2.");
           return;
         }
-        if (!selectedCoverage) {
+        if (coberturasInsumos.length > 1 && !selectedCoverage) {
           showToast("Por favor selecciona la cobertura exterior en el Paso 2.");
           return;
         }
@@ -334,35 +358,42 @@ function PedidoWizardContent() {
         showToast("Por favor selecciona una fecha de entrega disponible.");
         return;
       }
-      setCurrentStep(2);
-      setActiveAccordion(1);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    } else if (currentStep === 2) {
       if (isFixedRecipe) {
+        // En recetas fijas salteamos el paso 2 directamente al paso 3
         setCurrentStep(3);
         window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
-      if (activeAccordion === 1) {
-        if (!selectedBase) {
-          showToast("Por favor selecciona el bizcochuelo base de tu torta.");
-          return;
-        }
-        handleCompleteAccordion(1, 2);
+      setCurrentStep(2);
+      setActiveAccordion(1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else if (currentStep === 2) {
+      if (isFixedRecipe || customizableKeys.length === 0) {
+        setCurrentStep(3);
         window.scrollTo({ top: 0, behavior: "smooth" });
-      } else if (activeAccordion === 2) {
-        if (selectedFillings.length === 0) {
-          showToast("Por favor selecciona al menos 1 relleno artesanal.");
-          return;
-        }
-        handleCompleteAccordion(2, 3);
+        return;
+      }
+
+      const currentKey = customizableKeys[activeAccordion - 1];
+      if (currentKey === "bizcochuelo" && !selectedBase) {
+        showToast("Por favor selecciona el bizcochuelo base de tu torta.");
+        return;
+      }
+      if (currentKey === "relleno" && selectedFillings.length === 0) {
+        showToast("Por favor selecciona al menos 1 relleno artesanal.");
+        return;
+      }
+      if (currentKey === "cobertura" && !selectedCoverage) {
+        showToast("Por favor selecciona la cobertura exterior de tu torta.");
+        return;
+      }
+
+      setDoneAccordions((prev) => new Set(prev).add(activeAccordion));
+
+      if (activeAccordion < customizableKeys.length) {
+        setActiveAccordion((prev) => (prev + 1) as AccordionStep);
         window.scrollTo({ top: 0, behavior: "smooth" });
-      } else if (activeAccordion === 3) {
-        if (!selectedCoverage) {
-          showToast("Por favor selecciona la cobertura exterior de tu torta.");
-          return;
-        }
-        setDoneAccordions((prev) => new Set(prev).add(3));
+      } else {
         setCurrentStep(3);
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
@@ -454,13 +485,19 @@ function PedidoWizardContent() {
   };
 
   const getNextLabel = () => {
-    if (currentStep === 1) return isFixedRecipe ? "Ver Receta Tradicional" : "Elegir Sabores";
+    if (currentStep === 1) return isFixedRecipe ? "Continuar a Confirmación" : "Elegir Sabores";
     if (currentStep === 2) {
       if (isFixedRecipe) return "Continuar al Resumen";
-      if (activeAccordion === 1) return "Continuar a Rellenos";
-      if (activeAccordion === 2) return "Continuar a Cobertura";
-      if (activeAccordion === 3) return "Continuar a Resumen";
+      const totalSections = customizableKeys.length;
+      if (totalSections === 0 || activeAccordion >= totalSections) {
+        return "Continuar al Resumen";
+      }
+      const nextKey = customizableKeys[activeAccordion];
+      if (nextKey === "relleno") return "Continuar a Rellenos";
+      if (nextKey === "cobertura") return "Continuar a Cobertura";
+      return "Continuar al Resumen";
     }
+    if (currentStep === 3) return "Confirmar y Reservar Cupo";
     return "Siguiente Paso";
   };
 
@@ -473,7 +510,7 @@ function PedidoWizardContent() {
       <HeaderPedido currentStep={currentStep} onBack={handleBack} />
 
       {/* ── Stepper ── */}
-      <Stepper currentStep={currentStep} onSelectStep={handleSelectStep} />
+      <Stepper currentStep={currentStep} onSelectStep={handleSelectStep} isFixedRecipe={isFixedRecipe} />
 
       {/* ── Main Content Container ── */}
       <main className="flex-1 w-full max-w-md mx-auto px-[16px] pt-[16px] pb-[100px]">
