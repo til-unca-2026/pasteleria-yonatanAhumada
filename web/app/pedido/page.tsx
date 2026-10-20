@@ -154,6 +154,7 @@ function PedidoWizardContent() {
   // Step 1 state
   const [deliveryDateStr, setDeliveryDateStr] = useState<string>("");
   const [deliveryDate, setDeliveryDate] = useState<string>("");
+  const [isDeliveryDateAvailable, setIsDeliveryDateAvailable] = useState<boolean>(true);
   const [selectedWeight, setSelectedWeight] = useState<number>(1.5);
   const [baseWeightPrice, setBaseWeightPrice] = useState<number>(() => {
     return queryPrecio ? Math.round(basePricePerKg * 1.5) : 26000;
@@ -330,29 +331,25 @@ function PedidoWizardContent() {
       setCurrentStep(1);
       return;
     }
+    if (!deliveryDateStr) {
+      showToast("Por favor selecciona una fecha de entrega en el Paso 1.");
+      return;
+    }
+    if (!isDeliveryDateAvailable) {
+      showToast("La fecha seleccionada no tiene cupos disponibles o se encuentra bloqueada. Por favor elegí otro día.");
+      return;
+    }
     if (isFixedRecipe) {
       // En receta fija el stepper de 2 pasos mapea el paso 2 a confirmación (step 3)
-      if (!deliveryDateStr) {
-        showToast("Por favor selecciona una fecha de entrega en el Paso 1.");
-        return;
-      }
       setCurrentStep(3);
       return;
     }
     if (step === 2) {
-      if (!deliveryDateStr) {
-        showToast("Por favor selecciona una fecha de entrega antes de pasar a sabores.");
-        return;
-      }
       setCurrentStep(2);
       setActiveAccordion(1);
       return;
     }
     if (step === 3) {
-      if (!deliveryDateStr) {
-        showToast("Por favor selecciona una fecha de entrega en el Paso 1.");
-        return;
-      }
       if (!isFixedRecipe) {
         if (basesInsumos.length > 1 && !selectedBase) {
           showToast("Por favor selecciona el bizcochuelo base en el Paso 2.");
@@ -383,6 +380,10 @@ function PedidoWizardContent() {
     if (currentStep === 1) {
       if (!deliveryDateStr) {
         showToast("Por favor selecciona una fecha de entrega disponible.");
+        return;
+      }
+      if (!isDeliveryDateAvailable) {
+        showToast("La fecha seleccionada no tiene cupos disponibles o se encuentra bloqueada. Por favor elegí otro día en el calendario.");
         return;
       }
       if (isFixedRecipe) {
@@ -433,6 +434,11 @@ function PedidoWizardContent() {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
     } else if (currentStep === 3) {
+      if (!isDeliveryDateAvailable) {
+        showToast("La fecha de entrega seleccionada ya no tiene cupos disponibles. Por favor seleccioná otra fecha.");
+        setCurrentStep(1);
+        return;
+      }
       if (!nombre.trim()) {
         showToast("Por favor ingresa tu nombre de contacto.");
         return;
@@ -558,6 +564,7 @@ function PedidoWizardContent() {
             tortaNombre={tortaNombre}
             tortaImagen={tortaImagen}
             basePricePerKg={basePricePerKg}
+            onAvailabilityChange={setIsDeliveryDateAvailable}
           />
         )}
 

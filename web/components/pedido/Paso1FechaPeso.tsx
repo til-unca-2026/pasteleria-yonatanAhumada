@@ -27,6 +27,57 @@ interface Paso1Props {
   tortaNombre?: string;
   tortaImagen?: string;
   basePricePerKg?: number;
+  onAvailabilityChange?: (isAvailable: boolean) => void;
+}
+
+export function getAvailabilityForDate(
+  dateStr: string,
+  cupos: CupoDiarioDB[],
+  estandarCap: number,
+  today: Date
+) {
+  const parts = dateStr.split("-").map(Number);
+  if (parts.length !== 3) {
+    return { isAvailable: false, isBlocked: false, isFull: false, isPastOrTooSoon: true, occupied: 0, maxCap: estandarCap };
+  }
+  const dayDate = new Date(parts[0], parts[1] - 1, parts[2]);
+  dayDate.setHours(0, 0, 0, 0);
+
+  const minAllowedDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2);
+  minAllowedDate.setHours(0, 0, 0, 0);
+
+  const isPastOrTooSoon = dayDate < minAllowedDate;
+  const found = cupos.find((c) => c.fecha === dateStr);
+  const maxCap = found ? found.capacidad_maxima : estandarCap;
+  const occupied = found ? found.cupos_ocupados : 0;
+  const isBlocked = found ? found.bloqueado_manual : false;
+
+  const isFull = occupied >= maxCap;
+  const isAvailable = !isPastOrTooSoon && !isBlocked && !isFull;
+
+  return { isAvailable, isBlocked, isFull, isPastOrTooSoon, occupied, maxCap };
+}
+
+export function findFirstAvailableDate(
+  startDate: Date,
+  cupos: CupoDiarioDB[],
+  estandarCap: number,
+  today: Date,
+  maxDays = 45
+): string {
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  const cursor = new Date(startDate);
+  cursor.setHours(0, 0, 0, 0);
+
+  for (let i = 0; i < maxDays; i++) {
+    const dateStr = `${cursor.getFullYear()}-${pad(cursor.getMonth() + 1)}-${pad(cursor.getDate())}`;
+    const status = getAvailabilityForDate(dateStr, cupos, estandarCap, today);
+    if (status.isAvailable) {
+      return dateStr;
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return `${startDate.getFullYear()}-${pad(startDate.getMonth() + 1)}-${pad(startDate.getDate())}`;
 }
 
 export function Paso1FechaPeso({
@@ -39,6 +90,7 @@ export function Paso1FechaPeso({
   tortaNombre,
   tortaImagen,
   basePricePerKg,
+  onAvailabilityChange,
 }: Paso1Props) {
   const today = new Date();
   const [currentYear, setCurrentYear] = useState<number>(today.getFullYear());
@@ -86,14 +138,6 @@ export function Paso1FechaPeso({
     `${minDeliveryDateObj.getFullYear()}-${pad(minDeliveryDateObj.getMonth() + 1)}-${pad(minDeliveryDateObj.getDate())}`;
   const [currentSelectedDate, setCurrentSelectedDate] = useState<string>(defaultInitialDate);
 
-  // Notificar fecha inicial al montar si no estaba seleccionada
-  useEffect(() => {
-    if (!selectedDateStr && onSelectDate) {
-      const formatted = `${minDeliveryDateObj.getDate()} de ${MONTH_NAMES[minDeliveryDateObj.getMonth()]} ${minDeliveryDateObj.getFullYear()}`;
-      onSelectDate(defaultInitialDate, formatted);
-    }
-  }, []);
-
   useEffect(() => {
     async function loadCupos() {
       setLoadingCupos(true);
@@ -104,6 +148,26 @@ export function Paso1FechaPeso({
         ]);
         setEstandarCap(estandar);
         setCuposMes(cupos);
+
+        // Si la fecha actual seleccionada no está disponible o no tiene cupo, buscar automáticamente el primer día disponible
+        const currentCheck = getAvailabilityForDate(currentSelectedDate, cupos, estandar, today);
+        if (!currentCheck.isAvailable) {
+          const firstAvailable = findFirstAvailableDate(minDeliveryDateObj, cupos, estandar, today);
+          const fParts = firstAvailable.split("-").map(Number);
+          const fObj = new Date(fParts[0], fParts[1] - 1, fParts[2]);
+          const formatted = `${fObj.getDate()} de ${MONTH_NAMES[fObj.getMonth()]} ${fObj.getFullYear()}`;
+          setCurrentSelectedDate(firstAvailable);
+          if (onSelectDate) onSelectDate(firstAvailable, formatted);
+          if (onAvailabilityChange) onAvailabilityChange(true);
+        } else {
+          if (!selectedDateStr && onSelectDate) {
+            const fParts = currentSelectedDate.split("-").map(Number);
+            const fObj = new Date(fParts[0], fParts[1] - 1, fParts[2]);
+            const formatted = `${fObj.getDate()} de ${MONTH_NAMES[fObj.getMonth()]} ${fObj.getFullYear()}`;
+            onSelectDate(currentSelectedDate, formatted);
+          }
+          if (onAvailabilityChange) onAvailabilityChange(true);
+        }
       } catch (err) {
         console.error("Error cargando disponibilidad:", err);
       } finally {
@@ -133,6 +197,9 @@ export function Paso1FechaPeso({
 
   const handleDaySelect = (day: number) => {
     const dateStr = `${currentYear}-${pad(currentMonth)}-${pad(day)}`;
+    const status = getAvailabilityForDate(dateStr, cuposMes, estandarCap, today);
+    if (!status.isAvailable) return;
+
     const formatted = `${day} de ${MONTH_NAMES[currentMonth - 1]} ${currentYear}`;
     setCurrentSelectedDate(dateStr);
     if (onSelectDate) {
@@ -140,6 +207,9 @@ export function Paso1FechaPeso({
     }
     if (onSelectDay) {
       onSelectDay(day);
+    }
+    if (onAvailabilityChange) {
+      onAvailabilityChange(true);
     }
     setShowCalendar(false);
   };
@@ -231,32 +301,85 @@ export function Paso1FechaPeso({
         </div>
 
         {/* Tarjeta de Fecha Seleccionada */}
-        <div className="flex items-center justify-between bg-[#f8fafc] rounded-[8px] p-[12px]">
-          <div className="flex items-center gap-[10px]">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <rect x="2" y="3" width="16" height="15" rx="2" stroke="#64748b" strokeWidth="1.2" />
-              <path d="M6 2V4M14 2V4M2 8H18" stroke="#64748b" strokeWidth="1.2" strokeLinecap="round" />
-              <text x="10" y="15" textAnchor="middle" fontSize="7" fill="#64748b" fontWeight="600">
-                {selectedDateObj.getDate() || ""}
-              </text>
-            </svg>
-            <div>
-              <div className="font-bold text-[#0f172a] text-[15px] leading-[20px]">
-                {displaySelectedDate}
+        {(() => {
+          const selectedDateStatus = getAvailabilityForDate(currentSelectedDate, cuposMes, estandarCap, today);
+          const isInvalid = !selectedDateStatus.isAvailable && !loadingCupos;
+
+          return (
+            <div
+              className={`flex flex-col gap-2 rounded-[8px] p-[12px] border transition-colors ${
+                isInvalid
+                  ? "bg-rose-50/80 border-rose-200"
+                  : "bg-[#f8fafc] border-slate-100"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-[10px]">
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <rect
+                      x="2"
+                      y="3"
+                      width="16"
+                      height="15"
+                      rx="2"
+                      stroke={isInvalid ? "#e11d48" : "#64748b"}
+                      strokeWidth="1.2"
+                    />
+                    <path
+                      d="M6 2V4M14 2V4M2 8H18"
+                      stroke={isInvalid ? "#e11d48" : "#64748b"}
+                      strokeWidth="1.2"
+                      strokeLinecap="round"
+                    />
+                    <text
+                      x="10"
+                      y="15"
+                      textAnchor="middle"
+                      fontSize="7"
+                      fill={isInvalid ? "#e11d48" : "#64748b"}
+                      fontWeight="600"
+                    >
+                      {selectedDateObj.getDate() || ""}
+                    </text>
+                  </svg>
+                  <div>
+                    <div
+                      className={`font-bold text-[15px] leading-[20px] ${
+                        isInvalid ? "text-rose-900" : "text-[#0f172a]"
+                      }`}
+                    >
+                      {displaySelectedDate}
+                    </div>
+                    <div className="font-normal text-[#64748b] text-[12px] leading-[16px]">
+                      Retiro: 10:00 a 18:00 hs • Mínimo 48 hs de anticipación
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCalendar(!showCalendar)}
+                  className="bg-white border border-[#e2e8f0] rounded-[6px] px-[12px] py-[6px] font-medium text-[#0f172a] text-[12px] cursor-pointer hover:bg-slate-50 transition-colors"
+                >
+                  {showCalendar ? "Cerrar" : "Cambiar"}
+                </button>
               </div>
-              <div className="font-normal text-[#64748b] text-[12px] leading-[16px]">
-                Retiro: 10:00 a 18:00 hs • Mínimo 48 hs de anticipación
-              </div>
+
+              {isInvalid && (
+                <div className="mt-1 pt-2 border-t border-rose-200/60 flex items-center gap-1.5 text-xs text-rose-700 font-semibold">
+                  <span>⛔</span>
+                  <span>
+                    {selectedDateStatus.isBlocked
+                      ? "Día bloqueado para pedidos por el taller."
+                      : selectedDateStatus.isFull
+                      ? `Cupos agotados para este día (${selectedDateStatus.occupied}/${selectedDateStatus.maxCap} ocupados).`
+                      : "Fecha no disponible."}{" "}
+                    Por favor tocá en &quot;Cambiar&quot; y seleccioná otra fecha disponible en el calendario.
+                  </span>
+                </div>
+              )}
             </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowCalendar(!showCalendar)}
-            className="bg-white border border-[#e2e8f0] rounded-[6px] px-[12px] py-[6px] font-medium text-[#0f172a] text-[12px] cursor-pointer hover:bg-slate-50 transition-colors"
-          >
-            {showCalendar ? "Cerrar" : "Cambiar"}
-          </button>
-        </div>
+          );
+        })()}
 
         {/* Calendario Desplegable al tocar "Cambiar" */}
         {showCalendar && (

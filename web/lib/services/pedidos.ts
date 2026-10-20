@@ -298,15 +298,26 @@ export async function createNuevoPedido(params: {
     foto_referencia_url = await uploadComprobante(params.fotoReferenciaFile);
   }
 
-  // 2. Garantizar que la fecha exista en cupos_diarios antes de insertar FK
+  // 2. Garantizar que la fecha exista en cupos_diarios y validar disponibilidad estricta
   const { data: cupoExistente } = await supabase
     .from("cupos_diarios")
     .select("fecha, capacidad_maxima, cupos_ocupados, bloqueado_manual")
     .eq("fecha", params.fecha_entrega)
     .maybeSingle();
 
+  const estandarCap = await getCapacidadEstandar();
+  const maxCap = cupoExistente ? cupoExistente.capacidad_maxima : estandarCap;
+  const occupied = cupoExistente ? cupoExistente.cupos_ocupados : 0;
+  const isBlocked = cupoExistente ? cupoExistente.bloqueado_manual : false;
+
+  if (isBlocked) {
+    throw new Error(`La fecha seleccionada (${params.fecha_entrega}) se encuentra bloqueada para pedidos.`);
+  }
+  if (occupied >= maxCap) {
+    throw new Error(`Los cupos para la fecha ${params.fecha_entrega} se encuentran completos (${occupied}/${maxCap}). Por favor seleccioná otra fecha.`);
+  }
+
   if (!cupoExistente) {
-    const estandarCap = await getCapacidadEstandar();
     const { error: insertCupoError } = await supabase.from("cupos_diarios").insert([
       {
         fecha: params.fecha_entrega,
