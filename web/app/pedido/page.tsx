@@ -29,6 +29,11 @@ const DEFAULT_RECIPES_BY_SLUG: Record<string, InsumosDefaults> = {
     fillingsNames: ["dulce de leche"],
     coverageName: "fondant",
   },
+  "torta-frutos-rojos": {
+    baseName: "vainilla",
+    fillingsNames: ["durazno"],
+    coverageName: "chantilly",
+  },
   "jardin-de-frutos": {
     baseName: "vainilla",
     fillingsNames: ["durazno"],
