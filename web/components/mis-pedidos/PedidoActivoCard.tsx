@@ -23,6 +23,8 @@ export interface PedidoActivoData {
   coberturaNombre?: string;
   notas?: string | null;
   fotoReferenciaUrl?: string | null;
+  tortaImagen?: string | null;
+  modeloNombre?: string | null;
 }
 
 interface PedidoActivoCardProps {
@@ -46,12 +48,20 @@ export function PedidoActivoCard({
       <div className="px-[16px] pt-[14px] pb-[12px] border-b border-[#f1f5f9]">
         <div className="flex items-start justify-between gap-[10px] mb-[6px]">
           <div className="flex items-center gap-[10px]">
-            <div className="bg-[#fdf4f8] border border-[#f9a8d4] rounded-[8px] size-[40px] flex items-center justify-center text-[20px] shrink-0">
-              🎂
+            <div className="bg-[#fdf4f8] border border-[#f9a8d4] rounded-[8px] size-[40px] flex items-center justify-center text-[20px] shrink-0 overflow-hidden">
+              {pedido.tortaImagen ? (
+                <img
+                  src={pedido.tortaImagen}
+                  alt={pedido.modeloNombre || pedido.nombreProducto}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                "🎂"
+              )}
             </div>
             <div>
               <span className="font-bold text-[#0f172a] text-[14px] leading-[18px] block">
-                {pedido.nombreProducto}
+                {pedido.modeloNombre || pedido.nombreProducto}
               </span>
               <span className="font-normal text-[#64748b] text-[12px] leading-[16px]">
                 {pedido.peso} · Pedido{" "}

@@ -12,7 +12,7 @@ import { BottomBar } from "@/components/pedido/BottomBar";
 import { SuccessModal } from "@/components/pedido/SuccessModal";
 import { ToastNotification } from "@/components/pedido/ToastNotification";
 import { createNuevoPedido } from "@/lib/services/pedidos";
-import { getInsumosPorTorta, InsumoDB, TipoInsumo } from "@/lib/services/catalogo";
+import { getInsumosPorTorta, getTortaPorSlug, InsumoDB, TipoInsumo } from "@/lib/services/catalogo";
 import { sendTelegramNotification } from "@/lib/services/telegram";
 import { createClient } from "@/lib/supabase/client";
 import { extractLocalPhone } from "@/lib/phone";
@@ -127,6 +127,16 @@ function PedidoWizardContent() {
   const queryPrecio = searchParams.get("precio");
   const basePricePerKg = queryPrecio ? parseInt(queryPrecio, 10) : 18500;
   const isFixedRecipe = searchParams.get("tipo") === "receta_fija";
+  const queryImagen = searchParams.get("imagen") || "";
+  const [tortaImagen, setTortaImagen] = useState<string>(queryImagen);
+
+  useEffect(() => {
+    if (!queryImagen && tortaSlug) {
+      getTortaPorSlug(tortaSlug).then((t) => {
+        if (t?.imagen_url) setTortaImagen(t.imagen_url);
+      });
+    }
+  }, [queryImagen, tortaSlug]);
 
   // Toast notification state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -546,6 +556,7 @@ function PedidoWizardContent() {
             selectedWeight={selectedWeight}
             onSelectWeight={handleSelectWeight}
             tortaNombre={tortaNombre}
+            tortaImagen={tortaImagen}
             basePricePerKg={basePricePerKg}
           />
         )}
@@ -593,6 +604,7 @@ function PedidoWizardContent() {
             onUploadReferencia={setReferenciaFile}
             tortaNombre={tortaNombre}
             tortaSlug={tortaSlug}
+            tortaImagen={tortaImagen}
             isFixedRecipe={isFixedRecipe}
           />
         )}

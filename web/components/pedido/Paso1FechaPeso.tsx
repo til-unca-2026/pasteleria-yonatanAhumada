@@ -25,6 +25,7 @@ interface Paso1Props {
   selectedWeight: number;
   onSelectWeight: (weight: number, price: number) => void;
   tortaNombre?: string;
+  tortaImagen?: string;
   basePricePerKg?: number;
 }
 
@@ -36,6 +37,7 @@ export function Paso1FechaPeso({
   selectedWeight,
   onSelectWeight,
   tortaNombre,
+  tortaImagen,
   basePricePerKg,
 }: Paso1Props) {
   const today = new Date();
@@ -178,10 +180,18 @@ export function Paso1FechaPeso({
     <div className="flex flex-col w-full animate-in fade-in duration-200">
       {/* Banner Modelo Seleccionado */}
       {tortaNombre && (
-        <div className="bg-white rounded-[12px] border border-pink-100 shadow-[0px_1px_2px_rgba(0,0,0,0.04)] p-[14px] mb-[16px] flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="size-9 rounded-full bg-pink-50 flex items-center justify-center text-lg shrink-0 border border-pink-200">
-              🎂
+        <div className="bg-white rounded-[12px] border border-pink-100 shadow-[0px_1px_2px_rgba(0,0,0,0.04)] p-[12px] mb-[16px] flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="size-11 rounded-lg overflow-hidden border border-pink-200 bg-pink-50 flex items-center justify-center text-lg shrink-0">
+              {tortaImagen ? (
+                <img
+                  src={tortaImagen}
+                  alt={tortaNombre}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                "🎂"
+              )}
             </div>
             <div>
               <span className="text-[10px] uppercase font-bold tracking-wider text-pink-700 block">

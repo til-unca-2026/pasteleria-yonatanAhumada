@@ -52,6 +52,35 @@ export interface TortaDB {
   activo: boolean;
 }
 
+export async function getTortasActivas(): Promise<TortaDB[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("tortas")
+    .select("*")
+    .eq("activo", true)
+    .order("created_at", { ascending: true });
+
+  if (error || !data) {
+    console.error("Error fetching tortas activas:", error);
+    return [];
+  }
+  return data as TortaDB[];
+}
+
+export async function getTortaPorSlug(slug: string): Promise<TortaDB | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("tortas")
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+  return data as TortaDB;
+}
+
 export async function getInsumosPorTorta(tortaSlug?: string): Promise<InsumoDB[]> {
   if (!tortaSlug) {
     return getInsumosActivos();
