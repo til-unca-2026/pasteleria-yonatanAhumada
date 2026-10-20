@@ -281,6 +281,7 @@ export async function createNuevoPedido(params: {
   total_estimado: number;
   sena_requerida: number;
   insumosIds: string[];
+  notas?: string | null;
   comprobanteFile?: File | null;
   fotoReferenciaFile?: File | null;
 }) {
@@ -337,6 +338,7 @@ export async function createNuevoPedido(params: {
         total_estimado: params.total_estimado,
         sena_requerida: params.sena_requerida,
         estado: "Pendiente",
+        notas: params.notas || null,
         comprobante_url,
         foto_referencia_url,
         expiracion_reserva: expiracion.toISOString(),

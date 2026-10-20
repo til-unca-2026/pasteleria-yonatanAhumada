@@ -40,6 +40,58 @@ export async function getInsumosActivos(): Promise<InsumoDB[]> {
   return data as InsumoDB[];
 }
 
+export interface TortaDB {
+  id: string;
+  slug: string;
+  nombre: string;
+  descripcion: string | null;
+  tipo: "personalizable" | "receta_fija";
+  precio_base_kg: number;
+  imagen_url: string;
+  cta_text: string;
+  activo: boolean;
+}
+
+export async function getInsumosPorTorta(tortaSlug?: string): Promise<InsumoDB[]> {
+  if (!tortaSlug) {
+    return getInsumosActivos();
+  }
+
+  const supabase = createClient();
+  try {
+    const { data: torta } = await supabase
+      .from("tortas")
+      .select("id, tipo")
+      .eq("slug", tortaSlug)
+      .maybeSingle();
+
+    if (!torta || torta.tipo === "receta_fija") {
+      return [];
+    }
+
+    const { data, error } = await supabase
+      .from("tortas_insumos")
+      .select("insumo:insumos(*)")
+      .eq("torta_id", torta.id);
+
+    if (error || !data) {
+      console.error("Error fetching insumos por torta:", error);
+      return getInsumosActivos();
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const compatibles = data
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((row: any) => row.insumo as InsumoDB)
+      .filter((i: InsumoDB) => Boolean(i && i.activo));
+
+    return compatibles.length > 0 ? compatibles : getInsumosActivos();
+  } catch (err) {
+    console.error("Error al obtener insumos por torta:", err);
+    return getInsumosActivos();
+  }
+}
+
 export async function uploadInsumoImagen(file: File): Promise<string> {
   const supabase = createClient();
   const fileExt = file.name.split(".").pop();
