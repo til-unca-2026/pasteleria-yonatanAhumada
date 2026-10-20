@@ -200,9 +200,7 @@ export function Paso3Detalles({
 
                 {selectedFillingsNombres.length > 0 && (
                   <div className="flex items-start justify-between border-b border-slate-100 pb-2">
-                    <span className="text-slate-500 font-medium">
-                      {tortaSlug === "torta-frutos-rojos" ? "🍯 Base / Relleno:" : "🍯 Rellenos:"}
-                    </span>
+                    <span className="text-slate-500 font-medium">🍯 Rellenos:</span>
                     <span className="font-semibold text-slate-800 text-right max-w-[200px] truncate capitalize">
                       {selectedFillingsNombres.join(" + ")}
                     </span>
@@ -211,9 +209,7 @@ export function Paso3Detalles({
 
                 {selectedCoverageNombre && (
                   <div className="flex items-start justify-between pb-1">
-                    <span className="text-slate-500 font-medium">
-                      {tortaSlug === "torta-frutos-rojos" ? "🍓 Fruta Principal:" : "🧁 Cobertura:"}
-                    </span>
+                    <span className="text-slate-500 font-medium">🧁 Cobertura / Topping:</span>
                     <span className="font-semibold text-slate-800 text-right capitalize">{selectedCoverageNombre}</span>
                   </div>
                 )}

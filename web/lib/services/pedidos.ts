@@ -307,7 +307,7 @@ export async function createNuevoPedido(params: {
 
   if (!cupoExistente) {
     const estandarCap = await getCapacidadEstandar();
-    await supabase.from("cupos_diarios").insert([
+    const { error: insertCupoError } = await supabase.from("cupos_diarios").insert([
       {
         fecha: params.fecha_entrega,
         capacidad_maxima: estandarCap,
@@ -315,41 +315,64 @@ export async function createNuevoPedido(params: {
         bloqueado_manual: false,
       },
     ]);
+    if (insertCupoError) {
+      console.warn("Aviso al registrar cupo en cupos_diarios (posible RLS):", insertCupoError.message);
+    }
   } else {
     // Incrementar cupos ocupados
-    await supabase
+    const { error: updateCupoError } = await supabase
       .from("cupos_diarios")
       .update({ cupos_ocupados: cupoExistente.cupos_ocupados + 1 })
       .eq("fecha", params.fecha_entrega);
+    if (updateCupoError) {
+      console.warn("Aviso al actualizar cupos_diarios (posible RLS):", updateCupoError.message);
+    }
   }
 
   // 3. Crear el pedido
   const expiracion = new Date();
   expiracion.setHours(expiracion.getHours() + 24); // 24 horas de reserva de cupo
 
-  const { data: pedido, error: errorPedido } = await supabase
+  const insertPayload: Record<string, any> = {
+    cliente_nombre: params.cliente_nombre,
+    cliente_telefono: params.cliente_telefono,
+    fecha_entrega: params.fecha_entrega,
+    peso_kg: params.peso_kg,
+    total_estimado: params.total_estimado,
+    sena_requerida: params.sena_requerida,
+    estado: "Pendiente",
+    comprobante_url,
+    foto_referencia_url,
+    expiracion_reserva: expiracion.toISOString(),
+  };
+
+  if (params.notas) {
+    insertPayload.notas = params.notas;
+  }
+
+  let { data: pedido, error: errorPedido } = await supabase
     .from("pedidos")
-    .insert([
-      {
-        cliente_nombre: params.cliente_nombre,
-        cliente_telefono: params.cliente_telefono,
-        fecha_entrega: params.fecha_entrega,
-        peso_kg: params.peso_kg,
-        total_estimado: params.total_estimado,
-        sena_requerida: params.sena_requerida,
-        estado: "Pendiente",
-        notas: params.notas || null,
-        comprobante_url,
-        foto_referencia_url,
-        expiracion_reserva: expiracion.toISOString(),
-      },
-    ])
+    .insert([insertPayload])
     .select()
     .single();
 
+  // Si falló porque la columna 'notas' no existe aún en la tabla de Supabase (PGRST204), reintentar sin notas
+  if (errorPedido && errorPedido.code === "PGRST204" && insertPayload.notas) {
+    console.warn("Columna 'notas' no existe en pedidos, reintentando inserción sin 'notas':", errorPedido.message);
+    delete insertPayload.notas;
+    const retry = await supabase
+      .from("pedidos")
+      .insert([insertPayload])
+      .select()
+      .single();
+    pedido = retry.data;
+    errorPedido = retry.error;
+  }
+
   if (errorPedido) {
-    console.error("Error al crear pedido en Supabase:", errorPedido);
-    throw errorPedido;
+    const errorMsg = errorPedido.message || errorPedido.details || JSON.stringify(errorPedido);
+    console.error("Error al crear pedido en Supabase:", errorMsg, errorPedido);
+    throw new Error(errorMsg || "Error al crear pedido en Supabase");
   }
 
   // 4. Insertar detalles del pedido (insumos)

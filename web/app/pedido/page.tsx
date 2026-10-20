@@ -31,12 +31,12 @@ const DEFAULT_RECIPES_BY_SLUG: Record<string, InsumosDefaults> = {
   },
   "torta-frutos-rojos": {
     baseName: "",
-    fillingsNames: ["crema pastelera", "crema chantilly", "durazno"],
+    fillingsNames: ["crema pastelera"],
     coverageName: "mix de frutos rojos",
   },
   "jardin-de-frutos": {
     baseName: "",
-    fillingsNames: ["crema pastelera", "durazno"],
+    fillingsNames: ["crema pastelera"],
     coverageName: "mix de frutos rojos",
   },
 };
@@ -167,32 +167,38 @@ function PedidoWizardContent() {
           !isFixedRecipe && data.length > 0 ? sortInsumosWithDefaults(data, recipeConfig) : data;
         setInsumos(sortedData);
 
-        // Preselección de opciones default más comunes si es torta personalizable
+        // Preselección de opción default (exactamente 1 por categoría)
         if (!isFixedRecipe && sortedData.length > 0) {
+          // 1. Bizcochuelo base default
           setSelectedBase((prev) => {
             if (prev) return prev;
-            const match = findInsumoByName(sortedData, "bizcochuelo", recipeConfig.baseName);
-            return match ? match.id : "";
+            if (recipeConfig.baseName) {
+              const match = findInsumoByName(sortedData, "bizcochuelo", recipeConfig.baseName);
+              if (match) return match.id;
+            }
+            const firstBase = sortedData.find((i) => i.tipo === "bizcochuelo");
+            return firstBase ? firstBase.id : "";
           });
 
+          // 2. Relleno default: exactamente 1 opción por defecto
           setSelectedFillings((prev) => {
             if (prev.length > 0) return prev;
-            const matches: string[] = [];
-            for (const fName of recipeConfig.fillingsNames) {
-              const match = findInsumoByName(sortedData, "relleno", fName);
-              if (match && !matches.includes(match.id)) {
-                matches.push(match.id);
-              }
-            }
-            return matches.length > 0
-              ? matches
-              : (sortedData.find((i) => i.tipo === "relleno") ? [sortedData.find((i) => i.tipo === "relleno")!.id] : []);
+            const primaryName = recipeConfig.fillingsNames[0];
+            const match = primaryName ? findInsumoByName(sortedData, "relleno", primaryName) : null;
+            if (match) return [match.id];
+            const firstRelleno = sortedData.find((i) => i.tipo === "relleno");
+            return firstRelleno ? [firstRelleno.id] : [];
           });
 
+          // 3. Cobertura / Topping default: exactamente 1 opción por defecto
           setSelectedCoverage((prev) => {
             if (prev) return prev;
-            const match = findInsumoByName(sortedData, "cobertura", recipeConfig.coverageName);
-            return match ? match.id : null;
+            if (recipeConfig.coverageName) {
+              const match = findInsumoByName(sortedData, "cobertura", recipeConfig.coverageName);
+              if (match) return match.id;
+            }
+            const firstCoverage = sortedData.find((i) => i.tipo === "cobertura");
+            return firstCoverage ? firstCoverage.id : null;
           });
         }
       } catch (err) {
@@ -343,11 +349,19 @@ function PedidoWizardContent() {
           return;
         }
         if (rellenosInsumos.length > 1 && selectedFillings.length === 0) {
-          showToast("Por favor selecciona al menos 1 relleno artesanal en el Paso 2.");
+          showToast(
+            tortaSlug === "torta-frutos-rojos"
+              ? "Por favor selecciona la base / relleno en el Paso 2."
+              : "Por favor selecciona al menos 1 relleno artesanal en el Paso 2."
+          );
           return;
         }
         if (coberturasInsumos.length > 1 && !selectedCoverage) {
-          showToast("Por favor selecciona la cobertura exterior en el Paso 2.");
+          showToast(
+            tortaSlug === "torta-frutos-rojos"
+              ? "Por favor selecciona la fruta principal en el Paso 2."
+              : "Por favor selecciona la cobertura exterior en el Paso 2."
+          );
           return;
         }
       }
@@ -383,11 +397,19 @@ function PedidoWizardContent() {
         return;
       }
       if (currentKey === "relleno" && selectedFillings.length === 0) {
-        showToast("Por favor selecciona al menos 1 relleno artesanal.");
+        showToast(
+          tortaSlug === "torta-frutos-rojos"
+            ? "Por favor selecciona la base / relleno."
+            : "Por favor selecciona al menos 1 relleno artesanal."
+        );
         return;
       }
       if (currentKey === "cobertura" && !selectedCoverage) {
-        showToast("Por favor selecciona la cobertura exterior de tu torta.");
+        showToast(
+          tortaSlug === "torta-frutos-rojos"
+            ? "Por favor selecciona la fruta principal."
+            : "Por favor selecciona la cobertura exterior de tu torta."
+        );
         return;
       }
 
@@ -496,11 +518,8 @@ function PedidoWizardContent() {
         return "Continuar al Resumen";
       }
       const nextKey = customizableKeys[activeAccordion];
-      if (tortaSlug === "torta-frutos-rojos" && nextKey === "cobertura") {
-        return "Continuar a Fruta Principal";
-      }
       if (nextKey === "relleno") return "Continuar a Rellenos";
-      if (nextKey === "cobertura") return "Continuar a Cobertura";
+      if (nextKey === "cobertura") return "Continuar a Cobertura / Topping";
       return "Continuar al Resumen";
     }
     if (currentStep === 3) return "Confirmar y Reservar Cupo";

@@ -341,10 +341,13 @@ export function Paso2Sabores({
     const sectionNum = activeSections.length + 1;
     activeSections.push({
       key: "relleno",
-      title: isFrutosRojos ? "Base / Relleno" : "Rellenos Artesanales",
-      subtitle: isFrutosRojos
-        ? (rellenosObjs.length > 0 ? rellenosObjs.map((r) => r.nombre).join(" + ") : "Elegí Crema pastelera o Crema chantilly")
-        : (rellenosObjs.length > 0 ? rellenosObjs.map((r) => r.nombre).join(" + ") : "Elegí hasta 2 sabores"),
+      title: "Rellenos Artesanales",
+      subtitle:
+        rellenosObjs.length > 0
+          ? rellenosObjs.map((r) => r.nombre).join(" + ")
+          : isFrutosRojos
+          ? "Elegí tu relleno"
+          : "Elegí hasta 2 sabores",
       badge: !isFrutosRojos ? (
         <div
           className={`rounded-full border px-[9px] py-[3px] flex items-center gap-[4px] ${
@@ -360,7 +363,7 @@ export function Paso2Sabores({
       isDone: doneAccordions.has(sectionNum as AccordionStep) && rellenosOk,
       canConfirm: rellenosOk,
       renderContent: () => (
-        <div className="grid grid-cols-2 gap-[10px] mb-[8px]">
+        <div className={`grid ${rellenos.length <= 2 ? "grid-cols-2" : "grid-cols-3"} gap-[10px] mb-[8px]`}>
           {rellenos.map((r) => {
             const sel = selectedFillings.includes(r.id);
             const disabled = !sel && !isFrutosRojos && selectedFillings.length >= MAX_RELLENOS;
@@ -406,14 +409,15 @@ export function Paso2Sabores({
     const sectionNum = activeSections.length + 1;
     activeSections.push({
       key: "cobertura",
-      title: isFrutosRojos ? "Fruta Principal (Topping)" : "Cobertura Exterior",
-      subtitle: isFrutosRojos
-        ? (coberturaObj ? coberturaObj.nombre : "Elegí Frutillas solas o Mix de frutos rojos")
-        : (coberturaObj ? coberturaObj.nombre : "Elegí la terminación de tu torta"),
+      title: "Cobertura / Topping",
+      subtitle:
+        coberturaObj
+          ? coberturaObj.nombre
+          : "Elegí tu cobertura o topping",
       isDone: doneAccordions.has(sectionNum as AccordionStep) && coberturaOk,
       canConfirm: coberturaOk,
       renderContent: () => (
-        <div className="grid grid-cols-2 gap-[10px] mb-[8px]">
+        <div className={`grid ${coberturas.length <= 2 ? "grid-cols-2" : "grid-cols-3"} gap-[10px] mb-[8px]`}>
           {coberturas.map((c) => {
             const sel = selectedCoverage === c.id;
             return (
