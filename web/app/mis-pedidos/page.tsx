@@ -167,6 +167,39 @@ function MisPedidosContent() {
     return () => clearInterval(interval);
   }, [activePedido]);
 
+  // 3. Suscripción en tiempo real a cambios de estado del pedido (Pendiente -> En producción -> Listo)
+  useEffect(() => {
+    const channel = supabase
+      .channel("cliente-pedidos-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "pedidos",
+        },
+        (payload) => {
+          const updated = payload.new as Partial<PedidoConDetalles> & { id: string };
+          setPedidosList((prev) =>
+            prev.map((item) =>
+              item.id === updated.id
+                ? {
+                    ...item,
+                    ...updated,
+                    detalles: item.detalles,
+                  }
+                : item
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase]);
+
   // Formatear countdown
   const hours = Math.floor(secondsLeft / 3600);
   const minutes = Math.floor((secondsLeft % 3600) / 60);
@@ -308,6 +341,7 @@ function MisPedidosContent() {
       tortaImagen,
       peso: `${p.peso_kg} kg`,
       estado: getEstadoLabel(),
+      estadoOperativo: p.estado,
       fechaEntregaTexto: fechaTexto,
       countdownFormatted,
       isCountdownExpired,
@@ -315,6 +349,7 @@ function MisPedidosContent() {
       seña: p.total_estimado,
       cbu: "0000003100012345678901",
       alias: "pasteleria.taller",
+      titular: "Yonatan Ahumada",
       comprobanteUrl: p.comprobante_url,
       baseNombre,
       rellenosNombres,

@@ -7,6 +7,7 @@ interface TransferenciaInfoProps {
   seña: number;
   cbu?: string;
   alias?: string;
+  titular?: string;
 }
 
 export function TransferenciaInfo({
@@ -14,6 +15,7 @@ export function TransferenciaInfo({
   seña,
   cbu = "0000003100012345678901",
   alias = "pasteleria.taller",
+  titular = "Yonatan Ahumada",
 }: TransferenciaInfoProps) {
   const [copiedCbu, setCopiedCbu] = useState(false);
   const [copiedAlias, setCopiedAlias] = useState(false);
@@ -41,6 +43,18 @@ export function TransferenciaInfo({
         <div className="text-right">
           <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold px-2 py-0.5 rounded-full">
             ✓ 1 Solo Pago
+          </span>
+        </div>
+      </div>
+
+      {/* Titular */}
+      <div className="bg-white rounded-[8px] border border-[#e2e8f0] px-[12px] py-[8px] flex items-center justify-between mb-[6px]">
+        <div>
+          <span className="font-medium text-[#94a3b8] text-[10px] tracking-[0.3px] uppercase block leading-none mb-[3px]">
+            Titular de la cuenta
+          </span>
+          <span className="font-semibold text-[#0f172a] text-[12px]">
+            {titular}
           </span>
         </div>
       </div>

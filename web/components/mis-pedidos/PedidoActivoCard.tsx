@@ -10,6 +10,7 @@ export interface PedidoActivoData {
   nombreProducto: string;
   peso: string;
   estado: string;
+  estadoOperativo?: string;
   fechaEntregaTexto: string;
   countdownFormatted: string;
   isCountdownExpired: boolean;
@@ -17,6 +18,7 @@ export interface PedidoActivoData {
   seña: number;
   cbu?: string;
   alias?: string;
+  titular?: string;
   comprobanteUrl?: string | null;
   baseNombre?: string;
   rellenosNombres?: string[];
@@ -111,6 +113,88 @@ export function PedidoActivoCard({
         </div>
       </div>
 
+      {/* ── Seguimiento en Vivo (Pendiente, En producción, Listo) ── */}
+      <div className="px-[16px] py-[12px] bg-slate-50/80 border-b border-[#f1f5f9]">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+              Seguimiento en Vivo
+            </span>
+          </div>
+          <span className="text-[10px] font-semibold text-slate-600 bg-white border border-slate-200 px-2 py-0.5 rounded-full">
+            Taller: <strong className="text-slate-900">{pedido.estadoOperativo || "Pendiente"}</strong>
+          </span>
+        </div>
+
+        {/* Stepper horizontal con 3 hitos */}
+        {(() => {
+          const op = pedido.estadoOperativo || "Pendiente";
+          let activeIndex = 0;
+          if (op === "Señado" || op === "En producción") activeIndex = 1;
+          if (op === "Listo") activeIndex = 2;
+
+          const steps = [
+            { label: "Pendiente", desc: "Validación" },
+            { label: "En producción", desc: "Elaborando" },
+            { label: "Listo", desc: "Para entregar" },
+          ];
+
+          return (
+            <div className="relative pt-1 pb-1">
+              {/* Barra de progreso de fondo */}
+              <div className="absolute top-[17px] left-8 right-8 h-[2px] bg-slate-200 z-0" />
+              <div
+                className="absolute top-[17px] left-8 h-[2px] bg-emerald-500 transition-all duration-500 z-0"
+                style={{
+                  width: activeIndex === 0 ? "0%" : activeIndex === 1 ? "50%" : "calc(100% - 64px)",
+                }}
+              />
+
+              <div className="grid grid-cols-3 relative z-10 text-center">
+                {steps.map((st, i) => {
+                  const isCompleted = i < activeIndex;
+                  const isCurrent = i === activeIndex;
+
+                  return (
+                    <div key={st.label} className="flex flex-col items-center">
+                      <div
+                        className={`size-6 rounded-full flex items-center justify-center text-[10px] font-bold border-2 transition-all ${
+                          isCompleted
+                            ? "bg-emerald-500 border-emerald-500 text-white"
+                            : isCurrent
+                            ? "bg-white border-emerald-500 text-emerald-600 shadow-xs ring-2 ring-emerald-100"
+                            : "bg-white border-slate-300 text-slate-400"
+                        }`}
+                      >
+                        {isCompleted ? "✓" : i + 1}
+                      </div>
+                      <span
+                        className={`text-[11px] font-bold mt-1 block leading-tight ${
+                          isCurrent
+                            ? "text-emerald-700"
+                            : isCompleted
+                            ? "text-slate-700"
+                            : "text-slate-400"
+                        }`}
+                      >
+                        {st.label}
+                      </span>
+                      <span className="text-[9px] text-slate-400">
+                        {st.desc}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
       {/* ── Desglose de Detalles de la Torta ── */}
       <div className="border-b border-[#f1f5f9] bg-[#fafafa]">
         <button
@@ -184,6 +268,7 @@ export function PedidoActivoCard({
         seña={pedido.seña}
         cbu={pedido.cbu}
         alias={pedido.alias}
+        titular={pedido.titular}
       />
 
       {/* ── Upload Proof Area ── */}
