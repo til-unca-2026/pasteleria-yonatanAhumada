@@ -20,6 +20,7 @@ interface Paso3Props {
   onUploadReferencia: (file: File | null) => void;
   tortaNombre?: string;
   tortaSlug?: string;
+  tortaImagen?: string;
   isFixedRecipe?: boolean;
 }
 
@@ -40,6 +41,7 @@ export function Paso3Detalles({
   onUploadReferencia,
   tortaNombre,
   tortaSlug,
+  tortaImagen,
   isFixedRecipe = false,
 }: Paso3Props) {
   const referenciaInputRef = useRef<HTMLInputElement>(null);
@@ -173,8 +175,21 @@ export function Paso3Detalles({
           {/* Ficha técnica clara */}
           <div className="grid grid-cols-1 gap-[8px] text-[12px]">
             {tortaNombre && (
-              <div className="flex items-start justify-between border-b border-slate-100 pb-2">
-                <span className="text-slate-500 font-medium">🎂 Modelo:</span>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <div className="flex items-center gap-2">
+                  <div className="size-9 rounded-lg overflow-hidden border border-slate-200 bg-pink-50 flex items-center justify-center shrink-0">
+                    {tortaImagen ? (
+                      <img
+                        src={tortaImagen}
+                        alt={tortaNombre}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-sm">🎂</span>
+                    )}
+                  </div>
+                  <span className="text-slate-500 font-medium">Modelo:</span>
+                </div>
                 <span className="font-bold text-slate-900 text-right">{tortaNombre}</span>
               </div>
             )}

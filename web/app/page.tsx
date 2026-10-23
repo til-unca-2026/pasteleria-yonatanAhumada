@@ -144,7 +144,7 @@ export default async function Home() {
           {cakesCatalog.map((cake) => {
             const targetUrl = `/pedido?torta=${cake.slug}&nombre=${encodeURIComponent(
               cake.name
-            )}&precio=${cake.pricePerKg}&tipo=${cake.type}`;
+            )}&precio=${cake.pricePerKg}&tipo=${cake.type}&imagen=${encodeURIComponent(cake.image)}`;
 
             return (
               <div

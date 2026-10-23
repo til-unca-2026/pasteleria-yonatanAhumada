@@ -15,8 +15,16 @@ import {
   adjuntarComprobanteAPedido,
   PedidoConDetalles,
 } from "@/lib/services/pedidos";
+import { getTortasActivas, TortaDB } from "@/lib/services/catalogo";
 import { sendTelegramNotification } from "@/lib/services/telegram";
 import { createClient } from "@/lib/supabase/client";
+
+const FALLBACK_TORTA_IMAGES: Record<string, string> = {
+  "torta de frutos rojos": "https://zmqaitjziznxocdppsnk.supabase.co/storage/v1/object/public/catalogo/tortas/torta-frutos-rojos.jpg",
+  "torta temática infantil": "https://zmqaitjziznxocdppsnk.supabase.co/storage/v1/object/public/catalogo/tortas/torta-tematica.jpg",
+  "chocotorta clásica": "https://zmqaitjziznxocdppsnk.supabase.co/storage/v1/object/public/catalogo/tortas/chocotorta-clasica.jpg",
+  "torta floral vintage": "https://zmqaitjziznxocdppsnk.supabase.co/storage/v1/object/public/catalogo/tortas/torta-floral.jpg",
+};
 
 function MisPedidosContent() {
   const router = useRouter();
@@ -38,6 +46,13 @@ function MisPedidosContent() {
 
   // Countdown state
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
+  const [tortasCatalog, setTortasCatalog] = useState<TortaDB[]>([]);
+
+  useEffect(() => {
+    getTortasActivas().then((data) => {
+      if (data && data.length > 0) setTortasCatalog(data);
+    });
+  }, []);
 
   // 1. Cargar sesión de usuario y aislar sus últimos 20 pedidos
   useEffect(() => {
@@ -152,6 +167,39 @@ function MisPedidosContent() {
     return () => clearInterval(interval);
   }, [activePedido]);
 
+  // 3. Suscripción en tiempo real a cambios de estado del pedido (Pendiente -> En producción -> Listo)
+  useEffect(() => {
+    const channel = supabase
+      .channel("cliente-pedidos-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "pedidos",
+        },
+        (payload) => {
+          const updated = payload.new as Partial<PedidoConDetalles> & { id: string };
+          setPedidosList((prev) =>
+            prev.map((item) =>
+              item.id === updated.id
+                ? {
+                    ...item,
+                    ...updated,
+                    detalles: item.detalles,
+                  }
+                : item
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase]);
+
   // Formatear countdown
   const hours = Math.floor(secondsLeft / 3600);
   const minutes = Math.floor((secondsLeft % 3600) / 60);
@@ -261,12 +309,39 @@ function MisPedidosContent() {
       return p.comprobante_url ? "PAGO EN REVISIÓN" : "PAGO PENDIENTE";
     };
 
+    const rawNotas = (p as any).notas || "";
+    const matchModelo = rawNotas.match(/\[Modelo:\s*([^\]\-]+?)(?:\s*-\s*[^\]]+)?\]/);
+    const modeloNombre = matchModelo ? matchModelo[1].trim() : null;
+
+    let tortaImagen: string | null = null;
+    if (modeloNombre) {
+      const found = tortasCatalog.find(
+        (t) =>
+          t.nombre.toLowerCase().trim() === modeloNombre.toLowerCase().trim() ||
+          t.slug.toLowerCase().trim() === modeloNombre.toLowerCase().trim()
+      );
+      if (found?.imagen_url) {
+        tortaImagen = found.imagen_url;
+      } else {
+        const lowerMod = modeloNombre.toLowerCase().trim();
+        const fallbackKey = Object.keys(FALLBACK_TORTA_IMAGES).find(
+          (k) => lowerMod.includes(k) || k.includes(lowerMod)
+        );
+        if (fallbackKey) {
+          tortaImagen = FALLBACK_TORTA_IMAGES[fallbackKey];
+        }
+      }
+    }
+
     return {
       id: p.id,
       numeroPedido: `#${p.id.slice(0, 8).toUpperCase()}`,
       nombreProducto: saboresTexto,
+      modeloNombre,
+      tortaImagen,
       peso: `${p.peso_kg} kg`,
       estado: getEstadoLabel(),
+      estadoOperativo: p.estado,
       fechaEntregaTexto: fechaTexto,
       countdownFormatted,
       isCountdownExpired,
@@ -274,6 +349,7 @@ function MisPedidosContent() {
       seña: p.total_estimado,
       cbu: "0000003100012345678901",
       alias: "pasteleria.taller",
+      titular: "Yonatan Ahumada",
       comprobanteUrl: p.comprobante_url,
       baseNombre,
       rellenosNombres,
@@ -369,7 +445,7 @@ function MisPedidosContent() {
                 <path d="M7 6V10M7 4.5V4" stroke="#94a3b8" strokeWidth="1.3" strokeLinecap="round" />
               </svg>
               <span className="font-normal text-[#94a3b8] text-[11px] leading-[16px]">
-                Tu cupo queda reservado por 2 hs. Una vez validado el pago, recibirás confirmación automática por Telegram.
+                Tu cupo queda reservado por 24 hs. Una vez validado el pago, recibirás confirmación automática por Telegram.
               </span>
             </div>
           </>
@@ -427,9 +503,29 @@ function MisPedidosContent() {
                     </span>
                   </div>
 
-                  <p className="text-xs text-slate-700 font-medium line-clamp-1 mb-3">
-                    🎂 {displayData.nombreProducto}
-                  </p>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="size-6 rounded-md overflow-hidden bg-pink-50 border border-slate-200 shrink-0 flex items-center justify-center">
+                      {displayData.tortaImagen ? (
+                        <img
+                          src={displayData.tortaImagen}
+                          alt={displayData.modeloNombre || displayData.nombreProducto}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-[11px]">🎂</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-700 font-medium line-clamp-1 m-0">
+                      {displayData.modeloNombre ? (
+                        <>
+                          <strong className="text-slate-900">{displayData.modeloNombre}</strong>
+                          <span className="text-slate-500"> • {displayData.nombreProducto}</span>
+                        </>
+                      ) : (
+                        displayData.nombreProducto
+                      )}
+                    </p>
+                  </div>
 
                   <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                     <div>
