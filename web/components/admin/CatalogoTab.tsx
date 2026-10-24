@@ -2,547 +2,734 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import {
+  getTodasLasTortas,
+  updateTortaActivo,
+  updateTorta,
+  createTorta,
+  getInsumosIdsPorTorta,
+  setInsumoCompatibilidad,
+  uploadTortaImagen,
   getInsumos,
   createInsumo,
-  updateInsumoActivo,
-  deleteInsumo,
   uploadInsumoImagen,
-  getPrecioBaseKg,
-  updatePrecioBaseKg,
+  TortaDB,
   InsumoDB,
   TipoInsumo,
 } from "@/lib/services/catalogo";
 
-const CATEGORY_TABS: { label: string; key: TipoInsumo; emoji: string }[] = [
+const INSUMO_CATEGORIES: { label: string; key: TipoInsumo; emoji: string }[] = [
   { label: "Bizcochuelos", key: "bizcochuelo", emoji: "🍰" },
   { label: "Rellenos", key: "relleno", emoji: "🍯" },
   { label: "Coberturas", key: "cobertura", emoji: "🧁" },
 ];
 
 export function CatalogoTab() {
-  const [activeCategory, setActiveCategory] = useState<number>(0);
-  const [items, setItems] = useState<InsumoDB[]>([]);
+  const [tortas, setTortas] = useState<TortaDB[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Precio base por kilo (Tarifario)
-  const [precioBaseKg, setPrecioBaseKg] = useState<number>(13000);
-  const [isEditingPrecio, setIsEditingPrecio] = useState<boolean>(false);
-  const [tempPrecioBase, setTempPrecioBase] = useState<string>("13000");
-  const [guardandoPrecio, setGuardandoPrecio] = useState<boolean>(false);
+  // Navegación: lista de tortas (Mockup 2.3) vs Editor de Torta (Mockup 2.4)
+  const [selectedTorta, setSelectedTorta] = useState<TortaDB | null>(null);
+  const [isCreatingTorta, setIsCreatingTorta] = useState<boolean>(false);
 
-  // Modal para nuevo insumo
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [nuevoNombre, setNuevoNombre] = useState<string>("");
-  const [nuevoTipo, setNuevoTipo] = useState<TipoInsumo>("bizcochuelo");
-  const [nuevoRecargo, setNuevoRecargo] = useState<string>("0");
-  const [imagenFile, setImagenFile] = useState<File | null>(null);
-  const [imagenPreview, setImagenPreview] = useState<string | null>(null);
-  const [guardando, setGuardando] = useState<boolean>(false);
+  // Formulario de edición/creación de Torta (Mockup 2.4)
+  const [editNombre, setEditNombre] = useState<string>("");
+  const [editPrecioKg, setEditPrecioKg] = useState<string>("18000");
+  const [editDescripcion, setEditDescripcion] = useState<string>("");
+  const [editTipo, setEditTipo] = useState<"personalizable" | "receta_fija">("personalizable");
+  const [editImagenUrl, setEditImagenUrl] = useState<string>("");
+  const [editImagenFile, setEditImagenFile] = useState<File | null>(null);
+  const [editImagenPreview, setEditImagenPreview] = useState<string | null>(null);
+  const [savingTorta, setSavingTorta] = useState<boolean>(false);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Insumos compatibles y tabs (Mockup 2.4)
+  const [allInsumos, setAllInsumos] = useState<InsumoDB[]>([]);
+  const [compatibleIds, setCompatibleIds] = useState<Set<string>>(new Set());
+  const [activeInsumoTab, setActiveInsumoTab] = useState<number>(0);
+
+  // Modal para agregar nuevo insumo desde el editor
+  const [isModalInsumoOpen, setIsModalInsumoOpen] = useState<boolean>(false);
+  const [nuevoInsumoNombre, setNuevoInsumoNombre] = useState<string>("");
+  const [nuevoInsumoTipo, setNuevoInsumoTipo] = useState<TipoInsumo>("bizcochuelo");
+  const [nuevoInsumoRecargo, setNuevoInsumoRecargo] = useState<string>("0");
+  const [nuevoInsumoFile, setNuevoInsumoFile] = useState<File | null>(null);
+  const [guardandoInsumo, setGuardandoInsumo] = useState<boolean>(false);
+
+  const tortaFileInputRef = useRef<HTMLInputElement>(null);
+  const insumoFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    loadInsumos();
+    loadInitialData();
   }, []);
 
-  async function loadInsumos() {
+  async function loadInitialData() {
     setLoading(true);
     try {
-      const [data, precio] = await Promise.all([getInsumos(), getPrecioBaseKg()]);
-      setItems(data);
-      setPrecioBaseKg(precio);
-      setTempPrecioBase(precio.toString());
+      const [tortasData, insumosData] = await Promise.all([
+        getTodasLasTortas(),
+        getInsumos(),
+      ]);
+      setTortas(tortasData);
+      setAllInsumos(insumosData);
     } catch (err) {
-      console.error("Error al cargar insumos o precio base:", err);
+      console.error("Error al cargar catálogo de tortas e insumos:", err);
     } finally {
       setLoading(false);
     }
   }
 
-  const handleGuardarPrecioBase = async () => {
-    const val = Number(tempPrecioBase);
-    if (!val || val <= 0) {
-      alert("Ingresa un precio válido mayor a 0.");
-      return;
-    }
-    setGuardandoPrecio(true);
-    try {
-      await updatePrecioBaseKg(val);
-      setPrecioBaseKg(val);
-      setIsEditingPrecio(false);
-    } catch (err) {
-      console.error("Error actualizando precio base:", err);
-      alert("Error al actualizar el precio base en Supabase.");
-    } finally {
-      setGuardandoPrecio(false);
-    }
-  };
-
-  const toggleItemActive = async (id: string, currentStatus: boolean) => {
-    const nextStatus = !currentStatus;
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, activo: nextStatus } : item))
+  // ── Switch de visibilidad rápida de Torta en Mockup 2.3 ──
+  const handleToggleTortaActivo = async (id: string, currentActive: boolean) => {
+    const nextStatus = !currentActive;
+    setTortas((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, activo: nextStatus } : t))
     );
 
     try {
-      await updateInsumoActivo(id, nextStatus);
+      await updateTortaActivo(id, nextStatus);
     } catch (err) {
-      console.error("Error al actualizar activo:", err);
-      setItems((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, activo: currentStatus } : item))
+      console.error("Error al actualizar estado activo de torta:", err);
+      setTortas((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, activo: currentActive } : t))
       );
     }
   };
 
-  const handleDelete = async (id: string, nombre: string) => {
-    if (!confirm(`¿Eliminar permanentemente "${nombre}"?`)) return;
+  // ── Abrir editor de Torta existente (Mockup 2.4) ──
+  const handleSelectTortaForEdit = async (torta: TortaDB) => {
+    setSelectedTorta(torta);
+    setIsCreatingTorta(false);
+    setEditNombre(torta.nombre);
+    setEditPrecioKg(torta.precio_base_kg.toString());
+    setEditDescripcion(torta.descripcion || "");
+    setEditTipo(torta.tipo);
+    setEditImagenUrl(torta.imagen_url || "");
+    setEditImagenFile(null);
+    setEditImagenPreview(torta.imagen_url || null);
+
     try {
-      await deleteInsumo(id);
-      setItems((prev) => prev.filter((item) => item.id !== id));
-    } catch (err) {
-      console.error("Error al eliminar insumo:", err);
-      alert("No se pudo eliminar el insumo.");
+      const compIds = await getInsumosIdsPorTorta(torta.id);
+      // Si la torta no tiene restricciones explícitas, todos los insumos activos son compatibles
+      if (compIds.length === 0) {
+        setCompatibleIds(new Set(allInsumos.map((i) => i.id)));
+      } else {
+        setCompatibleIds(new Set(compIds));
+      }
+    } catch (e) {
+      console.error("Error al cargar compatibilidades:", e);
+      setCompatibleIds(new Set(allInsumos.map((i) => i.id)));
     }
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] ?? null;
+  // ── Abrir creador de Nueva Torta (Mockup 2.4) ──
+  const handleStartCreateTorta = () => {
+    setSelectedTorta(null);
+    setIsCreatingTorta(true);
+    setEditNombre("");
+    setEditPrecioKg("18000");
+    setEditDescripcion("");
+    setEditTipo("personalizable");
+    setEditImagenUrl("/tortas/torta-tematica.jpg");
+    setEditImagenFile(null);
+    setEditImagenPreview(null);
+    // Para nueva torta, todos los insumos disponibles quedan preseleccionados
+    setCompatibleIds(new Set(allInsumos.map((i) => i.id)));
+  };
+
+  // ── Volver a la lista de Tortas ──
+  const handleBackToList = () => {
+    setSelectedTorta(null);
+    setIsCreatingTorta(false);
+    setEditImagenFile(null);
+    setEditImagenPreview(null);
+  };
+
+  // ── Subir/Cambiar Foto de Torta ──
+  const handleTortaImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file) {
-      setImagenFile(file);
-      setImagenPreview(URL.createObjectURL(file));
+      setEditImagenFile(file);
+      setEditImagenPreview(URL.createObjectURL(file));
     }
   };
 
-  const handleRemoveImage = () => {
-    setImagenFile(null);
-    setImagenPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  // ── Alternar compatibilidad de un insumo para la torta activa ──
+  const handleToggleCompatibilidad = async (insumoId: string) => {
+    const nextSet = new Set(compatibleIds);
+    const isNowCompatible = !nextSet.has(insumoId);
+
+    if (isNowCompatible) {
+      nextSet.add(insumoId);
+    } else {
+      nextSet.delete(insumoId);
+    }
+    setCompatibleIds(nextSet);
+
+    if (selectedTorta) {
+      try {
+        await setInsumoCompatibilidad(selectedTorta.id, insumoId, isNowCompatible);
+      } catch (err) {
+        console.error("Error al actualizar compatibilidad de insumo:", err);
+      }
+    }
   };
 
-  const resetForm = () => {
-    setNuevoNombre("");
-    setNuevoRecargo("0");
-    setImagenFile(null);
-    setImagenPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    setIsModalOpen(false);
-  };
+  // ── Guardar Cambios o Crear Torta (Mockup 2.4 Botón "Guardar") ──
+  const handleSaveTorta = async () => {
+    if (!editNombre.trim()) {
+      alert("Por favor ingresa un nombre para la torta.");
+      return;
+    }
 
-  const handleCrearInsumo = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!nuevoNombre.trim()) return;
+    const precio = Number(editPrecioKg) || 18000;
+    setSavingTorta(true);
 
-    setGuardando(true);
     try {
-      let imageUrl: string | null = null;
-      if (imagenFile) {
-        imageUrl = await uploadInsumoImagen(imagenFile);
+      let finalImageUrl = editImagenUrl;
+      if (editImagenFile) {
+        finalImageUrl = await uploadTortaImagen(editImagenFile);
+      }
+
+      if (isCreatingTorta) {
+        const nueva = await createTorta({
+          nombre: editNombre.trim(),
+          descripcion: editDescripcion.trim(),
+          precio_base_kg: precio,
+          tipo: editTipo,
+          imagen_url: finalImageUrl,
+          activo: true,
+        });
+
+        // Guardar relaciones de compatibilidad
+        await Promise.all(
+          Array.from(compatibleIds).map((insId) =>
+            setInsumoCompatibilidad(nueva.id, insId, true)
+          )
+        );
+
+        setTortas((prev) => [...prev, nueva]);
+      } else if (selectedTorta) {
+        const updated = await updateTorta(selectedTorta.id, {
+          nombre: editNombre.trim(),
+          descripcion: editDescripcion.trim(),
+          precio_base_kg: precio,
+          tipo: editTipo,
+          imagen_url: finalImageUrl,
+        });
+
+        setTortas((prev) =>
+          prev.map((t) => (t.id === selectedTorta.id ? updated : t))
+        );
+      }
+
+      handleBackToList();
+    } catch (err) {
+      console.error("Error al guardar la torta:", err);
+      alert("Ocurrió un error al guardar la torta en Supabase.");
+    } finally {
+      setSavingTorta(false);
+    }
+  };
+
+  // ── Crear nuevo insumo desde el editor ──
+  const handleCrearNuevoInsumo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nuevoInsumoNombre.trim()) return;
+
+    setGuardandoInsumo(true);
+    try {
+      let imgUrl: string | null = null;
+      if (nuevoInsumoFile) {
+        imgUrl = await uploadInsumoImagen(nuevoInsumoFile);
       }
 
       const created = await createInsumo({
-        nombre: nuevoNombre.trim(),
-        tipo: nuevoTipo,
-        recargo_extra: Number(nuevoRecargo) || 0,
+        nombre: nuevoInsumoNombre.trim(),
+        tipo: nuevoInsumoTipo,
+        recargo_extra: Number(nuevoInsumoRecargo) || 0,
         activo: true,
-        imagen_url: imageUrl,
+        imagen_url: imgUrl,
       });
 
-      setItems((prev) => [...prev, created]);
-      resetForm();
+      setAllInsumos((prev) => [...prev, created]);
+      setCompatibleIds((prev) => new Set(prev).add(created.id));
+
+      if (selectedTorta) {
+        await setInsumoCompatibilidad(selectedTorta.id, created.id, true);
+      }
+
+      setNuevoInsumoNombre("");
+      setNuevoInsumoRecargo("0");
+      setNuevoInsumoFile(null);
+      setIsModalInsumoOpen(false);
     } catch (err) {
       console.error("Error al crear insumo:", err);
-      alert("Error al guardar en Supabase. Verifica que el bucket 'catalogo' exista.");
+      alert("Error al registrar insumo.");
     } finally {
-      setGuardando(false);
+      setGuardandoInsumo(false);
     }
   };
 
-  const currentCategoryKey = CATEGORY_TABS[activeCategory].key;
-  const filteredItems = items.filter((i) => i.tipo === currentCategoryKey);
-  const activeCount = filteredItems.filter((i) => i.activo).length;
+  // ════════════════════════════════════════════════════════════════
+  // RENDER: VISTA 2.4 - CONFIGURACIÓN DE TORTA E INSUMOS COMPATIBLES
+  // ════════════════════════════════════════════════════════════════
+  if (selectedTorta || isCreatingTorta) {
+    const currentTabKey = INSUMO_CATEGORIES[activeInsumoTab].key;
+    const categoryInsumos = allInsumos.filter((i) => i.tipo === currentTabKey);
 
-  const tabCounts = CATEGORY_TABS.map(
-    (tab) => items.filter((item) => item.tipo === tab.key).length
-  );
+    return (
+      <div className="flex flex-col w-full animate-in fade-in duration-200 pb-12">
+        {/* Subheader con botón Volver y Guardar */}
+        <div className="px-[16px] pt-[12px] pb-[10px] flex items-center justify-between border-b border-slate-200/80 bg-white sticky top-[56px] z-30 shadow-2xs">
+          <button
+            type="button"
+            onClick={handleBackToList}
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-transparent border-0 cursor-pointer p-0"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            <span>Volver</span>
+          </button>
 
-  return (
-    <div className="flex flex-col w-full animate-in fade-in duration-200">
-      {/* ── Subtitle and Add Item Button ── */}
-      <div className="px-[16px] pt-[14px] flex items-center justify-between mb-[14px]">
-        <div>
-          <div className="font-medium text-[#64748b] text-[11px] tracking-[0.5px] uppercase mb-[2px]">
-            TALLER & INSUMOS
-          </div>
-          <div className="font-bold text-[#0f172a] text-[20px]">
-            Catálogo y Tarifario
-          </div>
+          <span className="font-bold text-slate-800 text-xs truncate max-w-[170px]">
+            {isCreatingTorta ? "Nueva Torta" : editNombre || "Configurar Torta"}
+          </span>
+
+          <button
+            type="button"
+            onClick={handleSaveTorta}
+            disabled={savingTorta}
+            className="border border-[#a43073] text-[#a43073] bg-[#fdf2f8] hover:bg-[#fce7f3] active:scale-95 transition-all font-bold text-xs px-3.5 py-1 rounded-full cursor-pointer disabled:opacity-50 shadow-2xs"
+          >
+            {savingTorta ? "Guardando..." : "Guardar"}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setNuevoTipo(CATEGORY_TABS[activeCategory].key);
-            setIsModalOpen(true);
-          }}
-          className="bg-[#1e293b] hover:bg-[#334155] rounded-full px-[14px] py-[7px] flex items-center gap-[6px] cursor-pointer border-0 shadow-sm transition-colors text-white"
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M6 1V11M1 6H11" stroke="white" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-          <span className="font-semibold text-white text-[12px]">Nuevo Ítem</span>
-        </button>
-      </div>
 
-      {/* ── Tarjeta Precio Base por Kilo (Tarifario) ── */}
-      <div className="px-[16px] mb-[16px]">
-        <div className="bg-white rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] p-[16px]">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-[12px]">
-              <div className="bg-[#ffd8e7] rounded-[10px] size-[38px] flex items-center justify-center shrink-0">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a43073" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                </svg>
-              </div>
-              <div>
-                <div className="flex items-center gap-[8px]">
-                  <span className="font-bold text-[#0f172a] text-[17px] leading-[22px]">
-                    ${precioBaseKg.toLocaleString("es-AR")} / kg
-                  </span>
-                  <span className="bg-[#f1f5f9] text-[#475569] font-semibold text-[10px] px-[8px] py-[2px] rounded-full">
-                    Base
-                  </span>
-                </div>
-                <div className="font-normal text-[#64748b] text-[12px] mt-[2px]">
-                  Aplica a todas las combinaciones estándar del cotizador
-                </div>
-              </div>
-            </div>
+        <div className="px-[16px] pt-[14px] space-y-[16px]">
+          {/* ── CARD 1: Datos Básicos (Mockup 2.4) ── */}
+          <div className="bg-white rounded-[14px] border border-[#e2e8f0] p-[16px] shadow-xs">
+            <h3 className="font-bold text-slate-900 text-sm mb-[12px]">Datos Básicos</h3>
 
-            {isEditingPrecio ? (
-              <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex gap-[14px] mb-[12px]">
+              {/* Imagen y botón Cambiar */}
+              <div className="w-[100px] shrink-0 flex flex-col items-center">
+                <div className="size-[100px] rounded-[10px] overflow-hidden bg-slate-100 border border-slate-200 relative">
+                  <img
+                    src={editImagenPreview || editImagenUrl || "/tortas/torta-tematica.jpg"}
+                    alt={editNombre || "Torta"}
+                    className="size-full object-cover"
+                  />
+                </div>
                 <input
-                  type="number"
-                  value={tempPrecioBase}
-                  onChange={(e) => setTempPrecioBase(e.target.value)}
-                  className="w-[85px] border border-slate-300 rounded-[8px] px-2 py-1 text-xs font-bold"
-                  placeholder="13000"
+                  ref={tortaFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleTortaImageChange}
+                  className="hidden"
+                  id="foto-torta-input"
                 />
                 <button
                   type="button"
-                  onClick={handleGuardarPrecioBase}
-                  disabled={guardandoPrecio}
-                  className="bg-[#1e293b] hover:bg-[#334155] text-white px-2.5 py-1.5 rounded-[8px] text-[11px] font-semibold cursor-pointer border-0"
+                  onClick={() => tortaFileInputRef.current?.click()}
+                  className="w-full mt-2 py-1 bg-[#1e293b] hover:bg-[#334155] text-white text-[11px] font-semibold rounded-[6px] border-0 cursor-pointer shadow-2xs transition-colors"
                 >
-                  {guardandoPrecio ? "..." : "Guardar"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsEditingPrecio(false)}
-                  className="text-slate-400 hover:text-slate-600 px-1 py-1 text-xs cursor-pointer border-0 bg-transparent"
-                >
-                  ✕
+                  Cambiar
                 </button>
               </div>
-            ) : (
+
+              {/* Nombre y Precio por Kg */}
+              <div className="flex-1 min-w-0 space-y-[10px]">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-500 mb-1">
+                    Nombre de la Torta
+                  </label>
+                  <input
+                    type="text"
+                    value={editNombre}
+                    onChange={(e) => setEditNombre(e.target.value)}
+                    placeholder="ej. Torta Temática / Celebración"
+                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-[8px] text-xs font-semibold text-slate-800 focus:outline-none focus:border-pink-500 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-500 mb-1">
+                    Precio por Kg ($ ARS)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1.5 text-xs font-bold text-slate-500">$</span>
+                    <input
+                      type="number"
+                      value={editPrecioKg}
+                      onChange={(e) => setEditPrecioKg(e.target.value)}
+                      placeholder="18000"
+                      className="w-full pl-6 pr-2.5 py-1.5 border border-slate-200 rounded-[8px] text-xs font-bold text-slate-800 focus:outline-none focus:border-pink-500 bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-500 mb-1">
+                    Tipo de Receta
+                  </label>
+                  <select
+                    value={editTipo}
+                    onChange={(e) => setEditTipo(e.target.value as "personalizable" | "receta_fija")}
+                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-[8px] text-xs font-medium text-slate-700 focus:outline-none focus:border-pink-500 bg-white"
+                  >
+                    <option value="personalizable">Personalizable (Receta abierta)</option>
+                    <option value="receta_fija">Receta Fija (Tradicional)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Descripción */}
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-500 mb-1">
+                Descripción
+              </label>
+              <textarea
+                rows={2}
+                value={editDescripcion}
+                onChange={(e) => setEditDescripcion(e.target.value)}
+                placeholder="Diseñada especialmente para tu celebración..."
+                className="w-full px-2.5 py-2 border border-slate-200 rounded-[8px] text-xs text-slate-800 focus:outline-none focus:border-pink-500 bg-white resize-none"
+              />
+            </div>
+          </div>
+
+          {/* ── CARD 2: Insumos Compatibles (Mockup 2.4) ── */}
+          <div className="bg-white rounded-[14px] border border-[#e2e8f0] p-[16px] shadow-xs">
+            <div className="flex items-center justify-between mb-[12px]">
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm m-0">Insumos Compatibles</h3>
+                <span className="text-[11px] text-slate-400">
+                  Activa qué opciones admite este modelo
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={() => {
-                  setTempPrecioBase(precioBaseKg.toString());
-                  setIsEditingPrecio(true);
+                  setNuevoInsumoTipo(currentTabKey);
+                  setIsModalInsumoOpen(true);
                 }}
-                className="flex items-center gap-[6px] border border-[#e2e8f0] rounded-[8px] px-[12px] py-[6px] bg-white hover:bg-slate-50 cursor-pointer transition-colors shrink-0"
+                className="bg-[#1e293b] hover:bg-[#334155] rounded-full px-3 py-1.5 flex items-center gap-1.5 cursor-pointer border-0 shadow-2xs transition-colors text-white"
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </svg>
-                <span className="font-semibold text-[#0f172a] text-[12px]">Ajustar</span>
+                <span className="font-bold text-xs leading-none">+</span>
+                <span className="font-semibold text-white text-[11px]">Nuevo Insumo</span>
               </button>
-            )}
+            </div>
+
+            {/* Pestañas de categorías de insumos */}
+            <div className="flex gap-2 overflow-x-auto no-scrollbar mb-[12px] pb-1">
+              {INSUMO_CATEGORIES.map((tab, idx) => {
+                const count = allInsumos.filter((i) => i.tipo === tab.key).length;
+                const isActive = idx === activeInsumoTab;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActiveInsumoTab(idx)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap ${
+                      isActive
+                        ? "bg-[#1e293b] text-white shadow-2xs"
+                        : "bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    <span>{tab.label}</span>
+                    <span className={`ml-1 text-[10px] ${isActive ? "text-slate-300" : "text-slate-400"}`}>
+                      ({count})
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Listado de insumos de la categoría con switches de compatibilidad */}
+            <div className="space-y-[8px]">
+              {categoryInsumos.length === 0 ? (
+                <div className="py-6 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-lg">
+                  No hay insumos registrados en esta categoría.
+                </div>
+              ) : (
+                categoryInsumos.map((insumo) => {
+                  const isCompatible = compatibleIds.has(insumo.id);
+                  return (
+                    <div
+                      key={insumo.id}
+                      className={`rounded-[10px] border p-2.5 flex items-center justify-between gap-3 transition-colors ${
+                        isCompatible
+                          ? "bg-white border-slate-200 shadow-2xs"
+                          : "bg-slate-50/60 border-slate-200/60 opacity-60"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="size-[36px] rounded-[8px] bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center text-lg">
+                          {insumo.imagen_url ? (
+                            <img
+                              src={insumo.imagen_url}
+                              alt={insumo.nombre}
+                              className="size-full object-cover"
+                            />
+                          ) : (
+                            INSUMO_CATEGORIES[activeInsumoTab].emoji
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-semibold text-slate-900 text-xs block truncate">
+                            {insumo.nombre}
+                          </span>
+                          <span
+                            className={`text-[10px] font-medium ${
+                              insumo.recargo_extra > 0 ? "text-purple-600" : "text-emerald-600"
+                            }`}
+                          >
+                            {insumo.recargo_extra > 0
+                              ? `+$${insumo.recargo_extra.toLocaleString("es-AR")}`
+                              : "Sin costo extra"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Switch de compatibilidad */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleCompatibilidad(insumo.id)}
+                        className={`w-[36px] h-[20px] rounded-full relative cursor-pointer border-0 transition-colors p-0 shrink-0 ${
+                          isCompatible ? "bg-[#10B981]" : "bg-[#cbd5e1]"
+                        }`}
+                        aria-label={`Alternar compatibilidad de ${insumo.nombre}`}
+                      >
+                        <div
+                          className={`absolute top-[2px] size-[16px] rounded-full bg-white shadow-xs transition-transform ${
+                            isCompatible ? "right-[2px]" : "left-[2px]"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
+        </div>
+
+        {/* ── Modal Nuevo Insumo ── */}
+        {isModalInsumoOpen && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl animate-in zoom-in-95 duration-150">
+              <h3 className="text-base font-bold text-slate-800 mb-1">
+                Agregar Nuevo Insumo
+              </h3>
+              <p className="text-xs text-slate-500 mb-4">
+                El nuevo ingrediente quedará disponible para asignar a tortas modelo.
+              </p>
+
+              <form onSubmit={handleCrearNuevoInsumo} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Categoría / Tipo
+                  </label>
+                  <select
+                    value={nuevoInsumoTipo}
+                    onChange={(e) => setNuevoInsumoTipo(e.target.value as TipoInsumo)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-800 bg-white focus:outline-none focus:border-pink-500"
+                  >
+                    <option value="bizcochuelo">Bizcochuelo (Masa)</option>
+                    <option value="relleno">Relleno</option>
+                    <option value="cobertura">Cobertura</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Nombre del Insumo
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="ej. Frutos Rojos, Ganache 70%..."
+                    value={nuevoInsumoNombre}
+                    onChange={(e) => setNuevoInsumoNombre(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-pink-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Recargo Extra ($ ARS)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    value={nuevoInsumoRecargo}
+                    onChange={(e) => setNuevoInsumoRecargo(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-pink-500"
+                  />
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                    Coloca 0 si no tiene costo adicional.
+                  </span>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalInsumoOpen(false)}
+                    className="flex-1 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={guardandoInsumo}
+                    className="flex-1 py-2 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-xs font-semibold text-white shadow-sm cursor-pointer disabled:opacity-50"
+                  >
+                    {guardandoInsumo ? "Guardando..." : "Crear Insumo"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // RENDER: VISTA 2.3 - TABLERO CATÁLOGO DE TORTAS (admin_catalogo_v2.png)
+  // ════════════════════════════════════════════════════════════════
+  const activasCount = tortas.filter((t) => t.activo).length;
+
+  return (
+    <div className="flex flex-col w-full animate-in fade-in duration-200 pb-12">
+      {/* ── Header: Gestión de Productos & + Nueva Torta ── */}
+      <div className="px-[16px] pt-[14px] flex items-center justify-between mb-[10px]">
+        <div>
+          <div className="font-semibold text-[#a43073] text-[11px] tracking-[0.5px] uppercase mb-[2px]">
+            GESTIÓN DE PRODUCTOS
+          </div>
+          <div className="font-bold text-[#0f172a] text-[20px] leading-tight">
+            Catálogo de Tortas
+          </div>
+          <div className="text-[12px] text-[#64748b]">
+            {tortas.length} tortas publicadas
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleStartCreateTorta}
+          className="bg-[#1e293b] hover:bg-[#334155] rounded-full px-[14px] py-[8px] flex items-center gap-[6px] cursor-pointer border-0 shadow-sm transition-colors text-white shrink-0"
+        >
+          <span className="font-bold text-base leading-none">+</span>
+          <span className="font-semibold text-white text-[12px]">Nueva Torta</span>
+        </button>
+      </div>
+
+      {/* ── Subheader Pill: Todas las tortas / X activas ── */}
+      <div className="px-[16px] mb-[14px]">
+        <div className="bg-white rounded-[10px] border border-[#e2e8f0] px-[14px] py-[8px] flex items-center justify-between shadow-2xs">
+          <div className="flex items-center gap-[8px]">
+            <div className="size-[8px] rounded-full bg-[#10B981]" />
+            <span className="text-[12px] font-medium text-slate-700">Todas las tortas</span>
+          </div>
+          <span className="text-[11px] font-semibold text-[#a43073] bg-[#fdf2f8] border border-[#fbcfe8] px-[10px] py-[2px] rounded-full">
+            {activasCount} activas
+          </span>
         </div>
       </div>
 
-      {/* ── Category tabs ── */}
-      <div className="flex gap-[8px] px-[16px] mb-[16px] overflow-x-auto no-scrollbar">
-        {CATEGORY_TABS.map((t, i) => (
-          <button
-            key={i}
-            type="button"
-            onClick={() => setActiveCategory(i)}
-            className={`flex items-center gap-[6px] px-[14px] py-[7px] rounded-full cursor-pointer whitespace-nowrap text-[13px] transition-colors ${
-              i === activeCategory
-                ? "bg-[#1e293b] text-white font-semibold border-0 shadow-sm"
-                : "bg-white text-[#64748b] font-normal border border-[#e2e8f0] hover:border-slate-300"
-            }`}
-          >
-            <span>{t.label}</span>
-            <span className="text-[11px] text-[#94a3b8]">
-              {tabCounts[i]}
-            </span>
-          </button>
-        ))}
-      </div>
-
+      {/* ── Grilla 2 Columnas de Tortas (Mockup 2.3) ── */}
       <div className="px-[16px]">
-        {/* ── List Header ── */}
-        <div className="flex items-center justify-between mb-[10px]">
-          <div>
-            <div className="font-bold text-[#0f172a] text-[15px]">
-              {CATEGORY_TABS[activeCategory].label} ({filteredItems.length})
-            </div>
-            <div className="font-normal text-[#64748b] text-[12px]">
-              Disponibles para los clientes en tiempo real
-            </div>
-          </div>
-          <div className="flex items-center gap-[4px]">
-            <div className="bg-[#10B981] rounded-full size-[7px]" />
-            <span className="font-semibold text-[#10B981] text-[12px]">
-              {activeCount} Activos
-            </span>
-          </div>
-        </div>
-
-        {/* ── Items List ── */}
         {loading ? (
           <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-400">
             <div className="size-6 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
-            <span className="text-xs">Cargando catálogo...</span>
+            <span className="text-xs">Cargando catálogo de tortas...</span>
           </div>
-        ) : filteredItems.length === 0 ? (
+        ) : tortas.length === 0 ? (
           <div className="py-10 text-center text-slate-500 text-sm bg-white rounded-xl border border-slate-200 p-6">
-            <p className="font-medium text-slate-700 mb-1">Aún no hay {CATEGORY_TABS[activeCategory].label.toLowerCase()}</p>
-            <p className="text-xs text-slate-400 mb-4">Puedes agregar el primero haciendo clic en "Nuevo Ítem".</p>
+            <p className="font-medium text-slate-700 mb-1">Aún no hay tortas publicadas</p>
+            <p className="text-xs text-slate-400 mb-4">Haz clic en "+ Nueva Torta" para publicar la primera.</p>
             <button
-              onClick={() => {
-                setNuevoTipo(CATEGORY_TABS[activeCategory].key);
-                setIsModalOpen(true);
-              }}
+              onClick={handleStartCreateTorta}
               className="px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white text-xs font-semibold rounded-lg shadow-sm cursor-pointer transition-colors"
             >
-              + Agregar {CATEGORY_TABS[activeCategory].label}
+              + Nueva Torta
             </button>
           </div>
         ) : (
-          <div className="flex flex-col gap-[10px] mb-[16px]">
-            {filteredItems.map((r) => (
+          <div className="grid grid-cols-2 gap-[12px] mb-[16px]">
+            {tortas.map((torta) => (
               <div
-                key={r.id}
-                className={`bg-white rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] p-[12px] flex items-center gap-[12px] transition-opacity ${
-                  !r.activo ? "opacity-60 bg-slate-50/50" : ""
+                key={torta.id}
+                className={`bg-white rounded-[12px] border border-[#e2e8f0] p-[10px] shadow-[0px_1px_3px_rgba(0,0,0,0.06)] flex flex-col justify-between transition-all ${
+                  !torta.activo ? "opacity-60 bg-slate-50/60" : ""
                 }`}
               >
-                <div className="shrink-0 size-[52px] rounded-[8px] bg-[#f8fafc] border border-[#e2e8f0] flex items-center justify-center overflow-hidden text-[24px]">
-                  {r.imagen_url ? (
+                <div>
+                  <div className="w-full aspect-square rounded-[8px] overflow-hidden bg-slate-100 border border-slate-200 mb-[8px] relative">
                     <img
-                      src={r.imagen_url}
-                      alt={r.nombre}
-                      className="size-full object-cover"
+                      src={torta.imagen_url || "/tortas/torta-tematica.jpg"}
+                      alt={torta.nombre}
+                      className="w-full h-full object-cover"
                     />
-                  ) : (
-                    <span>{CATEGORY_TABS[activeCategory].emoji}</span>
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-[6px] mb-[2px]">
+                  </div>
+                  <h4 className="font-bold text-[#0f172a] text-[13px] leading-snug line-clamp-2 min-h-[34px] mb-[4px]">
+                    {torta.nombre}
+                  </h4>
+                  <div className="mb-[6px]">
                     <span
-                      className={`font-semibold text-[14px] truncate ${
-                        !r.activo ? "text-[#94a3b8]" : "text-[#0f172a]"
+                      className={`inline-block text-[10px] font-semibold px-[8px] py-[2px] rounded-full ${
+                        torta.tipo === "personalizable"
+                          ? "bg-[#fdf2f8] text-[#a43073] border border-[#fbcfe8]"
+                          : "bg-[#fffbeb] text-[#92400e] border border-[#fef3c7]"
                       }`}
                     >
-                      {r.nombre}
+                      {torta.tipo === "personalizable" ? "Personalizable" : "Receta Fija"}
                     </span>
                   </div>
-
-                  <div className="flex items-center gap-[6px]">
-                    <span
-                      className={`font-semibold text-[12px] ${
-                        r.recargo_extra > 0 ? "text-purple-600" : "text-emerald-600"
-                      }`}
-                    >
-                      {r.recargo_extra > 0
-                        ? `+$${Number(r.recargo_extra).toLocaleString("es-AR")} recargo`
-                        : "Sin costo extra"}
-                    </span>
-                    {!r.activo && (
-                      <span className="font-normal text-[#ef4444] text-[11px]">
-                        • Pausado (Sin stock)
-                      </span>
-                    )}
+                  <div className="font-bold text-[#0f172a] text-[13px] mb-[10px]">
+                    ${Number(torta.precio_base_kg).toLocaleString("es-AR")}{" "}
+                    <span className="text-[11px] font-normal text-slate-500">/ kg</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-[8px] shrink-0">
-                  {/* Toggle switch */}
+                {/* Acciones: Editar y Switch activo */}
+                <div className="flex items-center justify-between pt-[8px] border-t border-slate-100 gap-1">
                   <button
                     type="button"
-                    onClick={() => toggleItemActive(r.id, r.activo)}
-                    className={`w-[36px] h-[20px] rounded-full relative cursor-pointer border-0 transition-colors p-0 ${
-                      r.activo ? "bg-[#10B981]" : "bg-[#e2e8f0]"
+                    onClick={() => handleSelectTortaForEdit(torta)}
+                    className="bg-[#fdf2f8] hover:bg-[#fce7f3] text-[#a43073] border border-[#fbcfe8] rounded-[8px] px-[8px] py-[4px] text-[11px] font-semibold flex items-center gap-[4px] cursor-pointer transition-colors"
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                    <span>Editar ...</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleToggleTortaActivo(torta.id, torta.activo)}
+                    className={`w-[36px] h-[20px] rounded-full relative cursor-pointer border-0 transition-colors p-0 shrink-0 ${
+                      torta.activo ? "bg-[#10B981]" : "bg-[#cbd5e1]"
                     }`}
-                    aria-label={`Alternar activación de ${r.nombre}`}
+                    aria-label={`Alternar visibilidad de ${torta.nombre}`}
                   >
                     <div
                       className={`absolute top-[2px] size-[16px] rounded-full bg-white shadow-xs transition-transform ${
-                        r.activo ? "right-[2px]" : "left-[2px]"
+                        torta.activo ? "right-[2px]" : "left-[2px]"
                       }`}
                     />
-                  </button>
-
-                  {/* Delete button */}
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(r.id, r.nombre)}
-                    className="bg-transparent border-0 cursor-pointer p-1 text-slate-300 hover:text-red-500 transition-colors"
-                    title="Eliminar insumo"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    </svg>
                   </button>
                 </div>
               </div>
             ))}
           </div>
         )}
-
-        {/* ── Sync notice box ── */}
-        <div className="flex items-start gap-[8px] bg-[#fdf2f8] rounded-[10px] p-[12px] mb-[16px] border border-[#fbcfe8]/40">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0 mt-[1px]">
-            <circle cx="8" cy="8" r="7" stroke="#a43073" strokeWidth="1.2" />
-            <path d="M8 7V11M8 5.5V5" stroke="#a43073" strokeWidth="1.4" strokeLinecap="round" />
-          </svg>
-          <span className="font-normal text-[#64748b] text-[11px] leading-[15px]">
-            Los insumos agregados y sus cambios de disponibilidad se sincronizan en tiempo real con el cotizador de pedidos.
-          </span>
-        </div>
       </div>
-
-      {/* ── Modal Nuevo Insumo ── */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl animate-in zoom-in-95 duration-150">
-            <h3 className="text-base font-bold text-slate-800 mb-1">
-              Agregar Nuevo Insumo
-            </h3>
-            <p className="text-xs text-slate-500 mb-4">
-              Completa los datos para habilitar una nueva opción en el catálogo.
-            </p>
-
-            <form onSubmit={handleCrearInsumo} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Categoría / Tipo
-                </label>
-                <select
-                  value={nuevoTipo}
-                  onChange={(e) => setNuevoTipo(e.target.value as TipoInsumo)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-800 bg-white focus:outline-none focus:border-pink-500"
-                >
-                  <option value="bizcochuelo">Bizcochuelo (Masa)</option>
-                  <option value="relleno">Relleno</option>
-                  <option value="cobertura">Cobertura</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Nombre del Insumo
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="ej. Frutos Rojos, Ganache 70%..."
-                  value={nuevoNombre}
-                  onChange={(e) => setNuevoNombre(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-pink-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Foto / Imagen del Insumo (Opcional)
-                </label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                  id="foto-insumo-input"
-                />
-                {imagenPreview ? (
-                  <div className="flex items-center gap-3 p-2 bg-slate-50 border border-slate-200 rounded-lg">
-                    <img
-                      src={imagenPreview}
-                      alt="Vista previa"
-                      className="size-12 rounded object-cover border border-slate-300"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <span className="text-xs text-slate-700 font-medium truncate block">
-                        {imagenFile?.name}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleRemoveImage}
-                        className="text-[11px] text-red-500 hover:text-red-700 font-medium cursor-pointer"
-                      >
-                        Quitar imagen
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <label
-                    htmlFor="foto-insumo-input"
-                    className="flex items-center justify-center gap-2 w-full py-2.5 px-3 border border-dashed border-slate-300 hover:border-pink-400 rounded-lg text-xs text-slate-500 hover:text-pink-600 cursor-pointer transition-colors bg-slate-50/50"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                      <circle cx="8.5" cy="8.5" r="1.5" />
-                      <polyline points="21 15 16 10 5 21" />
-                    </svg>
-                    <span>Seleccionar foto desde el dispositivo</span>
-                  </label>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Recargo Extra ($ ARS)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="50"
-                  value={nuevoRecargo}
-                  onChange={(e) => setNuevoRecargo(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-pink-500"
-                />
-                <span className="text-[10px] text-slate-400 block mt-0.5">
-                  Coloca 0 si no tiene recargo extra.
-                </span>
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="flex-1 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={guardando}
-                  className="flex-1 py-2 rounded-lg bg-pink-600 hover:bg-pink-700 text-xs font-semibold text-white shadow-sm cursor-pointer disabled:opacity-50"
-                >
-                  {guardando ? "Subiendo..." : "Guardar Insumo"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
