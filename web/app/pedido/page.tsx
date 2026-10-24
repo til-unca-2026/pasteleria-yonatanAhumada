@@ -12,7 +12,7 @@ import { BottomBar } from "@/components/pedido/BottomBar";
 import { SuccessModal } from "@/components/pedido/SuccessModal";
 import { ToastNotification } from "@/components/pedido/ToastNotification";
 import { createNuevoPedido } from "@/lib/services/pedidos";
-import { getInsumosPorTorta, getTortaPorSlug, InsumoDB, TipoInsumo } from "@/lib/services/catalogo";
+import { getInsumosPorTorta, getTortaPorSlug, getPrecioBaseKg, InsumoDB, TipoInsumo } from "@/lib/services/catalogo";
 import { sendTelegramNotification } from "@/lib/services/telegram";
 import { createClient } from "@/lib/supabase/client";
 import { extractLocalPhone } from "@/lib/phone";
@@ -125,7 +125,9 @@ function PedidoWizardContent() {
   const tortaSlug = searchParams.get("torta") || "";
   const tortaNombre = searchParams.get("nombre") || "";
   const queryPrecio = searchParams.get("precio");
-  const basePricePerKg = queryPrecio ? parseInt(queryPrecio, 10) : 18500;
+  const [basePricePerKg, setBasePricePerKg] = useState<number>(() => {
+    return queryPrecio ? parseInt(queryPrecio, 10) : 18500;
+  });
   const isFixedRecipe = searchParams.get("tipo") === "receta_fija";
   const queryImagen = searchParams.get("imagen") || "";
   const [tortaImagen, setTortaImagen] = useState<string>(queryImagen);
@@ -137,6 +139,18 @@ function PedidoWizardContent() {
       });
     }
   }, [queryImagen, tortaSlug]);
+
+  // Cargar precio base por kg configurado en taller si no viene por query
+  useEffect(() => {
+    if (!queryPrecio) {
+      getPrecioBaseKg().then((price) => {
+        if (price && price > 0) {
+          setBasePricePerKg(price);
+          setBaseWeightPrice(Math.round(price * 1.5));
+        }
+      });
+    }
+  }, [queryPrecio]);
 
   // Toast notification state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
