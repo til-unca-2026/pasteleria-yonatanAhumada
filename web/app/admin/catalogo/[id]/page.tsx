@@ -300,136 +300,124 @@ export default function ConfigurarTortaPage() {
             <span>Volver</span>
           </button>
 
-          <span className="font-bold text-white text-[15px] truncate max-w-[180px]">
-            {isNueva ? "Nueva Torta" : nombre || "Configurar Torta"}
+          <span className="font-bold text-white text-[15px] truncate max-w-[200px]">
+            {isNueva ? "Nueva Torta" : "Configuración de Torta"}
           </span>
 
           <button
             type="button"
             onClick={handleGuardar}
             disabled={saving}
-            className="border-2 border-[#fc79bd] text-[#fc79bd] bg-transparent hover:bg-[#fc79bd]/15 active:scale-95 transition-all font-bold text-xs px-3.5 py-1 rounded-full cursor-pointer disabled:opacity-50 shadow-2xs"
+            className="border-[1.5px] border-[#fc79bd] text-[#fc79bd] bg-transparent hover:bg-[#fc79bd]/15 active:scale-95 transition-all font-bold text-xs px-4 py-1 rounded-full cursor-pointer disabled:opacity-50 shadow-xs"
           >
             {saving ? "Guardando..." : "Guardar"}
           </button>
         </div>
       </header>
 
-      {/* ── Main Container (Mockup 2.4) ── */}
-      <main className="flex-1 w-full max-w-md mx-auto pt-[68px] pb-[120px] px-[16px] space-y-[16px]">
-        {/* ── CARD 1: Datos Básicos ── */}
-        <div className="bg-white rounded-[14px] border border-[#e2e8f0] p-[16px] shadow-xs">
-          <h3 className="font-bold text-slate-900 text-sm mb-[12px]">Datos Básicos</h3>
-
-          <div className="flex gap-[14px] mb-[12px]">
-            {/* Foto con botón "Cambiar" */}
-            <div className="w-[100px] shrink-0 flex flex-col items-center">
-              <div className="size-[100px] rounded-[10px] overflow-hidden bg-slate-100 border border-slate-200 relative">
-                <img
-                  src={imagenPreview || imagenUrl || "/tortas/torta-tematica.jpg"}
-                  alt={nombre || "Torta"}
-                  className="size-full object-cover"
-                />
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleTortaImageChange}
-                className="hidden"
-                id="foto-torta-change"
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full mt-2 py-1 bg-[#1e293b] hover:bg-[#334155] text-white text-[11px] font-semibold rounded-[6px] border-0 cursor-pointer shadow-2xs transition-colors"
-              >
-                Cambiar
-              </button>
-            </div>
-
-            {/* Campos: Nombre y Precio por Kg */}
-            <div className="flex-1 min-w-0 space-y-[10px]">
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-500 mb-1">
-                  Nombre de la Torta
-                </label>
-                <input
-                  type="text"
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
-                  placeholder="ej. Torta Temática / Celebración"
-                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded-[8px] text-xs font-semibold text-slate-800 focus:outline-none focus:border-pink-500 bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-500 mb-1">
-                  Precio por Kg
-                </label>
-                <div className="relative flex items-center">
-                  <span className="absolute left-2.5 text-xs font-bold text-slate-500">$</span>
-                  <input
-                    type="number"
-                    value={precioKg}
-                    onChange={(e) => setPrecioKg(e.target.value)}
-                    placeholder="18000"
-                    className="w-full pl-6 pr-12 py-1.5 border border-slate-200 rounded-[8px] text-xs font-bold text-slate-800 focus:outline-none focus:border-pink-500 bg-white"
+      {/* ── Main Container (Mockup 2.4 - admin_catalogo_id.png) ── */}
+      <main className="flex-1 w-full max-w-md mx-auto pt-[68px] pb-[124px] px-4 space-y-5">
+        {/* ── SECCIÓN 1: Datos Básicos ── */}
+        <div>
+          <h2 className="text-base font-bold text-slate-800 mb-2 px-0.5">Datos Básicos</h2>
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 shadow-xs">
+            <div className="flex gap-3 mb-3">
+              {/* Foto con botón "Cambiar" directamente acoplado */}
+              <div className="w-[108px] shrink-0 flex flex-col">
+                <div className="w-[108px] h-[92px] rounded-t-xl overflow-hidden bg-slate-100 border border-slate-200 border-b-0 relative">
+                  <img
+                    src={imagenPreview || imagenUrl || "/tortas/torta-tematica.jpg"}
+                    alt={nombre || "Torta"}
+                    className="size-full object-cover"
                   />
-                  <span className="absolute right-2.5 text-[11px] text-slate-400 font-medium">/ kg</span>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleTortaImageChange}
+                  className="hidden"
+                  id="foto-torta-change"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-1.5 bg-[#1e293b] hover:bg-[#334155] text-white text-xs font-semibold rounded-b-xl border border-[#1e293b] cursor-pointer shadow-xs transition-colors text-center"
+                >
+                  Cambiar
+                </button>
+              </div>
+
+              {/* Campos: Nombre y Precio por Kg */}
+              <div className="flex-1 min-w-0 space-y-2">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    Nombre de la Torta
+                  </label>
+                  <input
+                    type="text"
+                    value={nombre}
+                    onChange={(e) => setNombre(e.target.value)}
+                    placeholder="Torta Temática / Celebración"
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-pink-500 bg-white shadow-2xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    Precio por Kg
+                  </label>
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3 text-xs font-bold text-slate-500">$</span>
+                    <input
+                      type="number"
+                      value={precioKg}
+                      onChange={(e) => setPrecioKg(e.target.value)}
+                      placeholder="18000"
+                      className="w-full pl-6 pr-12 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:border-pink-500 bg-white shadow-2xs"
+                    />
+                    <span className="absolute right-3 text-xs text-slate-400 font-medium">/ kg</span>
+                  </div>
                 </div>
               </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-500 mb-1">
-                  Tipo de Receta
-                </label>
-                <select
-                  value={tipo}
-                  onChange={(e) => setTipo(e.target.value as "personalizable" | "receta_fija")}
-                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded-[8px] text-xs font-medium text-slate-700 focus:outline-none focus:border-pink-500 bg-white"
-                >
-                  <option value="personalizable">Personalizable (Receta abierta)</option>
-                  <option value="receta_fija">Receta Fija (Tradicional)</option>
-                </select>
-              </div>
             </div>
-          </div>
 
-          {/* Campo: Descripción */}
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-500 mb-1">
-              Descripción
-            </label>
-            <textarea
-              rows={2}
-              value={descripcion}
-              onChange={(e) => setDescripcion(e.target.value)}
-              placeholder="Diseñada especialmente para tu celebración."
-              className="w-full px-2.5 py-2 border border-slate-200 rounded-[8px] text-xs text-slate-800 focus:outline-none focus:border-pink-500 bg-white resize-none"
-            />
+            {/* Campo: Descripción */}
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                Descripción
+              </label>
+              <textarea
+                rows={2}
+                value={descripcion}
+                onChange={(e) => setDescripcion(e.target.value)}
+                placeholder="Diseñada especialmente para tu celebración."
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-pink-500 bg-white resize-none shadow-2xs"
+              />
+            </div>
           </div>
         </div>
 
-        {/* ── CARD 2: Insumos Compatibles (Mockup 2.4) ── */}
-        <div className="bg-white rounded-[14px] border border-[#e2e8f0] p-[16px] shadow-xs">
-          <div className="flex items-center justify-between mb-[12px]">
-            <h3 className="font-bold text-slate-900 text-sm m-0">Insumos Compatibles</h3>
+        {/* ── SECCIÓN 2: Insumos Compatibles (Mockup 2.4) ── */}
+        <div>
+          {/* Header con botón "+ Nuevo Insumo" */}
+          <div className="flex items-center justify-between mb-2.5 px-0.5">
+            <h2 className="text-base font-bold text-slate-800 m-0">Insumos Compatibles</h2>
             <button
               type="button"
               onClick={() => {
                 setNuevoInsumoTipo(currentCategoryKey);
                 setIsModalInsumoOpen(true);
               }}
-              className="bg-[#1e293b] hover:bg-[#334155] rounded-full px-3 py-1.5 flex items-center gap-1.5 cursor-pointer border-0 shadow-2xs transition-colors text-white"
+              className="bg-[#1e293b] hover:bg-[#334155] rounded-full px-3.5 py-1.5 flex items-center gap-1.5 cursor-pointer border-0 shadow-xs transition-colors text-white"
             >
               <span className="font-bold text-xs leading-none">+</span>
-              <span className="font-semibold text-white text-[11px]">Nuevo Insumo</span>
+              <span className="font-semibold text-white text-xs">Nuevo Insumo</span>
             </button>
           </div>
 
           {/* Selector modular de pestañas (Bizcochuelos, Rellenos, Coberturas) */}
-          <div className="flex gap-2 overflow-x-auto no-scrollbar mb-[12px] pb-1">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar mb-1.5 pb-0.5">
             {INSUMO_CATEGORIES.map((tab, idx) => {
               const count = allInsumos.filter((i) => i.tipo === tab.key).length;
               const isActive = idx === activeTab;
@@ -438,14 +426,14 @@ export default function ConfigurarTortaPage() {
                   key={tab.key}
                   type="button"
                   onClick={() => setActiveTab(idx)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap ${
+                  className={`px-4 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap shadow-xs ${
                     isActive
-                      ? "bg-[#1e293b] text-white shadow-2xs"
-                      : "bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100"
+                      ? "bg-[#1e293b] text-white"
+                      : "bg-white text-slate-700 border border-slate-200/90 hover:bg-slate-50"
                   }`}
                 >
                   <span>{tab.label}</span>
-                  <span className={`ml-1 text-[10px] ${isActive ? "text-slate-300" : "text-slate-400"}`}>
+                  <span className={`ml-1 text-[11px] ${isActive ? "text-slate-300" : "text-slate-400"}`}>
                     ({count})
                   </span>
                 </button>
@@ -453,11 +441,18 @@ export default function ConfigurarTortaPage() {
             })}
           </div>
 
-          {/* Item destacado con interruptor switch (Mockup 2.4) */}
+          {/* Indicador de scroll horizontal (como en mockup) */}
+          <div className="flex items-center justify-center gap-1 text-slate-400 mb-3 opacity-60">
+            <span className="text-[8px]">◀</span>
+            <div className="w-24 h-1 bg-slate-300 rounded-full" />
+            <span className="text-[8px]">▶</span>
+          </div>
+
+          {/* Item destacado con interruptor switch */}
           {featuredInsumo ? (
-            <div className="rounded-[12px] border border-[#e2e8f0] p-3 mb-3 bg-[#fafafa] flex items-center justify-between gap-3 shadow-2xs">
+            <div className="rounded-2xl border border-slate-200/90 p-3 mb-3 bg-white flex items-center justify-between gap-3 shadow-xs">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="size-[46px] rounded-[10px] bg-white border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center text-xl">
+                <div className="size-[54px] rounded-xl bg-amber-50/50 border border-slate-100 overflow-hidden shrink-0 flex items-center justify-center text-xl">
                   {featuredInsumo.imagen_url ? (
                     <img
                       src={featuredInsumo.imagen_url}
@@ -473,7 +468,7 @@ export default function ConfigurarTortaPage() {
                     {featuredInsumo.nombre}
                   </span>
                   <span
-                    className={`text-[11px] font-medium ${
+                    className={`text-xs font-semibold ${
                       featuredInsumo.recargo_extra > 0 ? "text-purple-600" : "text-emerald-600"
                     }`}
                   >
@@ -488,13 +483,13 @@ export default function ConfigurarTortaPage() {
               <button
                 type="button"
                 onClick={() => handleToggleCompatibilidad(featuredInsumo.id)}
-                className={`w-[40px] h-[22px] rounded-full relative cursor-pointer border-0 transition-colors p-0 shrink-0 ${
-                  isFeaturedCompatible ? "bg-[#10B981]" : "bg-[#cbd5e1]"
+                className={`w-[44px] h-[24px] rounded-full relative cursor-pointer border-0 transition-colors p-0 shrink-0 ${
+                  isFeaturedCompatible ? "bg-[#10B981]" : "bg-slate-300"
                 }`}
                 aria-label={`Alternar compatibilidad de ${featuredInsumo.nombre}`}
               >
                 <div
-                  className={`absolute top-[2px] size-[18px] rounded-full bg-white shadow-xs transition-transform ${
+                  className={`absolute top-[2px] size-[20px] rounded-full bg-white shadow-xs transition-transform ${
                     isFeaturedCompatible ? "right-[2px]" : "left-[2px]"
                   }`}
                 />
@@ -502,8 +497,8 @@ export default function ConfigurarTortaPage() {
             </div>
           ) : null}
 
-          {/* Grilla de selección rápida de insumos con dot semáforo (Mockup 2.4) */}
-          <div className="grid grid-cols-3 gap-2">
+          {/* Grilla 3 columnas de selección rápida con dot semáforo */}
+          <div className="grid grid-cols-3 gap-2.5">
             {categoryInsumos.map((insumo) => {
               const isCompatible = compatibleIds.has(insumo.id);
               const isSelected = insumo.id === selectedInsumoId;
@@ -512,21 +507,21 @@ export default function ConfigurarTortaPage() {
                 <div
                   key={insumo.id}
                   onClick={() => setSelectedInsumoId(insumo.id)}
-                  className={`relative rounded-[10px] border p-1.5 flex flex-col items-center text-center cursor-pointer transition-all ${
+                  className={`relative rounded-xl border p-2 flex flex-col items-center text-center cursor-pointer transition-all shadow-xs ${
                     isSelected
-                      ? "border-pink-500 bg-pink-50/40 ring-1 ring-pink-400"
-                      : "border-slate-200 bg-white hover:border-slate-300"
+                      ? "border-pink-500 bg-pink-50/20 ring-2 ring-pink-400"
+                      : "border-slate-200/90 bg-white hover:border-slate-300"
                   }`}
                 >
                   {/* Dot indicador de compatibilidad: Verde si compatible, Gris si no */}
                   <div
-                    className={`absolute top-1.5 right-1.5 size-2.5 rounded-full border border-white shadow-2xs ${
-                      isCompatible ? "bg-[#10B981]" : "bg-slate-300"
+                    className={`absolute top-2 right-2 size-3.5 rounded-full border-2 border-white shadow-xs ${
+                      isCompatible ? "bg-[#10B981]" : "bg-slate-400"
                     }`}
                     title={isCompatible ? "Compatible con este modelo" : "No compatible"}
                   />
 
-                  <div className="size-[42px] rounded-[6px] bg-slate-100 overflow-hidden mb-1 flex items-center justify-center text-base">
+                  <div className="size-[64px] rounded-lg bg-slate-100 overflow-hidden mb-1.5 flex items-center justify-center text-lg">
                     {insumo.imagen_url ? (
                       <img
                         src={insumo.imagen_url}
@@ -538,7 +533,7 @@ export default function ConfigurarTortaPage() {
                     )}
                   </div>
 
-                  <span className="text-[10px] font-semibold text-slate-800 line-clamp-1 truncate w-full capitalize">
+                  <span className="text-xs font-semibold text-slate-700 line-clamp-1 truncate w-full capitalize">
                     {insumo.nombre}
                   </span>
                 </div>
@@ -631,16 +626,16 @@ export default function ConfigurarTortaPage() {
       <footer className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#e2e8f0] shadow-md pb-safe">
         <div className="max-w-md mx-auto">
           {/* Fila superior: Conmutador de recepción */}
-          <div className="px-[16px] py-[8px] border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
-            <div className="flex items-center gap-[6px]">
+          <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+            <div className="flex items-center gap-2">
               <div
-                className={`size-[7px] rounded-full ${
+                className={`size-2.5 rounded-full ${
                   isReceptionOpen ? "bg-[#10B981]" : "bg-slate-400"
                 }`}
               />
-              <span className="font-medium text-[#64748b] text-[11px]">
+              <span className="font-medium text-slate-500 text-xs">
                 Recepción de pedidos:{" "}
-                <strong className={isReceptionOpen ? "text-[#059669]" : "text-slate-500"}>
+                <strong className={isReceptionOpen ? "text-[#059669]" : "text-slate-600"}>
                   {isReceptionOpen ? "ABIERTO" : "CERRADO"}
                 </strong>
               </span>
@@ -649,13 +644,13 @@ export default function ConfigurarTortaPage() {
             <button
               type="button"
               onClick={handleToggleReception}
-              className={`w-[36px] h-[20px] rounded-full relative cursor-pointer border-0 transition-colors p-0 ${
-                isReceptionOpen ? "bg-[#10B981]" : "bg-[#cbd5e1]"
+              className={`w-[44px] h-[24px] rounded-full relative cursor-pointer border-0 transition-colors p-0 shrink-0 ${
+                isReceptionOpen ? "bg-[#10B981]" : "bg-slate-300"
               }`}
               aria-label="Alternar recepción de pedidos"
             >
               <div
-                className={`absolute top-[2px] size-[16px] rounded-full bg-white shadow-xs transition-transform ${
+                className={`absolute top-[2px] size-[20px] rounded-full bg-white shadow-xs transition-transform ${
                   isReceptionOpen ? "right-[2px]" : "left-[2px]"
                 }`}
               />
