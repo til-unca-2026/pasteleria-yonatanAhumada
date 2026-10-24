@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   getTodasLasTortas,
   updateTortaActivo,
@@ -24,6 +25,7 @@ const INSUMO_CATEGORIES: { label: string; key: TipoInsumo; emoji: string }[] = [
 ];
 
 export function CatalogoTab() {
+  const router = useRouter();
   const [tortas, setTortas] = useState<TortaDB[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -94,45 +96,14 @@ export function CatalogoTab() {
     }
   };
 
-  // ── Abrir editor de Torta existente (Mockup 2.4) ──
-  const handleSelectTortaForEdit = async (torta: TortaDB) => {
-    setSelectedTorta(torta);
-    setIsCreatingTorta(false);
-    setEditNombre(torta.nombre);
-    setEditPrecioKg(torta.precio_base_kg.toString());
-    setEditDescripcion(torta.descripcion || "");
-    setEditTipo(torta.tipo);
-    setEditImagenUrl(torta.imagen_url || "");
-    setEditImagenFile(null);
-    setEditImagenPreview(torta.imagen_url || null);
-
-    try {
-      const compIds = await getInsumosIdsPorTorta(torta.id);
-      // Si la torta no tiene restricciones explícitas, todos los insumos activos son compatibles
-      if (compIds.length === 0) {
-        setCompatibleIds(new Set(allInsumos.map((i) => i.id)));
-      } else {
-        setCompatibleIds(new Set(compIds));
-      }
-    } catch (e) {
-      console.error("Error al cargar compatibilidades:", e);
-      setCompatibleIds(new Set(allInsumos.map((i) => i.id)));
-    }
+  // ── Navegar al editor de Torta existente (/admin/catalogo/[id]) ──
+  const handleSelectTortaForEdit = (torta: TortaDB) => {
+    router.push(`/admin/catalogo/${torta.id}`);
   };
 
-  // ── Abrir creador de Nueva Torta (Mockup 2.4) ──
+  // ── Navegar al creador de Nueva Torta (/admin/catalogo/nueva) ──
   const handleStartCreateTorta = () => {
-    setSelectedTorta(null);
-    setIsCreatingTorta(true);
-    setEditNombre("");
-    setEditPrecioKg("18000");
-    setEditDescripcion("");
-    setEditTipo("personalizable");
-    setEditImagenUrl("/tortas/torta-tematica.jpg");
-    setEditImagenFile(null);
-    setEditImagenPreview(null);
-    // Para nueva torta, todos los insumos disponibles quedan preseleccionados
-    setCompatibleIds(new Set(allInsumos.map((i) => i.id)));
+    router.push("/admin/catalogo/nueva");
   };
 
   // ── Volver a la lista de Tortas ──

@@ -212,6 +212,20 @@ export async function uploadTortaImagen(file: File): Promise<string> {
   return data.publicUrl;
 }
 
+export async function getTortaPorId(id: string): Promise<TortaDB | null> {
+  const supabase = createClient();
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  const query = supabase.from("tortas").select("*");
+  const { data, error } = isUuid
+    ? await query.eq("id", id).maybeSingle()
+    : await query.eq("slug", id).maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+  return data as TortaDB;
+}
+
 export async function getTortaPorSlug(slug: string): Promise<TortaDB | null> {
   const supabase = createClient();
   const { data, error } = await supabase
