@@ -218,7 +218,7 @@ export default function ConfigurarTortaPage() {
         });
       }
 
-      router.push("/admin");
+      router.push("/admin?tab=catalogo");
     } catch (err) {
       console.error("Error al guardar la torta:", err);
       alert("Ocurrió un error al guardar la torta en Supabase.");
@@ -291,7 +291,7 @@ export default function ConfigurarTortaPage() {
         <div className="h-[56px] max-w-md mx-auto flex items-center px-[16px] justify-between">
           <button
             type="button"
-            onClick={() => router.push("/admin")}
+            onClick={() => router.push("/admin?tab=catalogo")}
             className="flex items-center gap-1 text-white bg-transparent border-0 cursor-pointer text-xs font-semibold hover:text-pink-300 transition-colors p-0"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
