@@ -67,6 +67,151 @@ export async function getTortasActivas(): Promise<TortaDB[]> {
   return data as TortaDB[];
 }
 
+export async function getTodasLasTortas(): Promise<TortaDB[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("tortas")
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  if (error || !data) {
+    console.error("Error fetching todas las tortas:", error);
+    return [];
+  }
+  return data as TortaDB[];
+}
+
+export async function updateTortaActivo(id: string, activo: boolean): Promise<TortaDB> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("tortas")
+    .update({ activo })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error al actualizar activo de torta:", error);
+    throw error;
+  }
+  return data as TortaDB;
+}
+
+export async function updateTorta(id: string, cambios: Partial<TortaDB>): Promise<TortaDB> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("tortas")
+    .update(cambios)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error al actualizar torta:", error);
+    throw error;
+  }
+  return data as TortaDB;
+}
+
+export async function createTorta(torta: Partial<TortaDB>): Promise<TortaDB> {
+  const supabase = createClient();
+  const slug =
+    torta.slug ||
+    torta.nombre
+      ?.toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") ||
+    `torta-${Date.now()}`;
+
+  const { data, error } = await supabase
+    .from("tortas")
+    .insert([
+      {
+        slug,
+        nombre: torta.nombre,
+        descripcion: torta.descripcion || "",
+        tipo: torta.tipo || "personalizable",
+        precio_base_kg: torta.precio_base_kg || 18000,
+        imagen_url: torta.imagen_url || "/tortas/torta-tematica.jpg",
+        cta_text: torta.tipo === "receta_fija" ? "Pedir" : "Personalizar",
+        activo: torta.activo ?? true,
+      },
+    ])
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error al crear torta:", error);
+    throw error;
+  }
+  return data as TortaDB;
+}
+
+export async function getInsumosIdsPorTorta(tortaId: string): Promise<string[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("tortas_insumos")
+    .select("insumo_id")
+    .eq("torta_id", tortaId);
+
+  if (error || !data) {
+    console.error("Error fetching insumos por torta ID:", error);
+    return [];
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return data.map((r: any) => r.insumo_id);
+}
+
+export async function setInsumoCompatibilidad(
+  tortaId: string,
+  insumoId: string,
+  compatible: boolean
+): Promise<void> {
+  const supabase = createClient();
+  if (compatible) {
+    const { error } = await supabase
+      .from("tortas_insumos")
+      .upsert({ torta_id: tortaId, insumo_id: insumoId });
+    if (error) {
+      console.error("Error asociando insumo compatible:", error);
+      throw error;
+    }
+  } else {
+    const { error } = await supabase
+      .from("tortas_insumos")
+      .delete()
+      .eq("torta_id", tortaId)
+      .eq("insumo_id", insumoId);
+    if (error) {
+      console.error("Error desasociando insumo compatible:", error);
+      throw error;
+    }
+  }
+}
+
+export async function uploadTortaImagen(file: File): Promise<string> {
+  const supabase = createClient();
+  const fileExt = file.name.split(".").pop();
+  const fileName = `torta_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+  const filePath = `tortas/${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("catalogo")
+    .upload(filePath, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+  if (uploadError) {
+    console.error("Error subiendo foto de torta a storage:", uploadError);
+    throw uploadError;
+  }
+
+  const { data } = supabase.storage.from("catalogo").getPublicUrl(filePath);
+  return data.publicUrl;
+}
+
 export async function getTortaPorSlug(slug: string): Promise<TortaDB | null> {
   const supabase = createClient();
   const { data, error } = await supabase
