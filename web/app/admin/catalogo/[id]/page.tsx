@@ -288,7 +288,7 @@ export default function ConfigurarTortaPage() {
     <div className="flex flex-col min-h-screen w-full bg-[#f8fafc] text-[#0f172a] relative">
       {/* ── Top Header Oscuro con Volver y Guardar (Mockup 2.4) ── */}
       <header className="fixed top-0 left-0 right-0 z-40 bg-[#1e293b] shadow-md">
-        <div className="h-[56px] max-w-md mx-auto flex items-center px-[16px] justify-between">
+        <div className="h-[56px] mx-auto flex items-center px-4 justify-between" style={{ maxWidth: 430 }}>
           <button
             type="button"
             onClick={() => router.push("/admin?tab=catalogo")}
@@ -316,19 +316,22 @@ export default function ConfigurarTortaPage() {
       </header>
 
       {/* ── Main Container (Mockup 2.4 - admin_catalogo_id.png) ── */}
-      <main className="flex-1 w-full max-w-md mx-auto pt-[68px] pb-[124px] px-4 space-y-5">
+      <main className="flex-1 w-full mx-auto pt-[68px] pb-[130px] px-4 space-y-4" style={{ maxWidth: 430 }}>
         {/* ── SECCIÓN 1: Datos Básicos ── */}
         <div>
           <h2 className="text-base font-bold text-slate-800 mb-2 px-0.5">Datos Básicos</h2>
           <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 shadow-xs">
             <div className="flex gap-3 mb-3">
               {/* Foto con botón "Cambiar" directamente acoplado */}
-              <div className="w-[108px] shrink-0 flex flex-col">
-                <div className="w-[108px] h-[92px] rounded-t-xl overflow-hidden bg-slate-100 border border-slate-200 border-b-0 relative">
+              <div className="shrink-0 flex flex-col" style={{ width: 110, minWidth: 110 }}>
+                <div
+                  className="rounded-t-xl overflow-hidden bg-slate-100 border border-slate-200 border-b-0 relative"
+                  style={{ width: 110, height: 95 }}
+                >
                   <img
                     src={imagenPreview || imagenUrl || "/tortas/torta-tematica.jpg"}
                     alt={nombre || "Torta"}
-                    className="size-full object-cover"
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                   />
                 </div>
                 <input
@@ -342,14 +345,15 @@ export default function ConfigurarTortaPage() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full py-1.5 bg-[#1e293b] hover:bg-[#334155] text-white text-xs font-semibold rounded-b-xl border border-[#1e293b] cursor-pointer shadow-xs transition-colors text-center"
+                  style={{ width: 110, height: 32 }}
+                  className="bg-[#1e293b] hover:bg-[#334155] text-white text-xs font-semibold rounded-b-xl border border-[#1e293b] cursor-pointer shadow-xs transition-colors flex items-center justify-center text-center"
                 >
                   Cambiar
                 </button>
               </div>
 
               {/* Campos: Nombre y Precio por Kg */}
-              <div className="flex-1 min-w-0 space-y-2">
+              <div className="flex-1 min-w-0 flex flex-col justify-between">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                     Nombre de la Torta
@@ -452,12 +456,15 @@ export default function ConfigurarTortaPage() {
           {featuredInsumo ? (
             <div className="rounded-2xl border border-slate-200/90 p-3 mb-3 bg-white flex items-center justify-between gap-3 shadow-xs">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="size-[54px] rounded-xl bg-amber-50/50 border border-slate-100 overflow-hidden shrink-0 flex items-center justify-center text-xl">
+                <div
+                  className="rounded-xl bg-amber-50/50 border border-slate-100 overflow-hidden shrink-0 flex items-center justify-center text-xl"
+                  style={{ width: 56, height: 56, minWidth: 56, maxWidth: 56 }}
+                >
                   {featuredInsumo.imagen_url ? (
                     <img
                       src={featuredInsumo.imagen_url}
                       alt={featuredInsumo.nombre}
-                      className="size-full object-cover"
+                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                     />
                   ) : (
                     INSUMO_CATEGORIES[activeTab].emoji
@@ -483,15 +490,21 @@ export default function ConfigurarTortaPage() {
               <button
                 type="button"
                 onClick={() => handleToggleCompatibilidad(featuredInsumo.id)}
-                className={`w-[44px] h-[24px] rounded-full relative cursor-pointer border-0 transition-colors p-0 shrink-0 ${
+                style={{ width: 44, height: 24, minWidth: 44 }}
+                className={`rounded-full relative cursor-pointer border-0 transition-colors p-0 shrink-0 ${
                   isFeaturedCompatible ? "bg-[#10B981]" : "bg-slate-300"
                 }`}
                 aria-label={`Alternar compatibilidad de ${featuredInsumo.nombre}`}
               >
                 <div
-                  className={`absolute top-[2px] size-[20px] rounded-full bg-white shadow-xs transition-transform ${
-                    isFeaturedCompatible ? "right-[2px]" : "left-[2px]"
-                  }`}
+                  style={{
+                    width: 20,
+                    height: 20,
+                    top: 2,
+                    left: isFeaturedCompatible ? "calc(100% - 22px)" : 2,
+                    position: "absolute",
+                  }}
+                  className="rounded-full bg-white shadow-xs transition-all duration-200"
                 />
               </button>
             </div>
@@ -515,18 +528,22 @@ export default function ConfigurarTortaPage() {
                 >
                   {/* Dot indicador de compatibilidad: Verde si compatible, Gris si no */}
                   <div
-                    className={`absolute top-2 right-2 size-3.5 rounded-full border-2 border-white shadow-xs ${
+                    className={`absolute top-2 right-2 rounded-full border-2 border-white shadow-xs ${
                       isCompatible ? "bg-[#10B981]" : "bg-slate-400"
                     }`}
+                    style={{ width: 14, height: 14 }}
                     title={isCompatible ? "Compatible con este modelo" : "No compatible"}
                   />
 
-                  <div className="size-[64px] rounded-lg bg-slate-100 overflow-hidden mb-1.5 flex items-center justify-center text-lg">
+                  <div
+                    className="rounded-lg bg-slate-100 overflow-hidden mb-1.5 flex items-center justify-center text-lg"
+                    style={{ width: "100%", height: 68 }}
+                  >
                     {insumo.imagen_url ? (
                       <img
                         src={insumo.imagen_url}
                         alt={insumo.nombre}
-                        className="size-full object-cover"
+                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                       />
                     ) : (
                       INSUMO_CATEGORIES[activeTab].emoji
@@ -624,7 +641,7 @@ export default function ConfigurarTortaPage() {
 
       {/* ── Bottom Bar con Master Switch y Navegación (Mockup 2.4) ── */}
       <footer className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#e2e8f0] shadow-md pb-safe">
-        <div className="max-w-md mx-auto">
+        <div className="mx-auto" style={{ maxWidth: 430 }}>
           {/* Fila superior: Conmutador de recepción */}
           <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
             <div className="flex items-center gap-2">
@@ -632,6 +649,7 @@ export default function ConfigurarTortaPage() {
                 className={`size-2.5 rounded-full ${
                   isReceptionOpen ? "bg-[#10B981]" : "bg-slate-400"
                 }`}
+                style={{ width: 10, height: 10 }}
               />
               <span className="font-medium text-slate-500 text-xs">
                 Recepción de pedidos:{" "}
@@ -644,15 +662,21 @@ export default function ConfigurarTortaPage() {
             <button
               type="button"
               onClick={handleToggleReception}
-              className={`w-[44px] h-[24px] rounded-full relative cursor-pointer border-0 transition-colors p-0 shrink-0 ${
+              style={{ width: 44, height: 24, minWidth: 44 }}
+              className={`rounded-full relative cursor-pointer border-0 transition-colors p-0 shrink-0 ${
                 isReceptionOpen ? "bg-[#10B981]" : "bg-slate-300"
               }`}
               aria-label="Alternar recepción de pedidos"
             >
               <div
-                className={`absolute top-[2px] size-[20px] rounded-full bg-white shadow-xs transition-transform ${
-                  isReceptionOpen ? "right-[2px]" : "left-[2px]"
-                }`}
+                style={{
+                  width: 20,
+                  height: 20,
+                  top: 2,
+                  left: isReceptionOpen ? "calc(100% - 22px)" : 2,
+                  position: "absolute",
+                }}
+                className="rounded-full bg-white shadow-xs transition-all duration-200"
               />
             </button>
           </div>

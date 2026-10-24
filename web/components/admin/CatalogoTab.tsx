@@ -644,6 +644,7 @@ export function CatalogoTab() {
                     <img
                       src={torta.imagen_url || "/tortas/torta-tematica.jpg"}
                       alt={torta.nombre}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -684,15 +685,21 @@ export function CatalogoTab() {
                   <button
                     type="button"
                     onClick={() => handleToggleTortaActivo(torta.id, torta.activo)}
-                    className={`w-[36px] h-[20px] rounded-full relative cursor-pointer border-0 transition-colors p-0 shrink-0 ${
+                    style={{ width: 38, height: 22, minWidth: 38 }}
+                    className={`rounded-full relative cursor-pointer border-0 transition-colors p-0 shrink-0 ${
                       torta.activo ? "bg-[#10B981]" : "bg-[#cbd5e1]"
                     }`}
                     aria-label={`Alternar visibilidad de ${torta.nombre}`}
                   >
                     <div
-                      className={`absolute top-[2px] size-[16px] rounded-full bg-white shadow-xs transition-transform ${
-                        torta.activo ? "right-[2px]" : "left-[2px]"
-                      }`}
+                      style={{
+                        width: 18,
+                        height: 18,
+                        top: 2,
+                        left: torta.activo ? "calc(100% - 20px)" : 2,
+                        position: "absolute",
+                      }}
+                      className="rounded-full bg-white shadow-xs transition-all duration-200"
                     />
                   </button>
                 </div>
