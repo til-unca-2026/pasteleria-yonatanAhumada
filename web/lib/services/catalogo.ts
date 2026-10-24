@@ -188,6 +188,31 @@ export async function updateInsumoActivo(id: string, activo: boolean) {
   return data as InsumoDB;
 }
 
+export async function updateInsumo(
+  id: string,
+  cambios: {
+    nombre?: string;
+    tipo?: TipoInsumo;
+    recargo_extra?: number;
+    activo?: boolean;
+    imagen_url?: string | null;
+  }
+) {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("insumos")
+    .update(cambios)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error updating insumo:", error);
+    throw error;
+  }
+  return data as InsumoDB;
+}
+
 export async function deleteInsumo(id: string) {
   const supabase = createClient();
   const { error } = await supabase.from("insumos").delete().eq("id", id);
