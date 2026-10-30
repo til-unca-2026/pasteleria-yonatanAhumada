@@ -21,6 +21,7 @@ interface InsumosDefaults {
   baseName: string;
   fillingsNames: string[];
   coverageName: string;
+  toppingName?: string;
 }
 
 const DEFAULT_RECIPES_BY_SLUG: Record<string, InsumosDefaults> = {
@@ -31,13 +32,15 @@ const DEFAULT_RECIPES_BY_SLUG: Record<string, InsumosDefaults> = {
   },
   "torta-frutos-rojos": {
     baseName: "",
-    fillingsNames: ["crema pastelera"],
-    coverageName: "mix de frutos rojos",
+    fillingsNames: ["crema pastelera", "crema chantilly"],
+    coverageName: "chantilly",
+    toppingName: "mix de frutos rojos",
   },
   "jardin-de-frutos": {
     baseName: "",
-    fillingsNames: ["crema pastelera"],
-    coverageName: "mix de frutos rojos",
+    fillingsNames: ["crema pastelera", "crema chantilly"],
+    coverageName: "chantilly",
+    toppingName: "mix de frutos rojos",
   },
 };
 
@@ -68,38 +71,30 @@ function sortInsumosWithDefaults(
   const normBase = recipeConfig.baseName.toLowerCase().trim();
   const normFillings = recipeConfig.fillingsNames.map((f) => f.toLowerCase().trim());
   const normCoverage = recipeConfig.coverageName.toLowerCase().trim();
+  const normTopping = (recipeConfig.toppingName || "").toLowerCase().trim();
 
-  const bases = insumosList
-    .filter((i) => i.tipo === "bizcochuelo")
-    .sort((a, b) => {
-      const aDef = a.nombre.toLowerCase().trim() === normBase;
-      const bDef = b.nombre.toLowerCase().trim() === normBase;
-      if (aDef && !bDef) return -1;
-      if (!aDef && bDef) return 1;
-      return a.nombre.localeCompare(b.nombre);
-    });
+  const sortCategory = (tipo: TipoInsumo, fallbackMatch: (i: InsumoDB) => boolean) => {
+    return insumosList
+      .filter((i) => i.tipo === tipo)
+      .sort((a, b) => {
+        // 1. Prioridad: marcado explícitamente como es_default
+        if (a.es_default && !b.es_default) return -1;
+        if (!a.es_default && b.es_default) return 1;
+        // 2. Fallback: coincidencia por receta estática
+        const aDef = fallbackMatch(a);
+        const bDef = fallbackMatch(b);
+        if (aDef && !bDef) return -1;
+        if (!aDef && bDef) return 1;
+        return a.nombre.localeCompare(b.nombre);
+      });
+  };
 
-  const rellenos = insumosList
-    .filter((i) => i.tipo === "relleno")
-    .sort((a, b) => {
-      const aDef = normFillings.includes(a.nombre.toLowerCase().trim());
-      const bDef = normFillings.includes(b.nombre.toLowerCase().trim());
-      if (aDef && !bDef) return -1;
-      if (!aDef && bDef) return 1;
-      return a.nombre.localeCompare(b.nombre);
-    });
+  const bases = sortCategory("bizcochuelo", (i) => i.nombre.toLowerCase().trim() === normBase);
+  const rellenos = sortCategory("relleno", (i) => normFillings.includes(i.nombre.toLowerCase().trim()));
+  const coberturas = sortCategory("cobertura", (i) => i.nombre.toLowerCase().trim() === normCoverage);
+  const toppings = sortCategory("topping", (i) => i.nombre.toLowerCase().trim() === normTopping);
 
-  const coberturas = insumosList
-    .filter((i) => i.tipo === "cobertura")
-    .sort((a, b) => {
-      const aDef = a.nombre.toLowerCase().trim() === normCoverage;
-      const bDef = b.nombre.toLowerCase().trim() === normCoverage;
-      if (aDef && !bDef) return -1;
-      if (!aDef && bDef) return 1;
-      return a.nombre.localeCompare(b.nombre);
-    });
-
-  return [...bases, ...rellenos, ...coberturas];
+  return [...bases, ...rellenos, ...coberturas, ...toppings];
 }
 
 export default function PedidoWizardPage() {
@@ -133,12 +128,16 @@ function PedidoWizardContent() {
   const [tortaImagen, setTortaImagen] = useState<string>(queryImagen);
 
   useEffect(() => {
-    if (!queryImagen && tortaSlug) {
+    if (tortaSlug) {
       getTortaPorSlug(tortaSlug).then((t) => {
-        if (t?.imagen_url) setTortaImagen(t.imagen_url);
+        if (!queryImagen && t?.imagen_url) setTortaImagen(t.imagen_url);
+        if (!queryPrecio && t?.precio_base_kg && t.precio_base_kg > 0) {
+          setBasePricePerKg(t.precio_base_kg);
+          setBaseWeightPrice(Math.round(t.precio_base_kg * 1.5));
+        }
       });
     }
-  }, [queryImagen, tortaSlug]);
+  }, [queryImagen, tortaSlug, queryPrecio]);
 
   // Cargar precio base por kg configurado en taller si no viene por query
   useEffect(() => {
@@ -178,6 +177,7 @@ function PedidoWizardContent() {
   const [selectedBase, setSelectedBase] = useState<string>("");
   const [selectedFillings, setSelectedFillings] = useState<string[]>([]);
   const [selectedCoverage, setSelectedCoverage] = useState<string | null>(null);
+  const [selectedTopping, setSelectedTopping] = useState<string | null>(null);
 
   // Cargar catálogo de insumos activos y preseleccionar defaults
   useEffect(() => {
@@ -192,11 +192,14 @@ function PedidoWizardContent() {
           !isFixedRecipe && data.length > 0 ? sortInsumosWithDefaults(data, recipeConfig) : data;
         setInsumos(sortedData);
 
-        // Preselección de opción default (exactamente 1 por categoría)
+        // Preselección de opción default (exactamente 1 por categoría o fallback al primer activo)
         if (!isFixedRecipe && sortedData.length > 0) {
           // 1. Bizcochuelo base default
           setSelectedBase((prev) => {
             if (prev) return prev;
+            const explicitDefault = sortedData.find((i) => i.tipo === "bizcochuelo" && i.es_default);
+            if (explicitDefault) return explicitDefault.id;
+
             if (recipeConfig.baseName) {
               const match = findInsumoByName(sortedData, "bizcochuelo", recipeConfig.baseName);
               if (match) return match.id;
@@ -205,9 +208,12 @@ function PedidoWizardContent() {
             return firstBase ? firstBase.id : "";
           });
 
-          // 2. Relleno default: exactamente 1 opción por defecto
+          // 2. Relleno default: exactamente 1 opción por defecto (o 2 si hay múltiples defaults)
           setSelectedFillings((prev) => {
             if (prev.length > 0) return prev;
+            const explicitDefaults = sortedData.filter((i) => i.tipo === "relleno" && i.es_default);
+            if (explicitDefaults.length > 0) return explicitDefaults.map((i) => i.id).slice(0, 2);
+
             const primaryName = recipeConfig.fillingsNames[0];
             const match = primaryName ? findInsumoByName(sortedData, "relleno", primaryName) : null;
             if (match) return [match.id];
@@ -215,15 +221,32 @@ function PedidoWizardContent() {
             return firstRelleno ? [firstRelleno.id] : [];
           });
 
-          // 3. Cobertura / Topping default: exactamente 1 opción por defecto
+          // 3. Cobertura default: exactamente 1 opción por defecto
           setSelectedCoverage((prev) => {
             if (prev) return prev;
+            const explicitDefault = sortedData.find((i) => i.tipo === "cobertura" && i.es_default);
+            if (explicitDefault) return explicitDefault.id;
+
             if (recipeConfig.coverageName) {
               const match = findInsumoByName(sortedData, "cobertura", recipeConfig.coverageName);
               if (match) return match.id;
             }
             const firstCoverage = sortedData.find((i) => i.tipo === "cobertura");
             return firstCoverage ? firstCoverage.id : null;
+          });
+
+          // 4. Topping default: exactamente 1 opción por defecto
+          setSelectedTopping((prev) => {
+            if (prev) return prev;
+            const explicitDefault = sortedData.find((i) => i.tipo === "topping" && i.es_default);
+            if (explicitDefault) return explicitDefault.id;
+
+            if (recipeConfig.toppingName) {
+              const match = findInsumoByName(sortedData, "topping", recipeConfig.toppingName);
+              if (match) return match.id;
+            }
+            const firstTopping = sortedData.find((i) => i.tipo === "topping");
+            return firstTopping ? firstTopping.id : null;
           });
         }
       } catch (err) {
@@ -266,11 +289,13 @@ function PedidoWizardContent() {
   const selectedBaseObj = insumos.find((i) => i.id === selectedBase);
   const selectedFillingsObjs = insumos.filter((i) => selectedFillings.includes(i.id));
   const selectedCoverageObj = insumos.find((i) => i.id === selectedCoverage);
+  const selectedToppingObj = insumos.find((i) => i.id === selectedTopping);
 
   const totalRecargos =
     (selectedBaseObj?.recargo_extra || 0) +
     selectedFillingsObjs.reduce((acc, curr) => acc + (curr.recargo_extra || 0), 0) +
-    (selectedCoverageObj?.recargo_extra || 0);
+    (selectedCoverageObj?.recargo_extra || 0) +
+    (selectedToppingObj?.recargo_extra || 0);
 
   const selectedPrice = baseWeightPrice + totalRecargos;
 
@@ -309,11 +334,13 @@ function PedidoWizardContent() {
   const basesInsumos = insumos.filter((i) => i.tipo === "bizcochuelo");
   const rellenosInsumos = insumos.filter((i) => i.tipo === "relleno");
   const coberturasInsumos = insumos.filter((i) => i.tipo === "cobertura");
+  const toppingsInsumos = insumos.filter((i) => i.tipo === "topping");
 
-  const customizableKeys: Array<"bizcochuelo" | "relleno" | "cobertura"> = [];
+  const customizableKeys: Array<"bizcochuelo" | "relleno" | "cobertura" | "topping"> = [];
   if (basesInsumos.length > 1) customizableKeys.push("bizcochuelo");
   if (rellenosInsumos.length > 1) customizableKeys.push("relleno");
   if (coberturasInsumos.length > 1) customizableKeys.push("cobertura");
+  if (toppingsInsumos.length > 1) customizableKeys.push("topping");
 
   const handleCompleteAccordion = (step: AccordionStep, next: AccordionStep) => {
     setDoneAccordions((prev) => new Set(prev).add(step));
@@ -378,11 +405,11 @@ function PedidoWizardContent() {
           return;
         }
         if (coberturasInsumos.length > 1 && !selectedCoverage) {
-          showToast(
-            tortaSlug === "torta-frutos-rojos"
-              ? "Por favor selecciona la fruta principal en el Paso 2."
-              : "Por favor selecciona la cobertura exterior en el Paso 2."
-          );
+          showToast("Por favor selecciona la cobertura exterior en el Paso 2.");
+          return;
+        }
+        if (toppingsInsumos.length > 1 && !selectedTopping) {
+          showToast("Por favor selecciona el topping o fruta en el Paso 2.");
           return;
         }
       }
@@ -422,19 +449,15 @@ function PedidoWizardContent() {
         return;
       }
       if (currentKey === "relleno" && selectedFillings.length === 0) {
-        showToast(
-          tortaSlug === "torta-frutos-rojos"
-            ? "Por favor selecciona la base / relleno."
-            : "Por favor selecciona al menos 1 relleno artesanal."
-        );
+        showToast("Por favor selecciona al menos 1 relleno artesanal.");
         return;
       }
       if (currentKey === "cobertura" && !selectedCoverage) {
-        showToast(
-          tortaSlug === "torta-frutos-rojos"
-            ? "Por favor selecciona la fruta principal."
-            : "Por favor selecciona la cobertura exterior de tu torta."
-        );
+        showToast("Por favor selecciona la cobertura exterior de tu torta.");
+        return;
+      }
+      if (currentKey === "topping" && !selectedTopping) {
+        showToast("Por favor selecciona el topping o fruta de tu torta.");
         return;
       }
 
@@ -467,7 +490,7 @@ function PedidoWizardContent() {
       try {
         const insumosIds = isFixedRecipe
           ? []
-          : [selectedBase, ...selectedFillings, selectedCoverage].filter(
+          : [selectedBase, ...selectedFillings, selectedCoverage, selectedTopping].filter(
               (x): x is string => Boolean(x)
             );
 
@@ -549,7 +572,8 @@ function PedidoWizardContent() {
       }
       const nextKey = customizableKeys[activeAccordion];
       if (nextKey === "relleno") return "Continuar a Rellenos";
-      if (nextKey === "cobertura") return "Continuar a Cobertura / Topping";
+      if (nextKey === "cobertura") return "Continuar a Cobertura";
+      if (nextKey === "topping") return "Continuar a Toppings";
       return "Continuar al Resumen";
     }
     if (currentStep === 3) return "Confirmar y Reservar Cupo";
@@ -592,6 +616,8 @@ function PedidoWizardContent() {
             onToggleFilling={handleToggleFilling}
             selectedCoverage={selectedCoverage}
             onSelectCoverage={setSelectedCoverage}
+            selectedTopping={selectedTopping}
+            onSelectTopping={setSelectedTopping}
             activeAccordion={activeAccordion}
             setActiveAccordion={setActiveAccordion}
             doneAccordions={doneAccordions}
@@ -615,6 +641,7 @@ function PedidoWizardContent() {
             selectedBaseNombre={selectedBaseObj?.nombre}
             selectedFillingsNombres={selectedFillingsObjs.map((f) => f.nombre)}
             selectedCoverageNombre={selectedCoverageObj?.nombre}
+            selectedToppingNombre={selectedToppingObj?.nombre}
             nombre={nombre}
             onChangeNombre={setNombre}
             telefono={telefono}

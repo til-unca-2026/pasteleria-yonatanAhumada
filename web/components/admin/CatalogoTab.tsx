@@ -13,6 +13,7 @@ import {
   getInsumos,
   createInsumo,
   uploadInsumoImagen,
+  updateInsumo,
   TortaDB,
   InsumoDB,
   TipoInsumo,
@@ -22,6 +23,7 @@ const INSUMO_CATEGORIES: { label: string; key: TipoInsumo; emoji: string }[] = [
   { label: "Bizcochuelos", key: "bizcochuelo", emoji: "🍰" },
   { label: "Rellenos", key: "relleno", emoji: "🍯" },
   { label: "Coberturas", key: "cobertura", emoji: "🧁" },
+  { label: "Toppings", key: "topping", emoji: "🍓" },
 ];
 
 export function CatalogoTab() {
@@ -54,7 +56,18 @@ export function CatalogoTab() {
   const [nuevoInsumoTipo, setNuevoInsumoTipo] = useState<TipoInsumo>("bizcochuelo");
   const [nuevoInsumoRecargo, setNuevoInsumoRecargo] = useState<string>("0");
   const [nuevoInsumoFile, setNuevoInsumoFile] = useState<File | null>(null);
+  const [nuevoInsumoPreview, setNuevoInsumoPreview] = useState<string | null>(null);
   const [guardandoInsumo, setGuardandoInsumo] = useState<boolean>(false);
+
+  // Modal para editar insumo existente
+  const [editingInsumo, setEditingInsumo] = useState<InsumoDB | null>(null);
+  const [editInsumoNombre, setEditInsumoNombre] = useState<string>("");
+  const [editInsumoTipo, setEditInsumoTipo] = useState<TipoInsumo>("bizcochuelo");
+  const [editInsumoRecargo, setEditInsumoRecargo] = useState<string>("0");
+  const [editInsumoFile, setEditInsumoFile] = useState<File | null>(null);
+  const [editInsumoPreview, setEditInsumoPreview] = useState<string | null>(null);
+  const [guardandoEditInsumo, setGuardandoEditInsumo] = useState<boolean>(false);
+  const editInsumoFileInputRef = useRef<HTMLInputElement>(null);
 
   const tortaFileInputRef = useRef<HTMLInputElement>(null);
   const insumoFileInputRef = useRef<HTMLInputElement>(null);
@@ -231,12 +244,69 @@ export function CatalogoTab() {
       setNuevoInsumoNombre("");
       setNuevoInsumoRecargo("0");
       setNuevoInsumoFile(null);
+      setNuevoInsumoPreview(null);
       setIsModalInsumoOpen(false);
     } catch (err) {
       console.error("Error al crear insumo:", err);
       alert("Error al registrar insumo.");
     } finally {
       setGuardandoInsumo(false);
+    }
+  };
+
+  const handleInsumoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setNuevoInsumoFile(file);
+      setNuevoInsumoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleOpenEditInsumo = (insumo: InsumoDB) => {
+    setEditingInsumo(insumo);
+    setEditInsumoNombre(insumo.nombre);
+    setEditInsumoTipo(insumo.tipo);
+    setEditInsumoRecargo(insumo.recargo_extra.toString());
+    setEditInsumoFile(null);
+    setEditInsumoPreview(insumo.imagen_url || null);
+  };
+
+  const handleEditFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setEditInsumoFile(file);
+      setEditInsumoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleGuardarEditInsumo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingInsumo || !editInsumoNombre.trim()) return;
+
+    setGuardandoEditInsumo(true);
+    try {
+      let finalImageUrl = editInsumoPreview;
+      if (editInsumoFile) {
+        finalImageUrl = await uploadInsumoImagen(editInsumoFile);
+      }
+
+      const updated = await updateInsumo(editingInsumo.id, {
+        nombre: editInsumoNombre.trim(),
+        tipo: editInsumoTipo,
+        recargo_extra: Number(editInsumoRecargo) || 0,
+        imagen_url: finalImageUrl,
+      });
+
+      setAllInsumos((prev) =>
+        prev.map((i) => (i.id === updated.id ? { ...i, ...updated } : i))
+      );
+
+      setEditingInsumo(null);
+    } catch (err) {
+      console.error("Error al actualizar insumo:", err);
+      alert("Error al actualizar el insumo.");
+    } finally {
+      setGuardandoEditInsumo(false);
     }
   };
 
@@ -463,21 +533,33 @@ export function CatalogoTab() {
                         </div>
                       </div>
 
-                      {/* Switch de compatibilidad */}
-                      <button
-                        type="button"
-                        onClick={() => handleToggleCompatibilidad(insumo.id)}
-                        className={`w-[36px] h-[20px] rounded-full relative cursor-pointer border-0 transition-colors p-0 shrink-0 ${
-                          isCompatible ? "bg-[#10B981]" : "bg-[#cbd5e1]"
-                        }`}
-                        aria-label={`Alternar compatibilidad de ${insumo.nombre}`}
-                      >
-                        <div
-                          className={`absolute top-[2px] size-[16px] rounded-full bg-white shadow-xs transition-transform ${
-                            isCompatible ? "right-[2px]" : "left-[2px]"
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {/* Botón para editar insumo */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditInsumo(insumo)}
+                          className="size-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer border border-slate-200"
+                          title="Editar precio, nombre o foto"
+                        >
+                          ✏️
+                        </button>
+
+                        {/* Switch de compatibilidad */}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleCompatibilidad(insumo.id)}
+                          className={`w-[36px] h-[20px] rounded-full relative cursor-pointer border-0 transition-colors p-0 shrink-0 ${
+                            isCompatible ? "bg-[#10B981]" : "bg-[#cbd5e1]"
                           }`}
-                        />
-                      </button>
+                          aria-label={`Alternar compatibilidad de ${insumo.nombre}`}
+                        >
+                          <div
+                            className={`absolute top-[2px] size-[16px] rounded-full bg-white shadow-xs transition-transform ${
+                              isCompatible ? "right-[2px]" : "left-[2px]"
+                            }`}
+                          />
+                        </button>
+                      </div>
                     </div>
                   );
                 })
@@ -497,7 +579,55 @@ export function CatalogoTab() {
                 El nuevo ingrediente quedará disponible para asignar a tortas modelo.
               </p>
 
-              <form onSubmit={handleCrearNuevoInsumo} className="space-y-4">
+              <form onSubmit={handleCrearNuevoInsumo} className="space-y-3.5">
+                {/* Selector de Foto del Insumo */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Foto del Insumo (Opcional)
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <div className="size-14 rounded-xl border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center shrink-0">
+                      {nuevoInsumoPreview ? (
+                        <img
+                          src={nuevoInsumoPreview}
+                          alt="Preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-2xl opacity-60">📷</span>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <input
+                        ref={insumoFileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleInsumoFileChange}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => insumoFileInputRef.current?.click()}
+                        className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 block w-full mb-1 cursor-pointer"
+                      >
+                        {nuevoInsumoPreview ? "Cambiar foto" : "Subir foto"}
+                      </button>
+                      {nuevoInsumoPreview && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNuevoInsumoFile(null);
+                            setNuevoInsumoPreview(null);
+                          }}
+                          className="text-[11px] text-red-500 hover:underline block cursor-pointer"
+                        >
+                          Quitar foto
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">
                     Categoría / Tipo
@@ -505,11 +635,12 @@ export function CatalogoTab() {
                   <select
                     value={nuevoInsumoTipo}
                     onChange={(e) => setNuevoInsumoTipo(e.target.value as TipoInsumo)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-800 bg-white focus:outline-none focus:border-pink-500"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 bg-white focus:outline-none focus:border-pink-500"
                   >
-                    <option value="bizcochuelo">Bizcochuelo (Masa)</option>
-                    <option value="relleno">Relleno</option>
-                    <option value="cobertura">Cobertura</option>
+                    <option value="bizcochuelo">🍰 Bizcochuelo (Masa)</option>
+                    <option value="relleno">🍯 Relleno</option>
+                    <option value="cobertura">🧁 Cobertura</option>
+                    <option value="topping">🍓 Topping / Decoración</option>
                   </select>
                 </div>
 
@@ -523,7 +654,7 @@ export function CatalogoTab() {
                     placeholder="ej. Frutos Rojos, Ganache 70%..."
                     value={nuevoInsumoNombre}
                     onChange={(e) => setNuevoInsumoNombre(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-pink-500"
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-pink-500"
                   />
                 </div>
 
@@ -537,7 +668,7 @@ export function CatalogoTab() {
                     step="50"
                     value={nuevoInsumoRecargo}
                     onChange={(e) => setNuevoInsumoRecargo(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-pink-500"
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-pink-500"
                   />
                   <span className="text-[10px] text-slate-400 block mt-0.5">
                     Coloca 0 si no tiene costo adicional.
@@ -547,7 +678,11 @@ export function CatalogoTab() {
                 <div className="flex gap-2 pt-2">
                   <button
                     type="button"
-                    onClick={() => setIsModalInsumoOpen(false)}
+                    onClick={() => {
+                      setIsModalInsumoOpen(false);
+                      setNuevoInsumoFile(null);
+                      setNuevoInsumoPreview(null);
+                    }}
                     className="flex-1 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
                   >
                     Cancelar
@@ -558,6 +693,148 @@ export function CatalogoTab() {
                     className="flex-1 py-2 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-xs font-semibold text-white shadow-sm cursor-pointer disabled:opacity-50"
                   >
                     {guardandoInsumo ? "Guardando..." : "Crear Insumo"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ── Modal Editar Insumo ── */}
+        {editingInsumo && (
+          <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl animate-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-100">
+                <div>
+                  <h3 className="text-base font-bold text-slate-800">
+                    Editar Insumo
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Modificá el precio extra, categoría, nombre o foto.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingInsumo(null)}
+                  className="size-7 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center text-xs font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleGuardarEditInsumo} className="space-y-3.5">
+                {/* Selector de Foto del Insumo */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Foto del Insumo
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <div className="size-14 rounded-xl border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center shrink-0">
+                      {editInsumoPreview ? (
+                        <img
+                          src={editInsumoPreview}
+                          alt="Preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-2xl opacity-60">📷</span>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <input
+                        ref={editInsumoFileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleEditFileChange}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => editInsumoFileInputRef.current?.click()}
+                        className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 block w-full mb-1 cursor-pointer"
+                      >
+                        {editInsumoPreview ? "Cambiar foto" : "Subir foto"}
+                      </button>
+                      {editInsumoPreview && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditInsumoFile(null);
+                            setEditInsumoPreview(null);
+                          }}
+                          className="text-[11px] text-red-500 hover:underline block cursor-pointer"
+                        >
+                          Quitar foto
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Categoría / Tipo
+                  </label>
+                  <select
+                    value={editInsumoTipo}
+                    onChange={(e) => setEditInsumoTipo(e.target.value as TipoInsumo)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 bg-white focus:outline-none focus:border-pink-500 cursor-pointer"
+                  >
+                    <option value="bizcochuelo">🍰 Bizcochuelo (Masa)</option>
+                    <option value="relleno">🍯 Relleno</option>
+                    <option value="cobertura">🧁 Cobertura</option>
+                    <option value="topping">🍓 Topping / Decoración</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Nombre del Insumo
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="ej. Frutos Rojos, Ganache 70%..."
+                    value={editInsumoNombre}
+                    onChange={(e) => setEditInsumoNombre(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-pink-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Recargo Extra ($ ARS)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1.5 text-xs text-slate-400 font-bold">$</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="50"
+                      value={editInsumoRecargo}
+                      onChange={(e) => setEditInsumoRecargo(e.target.value)}
+                      className="w-full pl-6 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-pink-500"
+                    />
+                  </div>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                    Coloca 0 si no tiene costo adicional.
+                  </span>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingInsumo(null)}
+                    className="flex-1 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={guardandoEditInsumo || !editInsumoNombre.trim()}
+                    className="flex-1 py-2 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-xs font-semibold text-white shadow-sm cursor-pointer disabled:opacity-50"
+                  >
+                    {guardandoEditInsumo ? "Guardando..." : "Guardar Cambios"}
                   </button>
                 </div>
               </form>
@@ -640,13 +917,20 @@ export function CatalogoTab() {
                 }`}
               >
                 <div>
-                  <div className="w-full aspect-square rounded-[8px] overflow-hidden bg-slate-100 border border-slate-200 mb-[8px] relative">
-                    <img
-                      src={torta.imagen_url || "/tortas/torta-tematica.jpg"}
-                      alt={torta.nombre}
-                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                      className="w-full h-full object-cover"
-                    />
+                  <div className="w-full aspect-square rounded-[8px] overflow-hidden bg-slate-100 border border-slate-200 mb-[8px] relative flex items-center justify-center">
+                    {torta.imagen_url ? (
+                      <img
+                        src={torta.imagen_url}
+                        alt={torta.nombre}
+                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50 text-slate-400 p-2 text-center">
+                        <span className="text-2xl mb-1">🎂</span>
+                        <span className="text-[10px] text-slate-400 font-medium">Sin foto</span>
+                      </div>
+                    )}
                   </div>
                   <h4 className="font-bold text-[#0f172a] text-[13px] leading-snug line-clamp-2 min-h-[34px] mb-[4px]">
                     {torta.nombre}

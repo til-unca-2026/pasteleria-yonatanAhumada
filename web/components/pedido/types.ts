@@ -31,4 +31,4 @@ export interface CoverageOption {
 }
 
 export type StepNumber = 1 | 2 | 3;
-export type AccordionStep = 1 | 2 | 3;
+export type AccordionStep = 1 | 2 | 3 | 4;

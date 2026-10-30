@@ -84,7 +84,7 @@ export default async function Home() {
         id: t.slug,
         name: t.nombre,
         slug: t.slug,
-        image: t.imagen_url,
+        image: t.imagen_url || "",
         pricePerKg: Number(t.precio_base_kg),
         type: t.tipo as "personalizable" | "receta_fija",
         description: t.descripcion || "",
@@ -144,21 +144,30 @@ export default async function Home() {
           {cakesCatalog.map((cake) => {
             const targetUrl = `/pedido?torta=${cake.slug}&nombre=${encodeURIComponent(
               cake.name
-            )}&precio=${cake.pricePerKg}&tipo=${cake.type}&imagen=${encodeURIComponent(cake.image)}`;
+            )}&precio=${cake.pricePerKg}&tipo=${cake.type}&imagen=${encodeURIComponent(cake.image || "")}`;
 
             return (
               <div
                 key={cake.id}
                 className="bg-white rounded-[14px] border border-slate-200/80 shadow-[0px_2px_6px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow group"
               >
-                {/* Imagen */}
-                <div className="relative w-full h-[125px] bg-slate-100 overflow-hidden">
-                  <img
-                    src={cake.image}
-                    alt={cake.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    loading="lazy"
-                  />
+                {/* Imagen o Placeholder pastelero */}
+                <div className="relative w-full h-[125px] bg-slate-100 overflow-hidden flex items-center justify-center">
+                  {cake.image ? (
+                    <img
+                      src={cake.image}
+                      alt={cake.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-pink-50 via-white to-amber-50/50 text-slate-400 p-3 text-center">
+                      <div className="size-10 rounded-full bg-white shadow-2xs border border-pink-100 flex items-center justify-center text-xl mb-1 group-hover:scale-110 transition-transform">
+                        🎂
+                      </div>
+                      <span className="text-[10px] font-semibold text-slate-500">Pastelería Artesanal</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Contenido de la tarjeta */}

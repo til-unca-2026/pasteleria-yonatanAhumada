@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 
-export type TipoInsumo = "bizcochuelo" | "relleno" | "cobertura";
+export type TipoInsumo = "bizcochuelo" | "relleno" | "cobertura" | "topping";
 
 export interface InsumoDB {
   id: string;
@@ -9,6 +9,7 @@ export interface InsumoDB {
   imagen_url?: string | null;
   recargo_extra: number;
   activo: boolean;
+  es_default?: boolean;
 }
 
 export async function getInsumos() {
@@ -125,8 +126,8 @@ export async function createTorta(torta: Partial<TortaDB>): Promise<TortaDB> {
     nombre: torta.nombre,
     descripcion: torta.descripcion || "",
     tipo: torta.tipo || "personalizable",
-    precio_base_kg: torta.precio_base_kg || 18000,
-    imagen_url: torta.imagen_url || "/tortas/torta-tematica.jpg",
+    precio_base_kg: torta.precio_base_kg,
+    imagen_url: torta.imagen_url || "",
     cta_text: torta.tipo === "receta_fija" ? "Pedir" : "Personalizar",
     activo: torta.activo ?? true,
   };
@@ -137,9 +138,15 @@ export async function createTorta(torta: Partial<TortaDB>): Promise<TortaDB> {
     .select();
 
   if (error) {
-    console.warn("Aviso al crear torta (posible RLS):", error);
+    console.error("Error al crear torta en Supabase:", error);
+    throw error;
   }
-  return (data && data[0]) ? (data[0] as TortaDB) : ({ id: `torta-${Date.now()}`, ...payload } as TortaDB);
+
+  if (!data || data.length === 0) {
+    throw new Error("No se pudo confirmar la creación de la torta en Supabase.");
+  }
+
+  return data[0] as TortaDB;
 }
 
 export async function getInsumosIdsPorTorta(tortaId: string): Promise<string[]> {
@@ -155,6 +162,108 @@ export async function getInsumosIdsPorTorta(tortaId: string): Promise<string[]> 
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return data.map((r: any) => r.insumo_id);
+}
+
+export interface TortaInsumoRel {
+  insumo_id: string;
+  es_default: boolean;
+}
+
+export async function getInsumosRelPorTorta(tortaId: string): Promise<TortaInsumoRel[]> {
+  const supabase = createClient();
+  const res = await supabase
+    .from("tortas_insumos")
+    .select("insumo_id, es_default")
+    .eq("torta_id", tortaId);
+
+  let list: TortaInsumoRel[] = [];
+  if (res.error) {
+    const fallback = await supabase
+      .from("tortas_insumos")
+      .select("insumo_id")
+      .eq("torta_id", tortaId);
+    list = (fallback.data || []).map((r: { insumo_id: string }) => ({
+      insumo_id: r.insumo_id,
+      es_default: false,
+    }));
+  } else {
+    list = (res.data || []).map((r: { insumo_id: string; es_default?: boolean }) => ({
+      insumo_id: r.insumo_id,
+      es_default: Boolean(r.es_default),
+    }));
+  }
+
+  // Respaldo en localStorage en caso de que aún no se haya ejecutado el ALTER TABLE en Supabase
+  if (typeof window !== "undefined") {
+    try {
+      const stored = localStorage.getItem(`torta_defaults_${tortaId}`);
+      if (stored) {
+        const defaultIds = new Set<string>(JSON.parse(stored));
+        list = list.map((item) => ({
+          ...item,
+          es_default: item.es_default || defaultIds.has(item.insumo_id),
+        }));
+      }
+    } catch {
+      // Ignorar error de parsing en localStorage
+    }
+  }
+
+  return list;
+}
+
+export async function setInsumoDefault(
+  tortaId: string,
+  insumoId: string,
+  esDefault: boolean,
+  otherInsumosOfCategory: string[] = []
+): Promise<void> {
+  const supabase = createClient();
+
+  // Guardar en localStorage para disponibilidad local inmediata
+  if (typeof window !== "undefined") {
+    try {
+      const key = `torta_defaults_${tortaId}`;
+      const existing = localStorage.getItem(key);
+      const set = new Set<string>(existing ? JSON.parse(existing) : []);
+      // Quitar otros de la misma categoría
+      otherInsumosOfCategory.forEach((id) => set.delete(id));
+      if (esDefault) {
+        set.add(insumoId);
+      } else {
+        set.delete(insumoId);
+      }
+      localStorage.setItem(key, JSON.stringify(Array.from(set)));
+    } catch {
+      // Ignorar error de localStorage
+    }
+  }
+
+  // Guardar en Supabase (si la columna es_default existe)
+  try {
+    if (esDefault) {
+      if (otherInsumosOfCategory.length > 0) {
+        await supabase
+          .from("tortas_insumos")
+          .update({ es_default: false })
+          .eq("torta_id", tortaId)
+          .in("insumo_id", otherInsumosOfCategory);
+      }
+      await supabase
+        .from("tortas_insumos")
+        .update({ es_default: true })
+        .eq("torta_id", tortaId)
+        .eq("insumo_id", insumoId);
+    } else {
+      await supabase
+        .from("tortas_insumos")
+        .update({ es_default: false })
+        .eq("torta_id", tortaId)
+        .eq("insumo_id", insumoId);
+    }
+  } catch (err) {
+    console.warn("Aviso al persistir es_default en Supabase:", err);
+  }
 }
 
 export async function setInsumoCompatibilidad(
@@ -249,21 +358,49 @@ export async function getInsumosPorTorta(tortaSlug?: string): Promise<InsumoDB[]
       return [];
     }
 
-    const { data, error } = await supabase
+    // 1. Intentar consultar con es_default
+    let rows: any[] = [];
+    const res = await supabase
       .from("tortas_insumos")
-      .select("insumo:insumos(*)")
+      .select("es_default, insumo:insumos(*)")
       .eq("torta_id", torta.id);
 
-    if (error || !data) {
-      console.error("Error fetching insumos por torta:", error);
+    if (res.error) {
+      // Fallback si la columna es_default aún no fue creada en Supabase
+      const fallback = await supabase
+        .from("tortas_insumos")
+        .select("insumo:insumos(*)")
+        .eq("torta_id", torta.id);
+      rows = fallback.data || [];
+    } else {
+      rows = res.data || [];
+    }
+
+    if (rows.length === 0) {
       return getInsumosActivos();
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const compatibles = data
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((row: any) => row.insumo as InsumoDB)
-      .filter((i: InsumoDB) => Boolean(i && i.activo));
+    // Comprobar si hay defaults guardados en localStorage como fallback
+    let localDefaultIds = new Set<string>();
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem(`torta_defaults_${torta.id}`);
+        if (stored) localDefaultIds = new Set(JSON.parse(stored));
+      } catch {
+        // Ignorar
+      }
+    }
+
+    const compatibles: InsumoDB[] = rows
+      .filter((row: any) => Boolean(row.insumo && row.insumo.activo))
+      .map((row: any) => {
+        const ins = row.insumo as InsumoDB;
+        const isDef = Boolean(row.es_default) || localDefaultIds.has(ins.id);
+        return {
+          ...ins,
+          es_default: isDef,
+        };
+      });
 
     return compatibles.length > 0 ? compatibles : getInsumosActivos();
   } catch (err) {
@@ -366,6 +503,8 @@ export async function updateInsumo(
 
 export async function deleteInsumo(id: string) {
   const supabase = createClient();
+  // Limpiar relaciones de compatibilidad primero para evitar restricciones de FK
+  await supabase.from("tortas_insumos").delete().eq("insumo_id", id);
   const { error } = await supabase.from("insumos").delete().eq("id", id);
   if (error) {
     console.error("Error deleting insumo:", error);
