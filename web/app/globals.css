@@ -86,6 +86,10 @@
     margin: 0;
     padding: 0;
   }
+  img, svg, video {
+    display: block;
+    max-width: 100%;
+  }
   body {
     overscroll-behavior-y: none;
     font-family: var(--font-inter), 'Inter', system-ui, -apple-system, sans-serif;

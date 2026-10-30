@@ -152,6 +152,8 @@ export interface Paso2Props {
   onToggleFilling: (fillingId: string) => void;
   selectedCoverage: string | null;
   onSelectCoverage: (coverageId: string) => void;
+  selectedTopping?: string | null;
+  onSelectTopping?: (toppingId: string) => void;
   activeAccordion: AccordionStep;
   setActiveAccordion: (step: AccordionStep) => void;
   doneAccordions: Set<AccordionStep>;
@@ -172,6 +174,8 @@ export function Paso2Sabores({
   onToggleFilling,
   selectedCoverage,
   onSelectCoverage,
+  selectedTopping = null,
+  onSelectTopping,
   activeAccordion,
   setActiveAccordion,
   doneAccordions,
@@ -259,25 +263,39 @@ export function Paso2Sabores({
       return a.nombre.localeCompare(b.nombre);
     });
 
+  const toppings = insumos
+    .filter((i) => i.tipo === "topping")
+    .sort((a, b) => {
+      const aSel = a.id === selectedTopping;
+      const bSel = b.id === selectedTopping;
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return a.nombre.localeCompare(b.nombre);
+    });
+
   const baseObj = bases.find((b) => b.id === selectedBase);
   const rellenosObjs = rellenos.filter((r) => selectedFillings.includes(r.id));
   const coberturaObj = coberturas.find((c) => c.id === selectedCoverage);
+  const toppingObj = toppings.find((t) => t.id === selectedTopping);
 
   const rellenosOk = selectedFillings.length > 0;
   const coberturaOk = selectedCoverage !== null;
+  const toppingOk = selectedTopping !== null || toppings.length === 0;
 
   // Insumos fijos (solo 1 opción disponible en el modelo, no personalizables)
   const fixedBase = bases.length === 1 ? bases[0] : null;
   const fixedRelleno = rellenos.length === 1 ? rellenos[0] : null;
   const fixedCobertura = coberturas.length === 1 ? coberturas[0] : null;
+  const fixedTopping = toppings.length === 1 ? toppings[0] : null;
 
   // Grupos personalizables (más de 1 opción para elegir)
   const canCustomizeBases = bases.length > 1;
   const canCustomizeRellenos = rellenos.length > 1;
   const canCustomizeCoberturas = coberturas.length > 1;
+  const canCustomizeToppings = toppings.length > 1;
 
   interface ActiveSectionConfig {
-    key: "bizcochuelo" | "relleno" | "cobertura";
+    key: "bizcochuelo" | "relleno" | "cobertura" | "topping";
     title: string;
     subtitle: string;
     badge?: React.ReactNode;
@@ -409,11 +427,11 @@ export function Paso2Sabores({
     const sectionNum = activeSections.length + 1;
     activeSections.push({
       key: "cobertura",
-      title: "Cobertura / Topping",
+      title: "Cobertura Exterior",
       subtitle:
         coberturaObj
           ? coberturaObj.nombre
-          : "Elegí tu cobertura o topping",
+          : "Elegí la cobertura exterior",
       isDone: doneAccordions.has(sectionNum as AccordionStep) && coberturaOk,
       canConfirm: coberturaOk,
       renderContent: () => (
@@ -435,7 +453,7 @@ export function Paso2Sabores({
                   {c.imagen_url ? (
                     <img src={c.imagen_url} alt={c.nombre} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-[24px]">🍓</span>
+                    <span className="text-[24px]">🧁</span>
                   )}
                   {sel ? <CheckBadge /> : <EmptyBadge />}
                 </div>
@@ -445,6 +463,56 @@ export function Paso2Sabores({
                 {c.recargo_extra > 0 && (
                   <span className="font-semibold text-pink-600 text-[9px] mt-0.5">
                     +${c.recargo_extra.toLocaleString("es-AR")}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      ),
+    });
+  }
+
+  if (canCustomizeToppings && onSelectTopping) {
+    const sectionNum = activeSections.length + 1;
+    activeSections.push({
+      key: "topping",
+      title: "Topping / Frutas",
+      subtitle:
+        toppingObj
+          ? toppingObj.nombre
+          : "Elegí el topping o fruta de terminación",
+      isDone: doneAccordions.has(sectionNum as AccordionStep) && toppingOk,
+      canConfirm: toppingOk,
+      renderContent: () => (
+        <div className={`grid ${toppings.length <= 2 ? "grid-cols-2" : "grid-cols-3"} gap-[10px] mb-[8px]`}>
+          {toppings.map((t) => {
+            const sel = selectedTopping === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => onSelectTopping(t.id)}
+                className={`rounded-[10px] p-[10px] flex flex-col items-start border cursor-pointer transition-all relative ${
+                  sel
+                    ? "border-2 border-[#1e293b] bg-slate-50 shadow-sm"
+                    : "border-slate-200 bg-white hover:border-slate-300"
+                }`}
+              >
+                <div className="w-full h-[70px] rounded-[8px] mb-[8px] relative overflow-hidden bg-rose-50 flex items-center justify-center border border-slate-100">
+                  {t.imagen_url ? (
+                    <img src={t.imagen_url} alt={t.nombre} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-[24px]">🍓</span>
+                  )}
+                  {sel ? <CheckBadge /> : <EmptyBadge />}
+                </div>
+                <span className="font-bold text-[#0f172a] text-[11px] leading-[14px] line-clamp-1 capitalize">
+                  {t.nombre}
+                </span>
+                {t.recargo_extra > 0 && (
+                  <span className="font-semibold text-pink-600 text-[9px] mt-0.5">
+                    +${t.recargo_extra.toLocaleString("es-AR")}
                   </span>
                 )}
               </button>

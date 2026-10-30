@@ -10,6 +10,7 @@ interface Paso3Props {
   selectedBaseNombre?: string;
   selectedFillingsNombres?: string[];
   selectedCoverageNombre?: string;
+  selectedToppingNombre?: string;
   nombre: string;
   onChangeNombre: (v: string) => void;
   telefono: string;
@@ -30,7 +31,8 @@ export function Paso3Detalles({
   selectedPrice,
   selectedBaseNombre = "Vainilla",
   selectedFillingsNombres = [],
-  selectedCoverageNombre = "Buttercream",
+  selectedCoverageNombre,
+  selectedToppingNombre,
   nombre,
   onChangeNombre,
   telefono,
@@ -223,9 +225,16 @@ export function Paso3Detalles({
                 )}
 
                 {selectedCoverageNombre && (
-                  <div className="flex items-start justify-between pb-1">
-                    <span className="text-slate-500 font-medium">🧁 Cobertura / Topping:</span>
+                  <div className={`flex items-start justify-between ${selectedToppingNombre ? "border-b border-slate-100 pb-2" : "pb-1"}`}>
+                    <span className="text-slate-500 font-medium">🧁 Cobertura:</span>
                     <span className="font-semibold text-slate-800 text-right capitalize">{selectedCoverageNombre}</span>
+                  </div>
+                )}
+
+                {selectedToppingNombre && (
+                  <div className="flex items-start justify-between pb-1">
+                    <span className="text-slate-500 font-medium">🍓 Topping / Frutas:</span>
+                    <span className="font-semibold text-slate-800 text-right capitalize">{selectedToppingNombre}</span>
                   </div>
                 )}
               </>
