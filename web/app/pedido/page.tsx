@@ -540,8 +540,9 @@ function PedidoWizardContent() {
         }
 
         // Alerta asíncrona a Telegram
+        const codigoPedido = `#${pedido.id.slice(0, 8).toUpperCase()}`;
         sendTelegramNotification(
-          `🎂 *¡Nuevo Pedido Recibido!*\n\n` +
+          `🎂 *¡Nuevo Pedido Recibido! (${codigoPedido})*\n\n` +
           (tortaNombre ? `🍰 *Modelo:* ${tortaNombre}${isFixedRecipe ? " (Receta Tradicional)" : ""}\n` : "") +
           `👤 *Cliente:* ${nombre.trim()}\n` +
           `📱 *Teléfono:* ${telefono.trim()}\n` +
@@ -549,6 +550,7 @@ function PedidoWizardContent() {
           `⚖️ *Peso:* ${selectedWeight} kg\n` +
           `💰 *Total a Transferir:* $${selectedPrice.toLocaleString("es-AR")}\n` +
           (fullNotas ? `📝 *Notas:* ${fullNotas}\n` : "") +
+          (pedido.foto_referencia_url ? `🖼️ [Ver Foto de Referencia](${pedido.foto_referencia_url})\n` : "") +
           `ℹ️ _Pago pendiente de comprobante en Mis Pedidos_`
         ).catch((err) => console.error("Telegram notification error:", err));
 
