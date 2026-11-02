@@ -136,7 +136,7 @@ export default async function Home() {
       <HeaderHome user={headerUser} isAdmin={isAdmin} />
 
       {/* ── Main Content ── */}
-      <div className="flex-1 flex flex-col md:flex-row w-full max-w-7xl mx-auto">
+      <div className="flex-1 flex flex-col md:flex-row w-full">
         {/* Sidebar vertical acoplado a la izquierda con el mismo fondo oscuro del header */}
         <aside className="hidden md:flex flex-col w-60 lg:w-64 shrink-0 bg-[#1e293b] border-r border-slate-700/80 px-4 py-6 min-h-[calc(100vh-60px)] shadow-lg">
           <span className="text-[11px] font-bold tracking-wider text-slate-400 uppercase mb-3 px-3">

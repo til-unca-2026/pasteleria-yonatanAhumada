@@ -55,8 +55,8 @@ export function HeaderHome({ user, isAdmin }: HeaderHomeProps) {
   const displayName = user?.name || user?.email?.split("@")[0] || "Usuario";
 
   return (
-    <header className="shrink-0 bg-[#1e293b] shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.12)] z-30 relative">
-      <div className="h-[56px] md:h-[60px] max-w-md md:max-w-6xl lg:max-w-7xl mx-auto flex items-center justify-between px-4 md:px-8 relative">
+    <header className="shrink-0 bg-[#1e293b] border-b border-slate-800 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.12)] z-30 relative w-full">
+      <div className="h-[56px] md:h-[60px] w-full flex items-center justify-between px-4 md:px-8 relative">
         {/* ── LOGO / MARCA (Izquierda) ── */}
         <Link
           href="/"
