@@ -136,104 +136,154 @@ export default async function Home() {
       <HeaderHome user={headerUser} isAdmin={isAdmin} />
 
       {/* ── Main Content ── */}
-      <main className="flex-1 flex flex-col items-center px-4 md:px-8 pt-5 md:pt-8 pb-[85px] md:pb-12 max-w-md md:max-w-6xl lg:max-w-7xl mx-auto w-full">
+      <main className="flex-1 px-4 md:px-8 pt-5 md:pt-8 pb-[85px] md:pb-12 max-w-md md:max-w-6xl lg:max-w-7xl mx-auto w-full">
         <h1 className="sr-only">Catálogo de Tortas Artesanales</h1>
 
-        {/* ── Banner de bienvenida en Desktop ── */}
-        <div className="hidden md:flex w-full mb-8 rounded-2xl bg-gradient-to-r from-pink-500/10 via-purple-500/5 to-slate-900/5 border border-pink-200/50 p-6 items-center justify-between">
-          <div>
-            <span className="text-xs uppercase tracking-widest font-bold text-pink-600">Pastelería de Autor</span>
-            <h2 className="text-2xl font-bold text-slate-800 mt-1">Tortas temáticas y artesanales</h2>
-            <p className="text-sm text-slate-600 mt-1 max-w-xl">
-              Cotiza en tiempo real, personaliza rellenos, coberturas y agenda tu fecha de entrega con reserva directa.
-            </p>
-          </div>
-          <div className="text-4xl pr-4 select-none">🎂✨</div>
-        </div>
+        {/* ── Desktop Layout: Sidebar Izquierdo + Área de Vitrina ── */}
+        <div className="flex flex-col md:flex-row items-start gap-8 w-full">
+          {/* Sidebar vertical solo para Desktop / Tablet */}
+          <aside className="hidden md:flex flex-col w-56 lg:w-64 shrink-0 sticky top-6 bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200/80 p-5 shadow-[0px_2px_8px_rgba(0,0,0,0.03)]">
+            <span className="text-[11px] font-bold tracking-wider text-slate-400 uppercase mb-3 px-2">
+              Navegación
+            </span>
 
-        {/* ── Catálogo Grid (2 col mobile, 3 col tablet, 4 col desktop) ── */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 md:gap-5 w-full">
-          {cakesCatalog.map((cake) => {
-            const targetUrl = `/pedido?torta=${cake.slug}&nombre=${encodeURIComponent(
-              cake.name
-            )}&precio=${cake.pricePerKg}&tipo=${cake.type}&imagen=${encodeURIComponent(cake.image || "")}`;
-
-            return (
-              <div
-                key={cake.id}
-                className="bg-white rounded-[14px] md:rounded-2xl border border-slate-200/80 shadow-[0px_2px_6px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col justify-between hover:shadow-lg hover:border-pink-300/60 transition-all duration-200 group"
+            <nav className="flex flex-col gap-1.5 w-full">
+              <Link
+                href="/"
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-pink-50 text-pink-700 font-semibold text-sm transition-colors border border-pink-100/80"
               >
-                {/* Imagen o Placeholder pastelero */}
-                <div className="relative w-full h-[130px] md:h-[180px] bg-slate-100 overflow-hidden flex items-center justify-center">
-                  {cake.image ? (
-                    <img
-                      src={cake.image}
-                      alt={cake.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-pink-50 via-white to-amber-50/50 text-slate-400 p-3 text-center">
-                      <div className="size-10 md:size-12 rounded-full bg-white shadow-2xs border border-pink-100 flex items-center justify-center text-xl md:text-2xl mb-1 group-hover:scale-110 transition-transform">
-                        🎂
-                      </div>
-                      <span className="text-[10px] md:text-xs font-semibold text-slate-500">Pastelería Artesanal</span>
-                    </div>
-                  )}
-                </div>
+                <span className="text-base">🎂</span>
+                <span>Catálogo</span>
+              </Link>
 
-                {/* Contenido de la tarjeta */}
-                <div className="p-3 md:p-4 flex-1 flex flex-col justify-between">
-                  <div>
-                    <h2 className="font-bold text-[#0f172a] text-[13px] md:text-[15px] leading-tight m-0 line-clamp-1">
-                      {cake.name}
-                    </h2>
-                    <p className="text-[11px] md:text-[12px] text-slate-500 leading-snug m-0 mt-1.5 line-clamp-2">
-                      {cake.description}
-                    </p>
-                  </div>
+              <Link
+                href="/mis-pedidos"
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 font-medium text-sm transition-colors"
+              >
+                <span className="text-base">📋</span>
+                <span>Mis Pedidos</span>
+              </Link>
 
-                  <div className="mt-3 md:mt-4 pt-2.5 border-t border-slate-100">
-                    <div className="flex items-baseline justify-between mb-2.5">
-                      <span className="text-[10px] md:text-xs text-slate-400 font-medium">Desde</span>
-                      <span className="text-[13px] md:text-[15px] font-bold text-pink-700">
-                        ${cake.pricePerKg.toLocaleString("es-AR")}{" "}
-                        <span className="text-[10px] md:text-xs font-normal text-slate-500">/kg</span>
-                      </span>
-                    </div>
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-slate-600 hover:text-pink-700 hover:bg-pink-50/50 font-medium text-sm transition-colors"
+                >
+                  <span className="text-base">🛠️</span>
+                  <span>Panel Taller</span>
+                </Link>
+              )}
+            </nav>
 
-                    {isReceptionOpen ? (
-                      <Link
-                        href={targetUrl}
-                        className="w-full bg-[#1e293b] hover:bg-pink-700 text-white py-2 md:py-2.5 px-2 rounded-[8px] md:rounded-[10px] text-[11px] md:text-xs font-semibold text-center transition-colors flex items-center justify-center gap-1 active:scale-[0.98]"
-                      >
-                        <span>{cake.ctaText}</span>
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                          <path
-                            d="M2 5H8M5 2L8 5L5 8"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </Link>
-                    ) : (
-                      <button
-                        disabled
-                        className="w-full bg-slate-200 text-slate-400 py-1.5 px-1 rounded-[8px] text-[10px] md:text-xs font-semibold text-center cursor-not-allowed"
-                      >
-                        Pausado
-                      </button>
-                    )}
-                  </div>
-                </div>
+            {/* Tarjeta de estado de pedidos */}
+            <div className="mt-6 pt-5 border-t border-slate-100 flex flex-col gap-2">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-2">
+                Atención
+              </span>
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs text-slate-600 leading-relaxed">
+                <p className="font-semibold text-slate-800 m-0 mb-1">📅 Pedidos con 48hs</p>
+                Elaboramos cada torta a pedido con insumos frescos.
               </div>
-            );
-          })}
+            </div>
+          </aside>
+
+          {/* Área principal: Banner + Grilla de Productos */}
+          <div className="flex-1 w-full min-w-0">
+            {/* ── Banner de bienvenida en Desktop ── */}
+            <div className="hidden md:flex w-full mb-6 rounded-2xl bg-gradient-to-r from-pink-500/10 via-purple-500/5 to-slate-900/5 border border-pink-200/50 p-6 items-center justify-between">
+              <div>
+                <span className="text-xs uppercase tracking-widest font-bold text-pink-600">Pastelería de Autor</span>
+                <h2 className="text-2xl font-bold text-slate-800 mt-1">Tortas temáticas y artesanales</h2>
+                <p className="text-sm text-slate-600 mt-1 max-w-xl">
+                  Cotiza en tiempo real, personaliza rellenos, coberturas y agenda tu fecha de entrega con reserva directa.
+                </p>
+              </div>
+              <div className="text-4xl pr-4 select-none">🎂✨</div>
+            </div>
+
+            {/* ── Catálogo Grid (2 col mobile, 2 col tablet, 3 col desktop con sidebar) ── */}
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3.5 md:gap-5 w-full">
+              {cakesCatalog.map((cake) => {
+                const targetUrl = `/pedido?torta=${cake.slug}&nombre=${encodeURIComponent(
+                  cake.name
+                )}&precio=${cake.pricePerKg}&tipo=${cake.type}&imagen=${encodeURIComponent(cake.image || "")}`;
+
+                return (
+                  <div
+                    key={cake.id}
+                    className="bg-white rounded-[14px] md:rounded-2xl border border-slate-200/80 shadow-[0px_2px_6px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col justify-between hover:shadow-lg hover:border-pink-300/60 transition-all duration-200 group"
+                  >
+                    {/* Imagen o Placeholder pastelero */}
+                    <div className="relative w-full h-[130px] md:h-[180px] bg-slate-100 overflow-hidden flex items-center justify-center">
+                      {cake.image ? (
+                        <img
+                          src={cake.image}
+                          alt={cake.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-pink-50 via-white to-amber-50/50 text-slate-400 p-3 text-center">
+                          <div className="size-10 md:size-12 rounded-full bg-white shadow-2xs border border-pink-100 flex items-center justify-center text-xl md:text-2xl mb-1 group-hover:scale-110 transition-transform">
+                            🎂
+                          </div>
+                          <span className="text-[10px] md:text-xs font-semibold text-slate-500">Pastelería Artesanal</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Contenido de la tarjeta */}
+                    <div className="p-3 md:p-4 flex-1 flex flex-col justify-between">
+                      <div>
+                        <h2 className="font-bold text-[#0f172a] text-[13px] md:text-[15px] leading-tight m-0 line-clamp-1">
+                          {cake.name}
+                        </h2>
+                        <p className="text-[11px] md:text-[12px] text-slate-500 leading-snug m-0 mt-1.5 line-clamp-2">
+                          {cake.description}
+                        </p>
+                      </div>
+
+                      <div className="mt-3 md:mt-4 pt-2.5 border-t border-slate-100">
+                        <div className="flex items-baseline justify-between mb-2.5">
+                          <span className="text-[10px] md:text-xs text-slate-400 font-medium">Desde</span>
+                          <span className="text-[13px] md:text-[15px] font-bold text-pink-700">
+                            ${cake.pricePerKg.toLocaleString("es-AR")}{" "}
+                            <span className="text-[10px] md:text-xs font-normal text-slate-500">/kg</span>
+                          </span>
+                        </div>
+
+                        {isReceptionOpen ? (
+                          <Link
+                            href={targetUrl}
+                            className="w-full bg-[#1e293b] hover:bg-pink-700 text-white py-2 md:py-2.5 px-2 rounded-[8px] md:rounded-[10px] text-[11px] md:text-xs font-semibold text-center transition-colors flex items-center justify-center gap-1 active:scale-[0.98]"
+                          >
+                            <span>{cake.ctaText}</span>
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                              <path
+                                d="M2 5H8M5 2L8 5L5 8"
+                                stroke="currentColor"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </Link>
+                        ) : (
+                          <button
+                            disabled
+                            className="w-full bg-slate-200 text-slate-400 py-1.5 px-1 rounded-[8px] text-[10px] md:text-xs font-semibold text-center cursor-not-allowed"
+                          >
+                            Pausado
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
-
-
       </main>
 
       {/* ── Fixed Bottom Navigation Bar (Mobile only) ── */}
