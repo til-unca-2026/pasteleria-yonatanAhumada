@@ -22,7 +22,7 @@ export function BottomBar({
 
   if (currentStep === 3) {
     return (
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#e2e8f0] shadow-[0px_-4px_8px_rgba(15,23,42,0.06)] px-[16px] pt-[12px] pb-[14px] pb-safe">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#e2e8f0] shadow-[0px_-4px_8px_rgba(15,23,42,0.06)] px-[16px] pt-[12px] pb-[14px] pb-safe">
         <div className="max-w-md mx-auto">
           <button
             type="button"
@@ -61,7 +61,7 @@ export function BottomBar({
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#e2e8f0] shadow-[0px_-4px_8px_rgba(15,23,42,0.06)] px-[16px] pt-[13px] pb-[12px] pb-safe">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#e2e8f0] shadow-[0px_-4px_8px_rgba(15,23,42,0.06)] px-[16px] pt-[13px] pb-[12px] pb-safe">
       <div className="max-w-md mx-auto flex items-center justify-between">
         <div>
           <div className="flex items-baseline gap-[4px]">

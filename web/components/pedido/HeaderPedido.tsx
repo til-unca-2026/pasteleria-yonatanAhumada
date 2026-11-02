@@ -15,7 +15,7 @@ export function HeaderPedido({ currentStep, onBack }: HeaderPedidoProps) {
 
   return (
     <header className="sticky top-0 w-full z-40 bg-[#1e293b] shadow-[0px_1px_4px_rgba(0,0,0,0.1)] border-b border-[#334155]/50">
-      <div className="h-[48px] max-w-md mx-auto flex items-center justify-between px-[16px]">
+      <div className="h-[48px] md:h-[56px] w-full max-w-6xl mx-auto flex items-center justify-between px-4 md:px-8">
         <button
           type="button"
           onClick={onBack}
