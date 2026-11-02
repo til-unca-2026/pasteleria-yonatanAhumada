@@ -236,8 +236,8 @@ export function PedidosTab() {
         })}
       </div>
 
-      {/* ── Orders List ── */}
-      <div className="px-[16px] flex flex-col gap-[12px] mb-20">
+      {/* ── Orders List (Grid responsivo en desktop) ── */}
+      <div className="px-4 md:px-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 mb-20">
         {loading ? (
           <div className="py-16 flex flex-col items-center justify-center gap-2 text-slate-400">
             <div className="size-6 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
