@@ -230,59 +230,52 @@ export function CuposTab() {
   const isPastDate = selectedDateObj < todayMidnight;
 
   return (
-    <div className="px-[16px] pt-[16px] flex flex-col gap-[14px] w-full animate-in fade-in duration-200">
+    <div className="px-4 md:px-0 pt-2 md:pt-0 flex flex-col gap-5 w-full animate-in fade-in duration-200">
       {/* ── Capacidad Estándar ── */}
-      <div className="bg-white rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] p-[16px]">
-        <div className="flex items-center justify-between mb-[12px]">
+      <div className="bg-white rounded-2xl border border-[#e2e8f0] shadow-xs p-5">
+        <div className="flex items-center justify-between mb-3">
           <div>
-            <span className="font-normal text-[#64748b] text-[11px] uppercase tracking-wider">
+            <span className="font-bold text-[#a43073] text-[11px] uppercase tracking-wider">
               Control de Capacidad
             </span>
-            <div className="font-bold text-[#0f172a] text-[18px] leading-[22px]">
+            <div className="font-bold text-[#0f172a] text-xl leading-tight mt-0.5">
               {MONTH_NAMES[currentMonth - 1]} {currentYear}
             </div>
           </div>
         </div>
 
-        <div className="bg-[#f8fafc] rounded-[10px] border border-[#e2e8f0] p-[12px]">
-          <div className="flex items-center justify-between mb-[8px]">
-            <div>
-              <span className="font-semibold text-[#0f172a] text-[13px]">
-                Capacidad Diaria Predeterminada
-              </span>
-              <div className="font-normal text-[#64748b] text-[11px]">
-                Límite de pedidos por día
-              </div>
-            </div>
-            <div className="bg-[#fdf2f8] border border-[#fbcfe8] rounded-full px-[10px] py-[3px]">
-              <span className="font-semibold text-[#be185d] text-[11px]">
-                {savingEstandar ? "Guardando..." : "Automático"}
-              </span>
+        <div className="bg-[#f8fafc] rounded-xl border border-[#e2e8f0] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <span className="font-bold text-[#0f172a] text-sm">
+              Capacidad Diaria Predeterminada
+            </span>
+            <div className="font-normal text-[#64748b] text-xs mt-0.5">
+              Límite estándar de pedidos elaborables por día en el taller
             </div>
           </div>
 
-          <div className="flex items-center justify-between mt-3">
-            <span className="font-bold text-[#0f172a] text-[15px]">
+          <div className="flex items-center gap-4">
+            <span className="font-bold text-[#0f172a] text-base whitespace-nowrap">
               {estandarCapacity} pedidos / día
             </span>
-            <div className="flex items-center gap-[8px]">
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => handleSaveEstandar(Math.max(1, estandarCapacity - 1))}
-                className="size-[32px] rounded-[8px] border border-[#e2e8f0] flex items-center justify-center bg-white cursor-pointer hover:bg-slate-50 transition-colors"
+                className="size-8 rounded-lg border border-[#e2e8f0] flex items-center justify-center bg-white cursor-pointer hover:bg-slate-50 transition-colors shadow-2xs"
                 aria-label="Disminuir capacidad estándar"
               >
                 <svg width="12" height="2" viewBox="0 0 12 2" fill="none">
                   <path d="M1 1H11" stroke="#0f172a" strokeWidth="2" strokeLinecap="round" />
                 </svg>
               </button>
-              <span className="font-bold text-[#0f172a] text-[18px] w-[24px] text-center">
+              <span className="font-bold text-[#0f172a] text-base w-7 text-center">
                 {estandarCapacity}
               </span>
               <button
                 type="button"
                 onClick={() => handleSaveEstandar(estandarCapacity + 1)}
-                className="size-[32px] rounded-[8px] bg-[#1e293b] hover:bg-[#334155] flex items-center justify-center cursor-pointer border-0 text-white transition-colors"
+                className="size-8 rounded-lg bg-[#1e293b] hover:bg-[#334155] flex items-center justify-center cursor-pointer border-0 text-white transition-colors shadow-2xs"
                 aria-label="Aumentar capacidad estándar"
               >
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
@@ -294,15 +287,17 @@ export function CuposTab() {
         </div>
       </div>
 
-      {/* ── Calendario del Mes ── */}
-      <div className="bg-white rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] p-[16px]">
-        <div className="flex items-center justify-between mb-[14px]">
-          <div className="flex items-center gap-[8px]">
-            <span className="font-bold text-[#0f172a] text-[16px]">
-              {MONTH_NAMES[currentMonth - 1]} {currentYear}
-            </span>
-          </div>
-          <div className="flex gap-[6px]">
+      {/* ── Contenedor Grid 2 Columnas en Desktop: Calendario + Ajuste puntual ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        {/* Columna Izquierda: Calendario */}
+        <div className="lg:col-span-7 bg-white rounded-2xl border border-[#e2e8f0] shadow-xs p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-800 text-sm">
+                {MONTH_NAMES[currentMonth - 1]} {currentYear}
+              </span>
+            </div>
+            <div className="flex gap-2">
             <button
               type="button"
               onClick={handlePrevMonth}
@@ -434,14 +429,15 @@ export function CuposTab() {
         </div>
       </div>
 
-      {/* ── Ajuste puntual del Día Seleccionado ── */}
-      {(() => {
-        const selectedDateStr = `${currentYear}-${pad(currentMonth)}-${pad(selectedDayNumber)}`;
-        const selectedDayEntry = cuposData.find((c) => c.fecha === selectedDateStr);
-        const isCustomCapacity = selectedDayEntry !== undefined && selectedDayEntry.capacidad_maxima !== estandarCapacity;
+      {/* Columna Derecha: Ajuste puntual del Día Seleccionado */}
+      <div className="lg:col-span-5">
+        {(() => {
+          const selectedDateStr = `${currentYear}-${pad(currentMonth)}-${pad(selectedDayNumber)}`;
+          const selectedDayEntry = cuposData.find((c) => c.fecha === selectedDateStr);
+          const isCustomCapacity = selectedDayEntry !== undefined && selectedDayEntry.capacidad_maxima !== estandarCapacity;
 
-        return (
-          <div className="bg-white rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] p-[16px]">
+          return (
+            <div className="bg-white rounded-2xl border border-[#e2e8f0] shadow-xs p-5 sticky top-20">
             <div className="flex items-center justify-between mb-[12px]">
               <div className="flex items-center gap-[8px]">
                 <div className="bg-[#ffd8e7] rounded-[8px] p-[6px] shrink-0">
@@ -605,6 +601,8 @@ export function CuposTab() {
           </div>
         );
       })()}
+      </div>
     </div>
+  </div>
   );
 }
