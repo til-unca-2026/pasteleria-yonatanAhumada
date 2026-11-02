@@ -7,19 +7,28 @@ import {
   PedidoConDetalles,
   EstadoPedido,
 } from "@/lib/services/pedidos";
+import { getTodasLasTortas, TortaDB } from "@/lib/services/catalogo";
 import { toWhatsAppPhone } from "@/lib/phone";
+import { sendTelegramNotification } from "@/lib/services/telegram";
+
+const FALLBACK_TORTA_IMAGES: Record<string, string> = {
+  "torta de frutos rojos": "https://zmqaitjziznxocdppsnk.supabase.co/storage/v1/object/public/catalogo/tortas/torta-frutos-rojos.jpg",
+  "torta temática infantil": "https://zmqaitjziznxocdppsnk.supabase.co/storage/v1/object/public/catalogo/tortas/torta-tematica.jpg",
+  "chocotorta clásica": "https://zmqaitjziznxocdppsnk.supabase.co/storage/v1/object/public/catalogo/tortas/chocotorta-clasica.jpg",
+  "torta floral vintage": "https://zmqaitjziznxocdppsnk.supabase.co/storage/v1/object/public/catalogo/tortas/torta-floral.jpg",
+};
 
 const ESTADO_FILTERS: { label: string; value: string }[] = [
   { label: "Todos", value: "Todos" },
-  { label: "Pendiente", value: "Pendiente" },
-  { label: "Pagado", value: "Señado" },
-  { label: "En producción", value: "En producción" },
-  { label: "Listo", value: "Listo" },
+  { label: "Pendientes", value: "Pendiente" },
+  { label: "Pagados", value: "Señado" },
+  { label: "Listos", value: "Listo" },
 ];
 
 export function PedidosTab() {
   const [filterIdx, setFilterIdx] = useState<number>(0);
   const [pedidos, setPedidos] = useState<PedidoConDetalles[]>([]);
+  const [tortasCatalog, setTortasCatalog] = useState<TortaDB[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [modalComprobanteUrl, setModalComprobanteUrl] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -36,6 +45,9 @@ export function PedidosTab() {
 
   useEffect(() => {
     loadPedidos();
+    getTodasLasTortas().then((data) => {
+      if (data && data.length > 0) setTortasCatalog(data);
+    });
   }, []);
 
   async function loadPedidos() {
@@ -50,8 +62,42 @@ export function PedidosTab() {
     }
   }
 
+  const parseModeloYNotas = (rawNotas?: string | null) => {
+    if (!rawNotas) return { modeloNombre: null, tortaImagen: null, dedicatoria: null };
+
+    const matchModelo = rawNotas.match(/\[Modelo:\s*([^\]\-]+?)(?:\s*-\s*[^\]]+)?\]/);
+    const modeloNombre = matchModelo ? matchModelo[1].trim() : null;
+
+    const dedicatoria = rawNotas
+      .replace(/\[Modelo:\s*[^\]]+\]/g, "")
+      .trim() || null;
+
+    let tortaImagen: string | null = null;
+    if (modeloNombre) {
+      const found = tortasCatalog.find(
+        (t) =>
+          t.nombre.toLowerCase().trim() === modeloNombre.toLowerCase().trim() ||
+          t.slug.toLowerCase().trim() === modeloNombre.toLowerCase().trim()
+      );
+      if (found?.imagen_url) {
+        tortaImagen = found.imagen_url;
+      } else {
+        const lowerMod = modeloNombre.toLowerCase().trim();
+        const fallbackKey = Object.keys(FALLBACK_TORTA_IMAGES).find(
+          (k) => lowerMod.includes(k) || k.includes(lowerMod)
+        );
+        if (fallbackKey) {
+          tortaImagen = FALLBACK_TORTA_IMAGES[fallbackKey];
+        }
+      }
+    }
+
+    return { modeloNombre, tortaImagen, dedicatoria };
+  };
+
   const handleCambiarEstado = async (id: string, nuevoEstado: EstadoPedido) => {
     setUpdatingId(id);
+    const pedidoActual = pedidos.find((p) => p.id === id);
     // Optimistic update
     setPedidos((prev) =>
       prev.map((p) => (p.id === id ? { ...p, estado: nuevoEstado } : p))
@@ -59,6 +105,38 @@ export function PedidosTab() {
 
     try {
       await updatePedidoEstado(id, nuevoEstado);
+
+      if (pedidoActual) {
+        const codigo = `#${pedidoActual.id.slice(0, 8).toUpperCase()}`;
+        const { modeloNombre } = parseModeloYNotas(pedidoActual.notas);
+        let alertaMsg = "";
+
+        if (nuevoEstado === "Señado") {
+          alertaMsg =
+            `✅ *Pago Aprobado - Pedido ${codigo}*\n\n` +
+            (modeloNombre ? `🎂 *Torta:* ${modeloNombre}\n` : "") +
+            `👤 *Cliente:* ${pedidoActual.cliente_nombre}\n` +
+            `📱 *Teléfono:* ${pedidoActual.cliente_telefono}\n` +
+            `📅 *Fecha de Entrega:* ${pedidoActual.fecha_entrega}\n` +
+            `⚖️ *Peso:* ${pedidoActual.peso_kg} kg\n` +
+            `💵 *Total Confirmado:* $${Number(pedidoActual.total_estimado).toLocaleString("es-AR")}\n` +
+            `📌 _El pago fue validado y la comanda está confirmada en el taller._`;
+        } else if (nuevoEstado === "Listo") {
+          alertaMsg =
+            `🎉 *¡Pedido Listo para Retiro! - ${codigo}*\n\n` +
+            (modeloNombre ? `🎂 *Torta:* ${modeloNombre}\n` : "") +
+            `👤 *Cliente:* ${pedidoActual.cliente_nombre}\n` +
+            `📱 *Teléfono:* ${pedidoActual.cliente_telefono}\n` +
+            `📅 *Fecha de Entrega:* ${pedidoActual.fecha_entrega}\n` +
+            `🎂 _La comanda está terminada y lista para retirar por el taller._`;
+        }
+
+        if (alertaMsg) {
+          sendTelegramNotification(alertaMsg).catch((err) =>
+            console.warn("Aviso no bloqueante al enviar alerta a Telegram:", err)
+          );
+        }
+      }
     } catch (err) {
       console.error("Error al actualizar estado:", err);
       alert("Error al actualizar estado del pedido.");
@@ -71,6 +149,7 @@ export function PedidosTab() {
   const currentFilter = ESTADO_FILTERS[filterIdx].value;
   const filteredPedidos = pedidos.filter((p) => {
     if (currentFilter === "Todos") return true;
+    if (currentFilter === "Señado") return p.estado === "Señado" || p.estado === "En producción";
     return p.estado === currentFilter;
   });
 
@@ -83,16 +162,11 @@ export function PedidosTab() {
           text: "Pago Pendiente",
         };
       case "Señado":
+      case "En producción":
         return {
           bg: "bg-emerald-50 text-emerald-700 border-emerald-200",
           dot: "bg-emerald-500",
           text: "Pagado",
-        };
-      case "En producción":
-        return {
-          bg: "bg-blue-50 text-blue-700 border-blue-200",
-          dot: "bg-blue-500",
-          text: "En Producción",
         };
       case "Listo":
         return {
@@ -139,6 +213,8 @@ export function PedidosTab() {
           const count =
             f.value === "Todos"
               ? pedidos.length
+              : f.value === "Señado"
+              ? pedidos.filter((p) => p.estado === "Señado" || p.estado === "En producción").length
               : pedidos.filter((p) => p.estado === f.value).length;
           return (
             <button
@@ -181,7 +257,7 @@ export function PedidosTab() {
             const isExpanded = expandedIds.has(p.id);
             const badge = getStatusBadge(p.estado);
             const insumosNombres = p.detalles.map((d) => d.insumo?.nombre).filter(Boolean).join(" • ");
-            const cleanPhone = toWhatsAppPhone(p.cliente_telefono);
+            const { modeloNombre, tortaImagen, dedicatoria } = parseModeloYNotas(p.notas);
 
             return (
               <div
@@ -193,31 +269,51 @@ export function PedidosTab() {
                   onClick={() => toggleExpanded(p.id)}
                   className="p-[14px] cursor-pointer hover:bg-slate-50/60 active:bg-slate-100/60 transition-colors select-none"
                 >
-                  {/* Fila 1: Nombre + Peso + Estado */}
-                  <div className="flex items-center justify-between mb-1.5 gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="font-bold text-[#0f172a] text-[15px] truncate">
-                        {p.cliente_nombre}
-                      </span>
-                      <span className="bg-slate-100 text-slate-700 font-bold text-[11px] px-2 py-0.5 rounded-full shrink-0">
-                        {p.peso_kg} kg
-                      </span>
+                  <div className="flex gap-3 items-start">
+                    {/* Miniatura visual de la torta */}
+                    <div className="size-[56px] rounded-[12px] overflow-hidden bg-pink-50 border border-slate-200 shrink-0 flex items-center justify-center shadow-2xs relative">
+                      {tortaImagen ? (
+                        <img
+                          src={tortaImagen}
+                          alt={modeloNombre || "Torta"}
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-2xl">🎂</span>
+                      )}
                     </div>
 
-                    <div className={`rounded-full px-[8px] py-[3px] flex items-center gap-1.5 border text-[11px] font-semibold shrink-0 ${badge.bg}`}>
-                      <div className={`size-1.5 rounded-full ${badge.dot}`} />
-                      <span>{badge.text}</span>
+                    {/* Info de la Torta, Cliente y Estado */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="font-bold text-[#0f172a] text-[15px] truncate">
+                          {modeloNombre || "Torta Personalizada"}
+                        </span>
+                        <div className={`rounded-full px-[8px] py-[2px] flex items-center gap-1.5 border text-[11px] font-semibold shrink-0 ${badge.bg}`}>
+                          <div className={`size-1.5 rounded-full ${badge.dot}`} />
+                          <span>{badge.text}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-xs mb-1">
+                        <span className="font-semibold text-slate-800 truncate">
+                          👤 {p.cliente_nombre}
+                        </span>
+                        <span className="bg-slate-100 text-slate-700 font-bold text-[10px] px-2 py-0.5 rounded-full shrink-0">
+                          {p.peso_kg} kg
+                        </span>
+                      </div>
+
+                      {/* Sabores */}
+                      <div className="text-[11px] text-slate-500 font-medium line-clamp-1">
+                        {insumosNombres || "Configuración estándar"}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Fila 2: Resumen de sabores */}
-                  <div className="text-xs text-slate-600 font-medium mb-2 line-clamp-1">
-                    {insumosNombres || "Configuración estándar"}
-                  </div>
-
-                  {/* Fila 3: Fecha de Entrega y Botón WhatsApp */}
-                  <div className="flex items-center justify-between text-xs text-slate-500 pt-0.5">
-                    <div className="flex items-center gap-1 font-semibold text-slate-700">
+                  {/* Fila inferior de cabecera: Fecha de entrega y código */}
+                  <div className="flex items-center justify-between text-xs text-slate-500 pt-2.5 mt-2.5 border-t border-slate-100">
+                    <div className="flex items-center gap-1.5 font-semibold text-slate-700">
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                         <line x1="16" y1="2" x2="16" y2="6" />
@@ -227,22 +323,9 @@ export function PedidosTab() {
                       <span>Entrega: {p.fecha_entrega}</span>
                     </div>
 
-                    {/* Botón WhatsApp (oculto temporalmente en entorno de pruebas)
-                    {cleanPhone && (
-                      <a
-                        href={`https://wa.me/${cleanPhone}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-full font-bold text-[11px] transition-colors"
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M12 2C6.48 2 2 6.48 2 12C2 13.85 2.5 15.58 3.37 17.07L2.13 21.61L6.79 20.39C8.24 21.41 10.05 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2Z" />
-                        </svg>
-                        <span>WhatsApp</span>
-                      </a>
-                    )}
-                    */}
+                    <span className="text-[11px] text-slate-400 font-mono font-medium">
+                      #{p.id.slice(0, 8).toUpperCase()}
+                    </span>
                   </div>
                 </div>
 
@@ -285,7 +368,7 @@ export function PedidosTab() {
                       {p.detalles.map((d) => (
                         <div key={d.id} className="flex justify-between border-b border-slate-100 pb-1">
                           <span className="text-slate-500 capitalize font-medium">
-                            {d.insumo?.tipo === "bizcochuelo" ? "🍰 Bizcochuelo:" : d.insumo?.tipo === "relleno" ? "🍯 Relleno:" : "🧁 Cobertura:"}
+                            {d.insumo?.tipo === "bizcochuelo" ? "🍰 Bizcochuelo:" : d.insumo?.tipo === "relleno" ? "🍯 Relleno:" : d.insumo?.tipo === "topping" ? "🍓 Topping:" : "🧁 Cobertura:"}
                           </span>
                           <span className="font-bold text-slate-900 text-right">
                             {d.insumo?.nombre}
@@ -303,30 +386,30 @@ export function PedidosTab() {
                       </div>
                     </div>
 
-                    {/* Notas del cliente */}
-                    {p.notas && (
+                    {/* Notas / Dedicatoria REAL del cliente (solo si escribió algo) */}
+                    {dedicatoria && (
                       <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
                         <span className="font-bold text-amber-800 text-[10px] uppercase block mb-1">
                           📝 Notas o Dedicatoria del Cliente:
                         </span>
-                        <p className="m-0 text-amber-900 italic font-medium">{p.notas}</p>
+                        <p className="m-0 text-amber-900 italic font-medium">{dedicatoria}</p>
                       </div>
                     )}
 
-                    {/* Archivos adjuntos (Comprobante / Referencia) */}
+                    {/* Archivos adjuntos (Comprobante y Diseño de Referencia) */}
                     {(p.comprobante_url || p.foto_referencia_url) && (
                       <div className="bg-white rounded-xl border border-slate-200 p-3 space-y-2 shadow-2xs">
                         <span className="font-bold text-slate-800 uppercase text-[10px] tracking-wider block">
                           🖼️ Archivos Adjuntos (Tocar para ampliar)
                         </span>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className={`grid ${p.comprobante_url && p.foto_referencia_url ? "grid-cols-2" : "grid-cols-1 max-w-[220px]"} gap-2`}>
                           {p.comprobante_url && (
                             <div className="border border-slate-200 rounded-lg p-2 flex flex-col items-center text-center bg-slate-50">
-                              <span className="text-[10px] font-semibold text-slate-600 mb-1">Comprobante</span>
+                              <span className="text-[10px] font-semibold text-slate-600 mb-1">Comprobante de Pago</span>
                               <button
                                 type="button"
                                 onClick={() => setModalComprobanteUrl(p.comprobante_url!)}
-                                className="w-full h-20 rounded bg-white overflow-hidden border border-slate-200 cursor-pointer hover:opacity-90 flex items-center justify-center shadow-2xs"
+                                className="w-full h-24 rounded bg-white overflow-hidden border border-slate-200 cursor-pointer hover:opacity-90 flex items-center justify-center shadow-2xs"
                               >
                                 <img src={p.comprobante_url} alt="Comprobante" className="w-full h-full object-cover" />
                               </button>
@@ -334,11 +417,11 @@ export function PedidosTab() {
                           )}
                           {p.foto_referencia_url && (
                             <div className="border border-slate-200 rounded-lg p-2 flex flex-col items-center text-center bg-slate-50">
-                              <span className="text-[10px] font-semibold text-slate-600 mb-1">Diseño Referencia</span>
+                              <span className="text-[10px] font-semibold text-slate-600 mb-1">Diseño de Referencia</span>
                               <button
                                 type="button"
                                 onClick={() => setModalComprobanteUrl(p.foto_referencia_url!)}
-                                className="w-full h-20 rounded bg-white overflow-hidden border border-slate-200 cursor-pointer hover:opacity-90 flex items-center justify-center shadow-2xs"
+                                className="w-full h-24 rounded bg-white overflow-hidden border border-slate-200 cursor-pointer hover:opacity-90 flex items-center justify-center shadow-2xs"
                               >
                                 <img src={p.foto_referencia_url} alt="Referencia" className="w-full h-full object-cover" />
                               </button>
@@ -364,7 +447,7 @@ export function PedidosTab() {
                   </div>
                 )}
 
-                {/* ── Botón Único de Acción de Etapa ── */}
+                {/* ── Botón Único de Acción de Etapa (Flujo directo: Pendiente -> Pagado -> Listo) ── */}
                 <div className="p-3 bg-white border-t border-slate-100">
                   {p.estado === "Pendiente" && (
                     <button
@@ -377,18 +460,7 @@ export function PedidosTab() {
                     </button>
                   )}
 
-                  {p.estado === "Señado" && (
-                    <button
-                      type="button"
-                      disabled={updatingId === p.id}
-                      onClick={() => handleCambiarEstado(p.id, "En producción")}
-                      className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-bold cursor-pointer shadow-xs transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
-                    >
-                      <span>🧑‍🍳 Iniciar Producción</span>
-                    </button>
-                  )}
-
-                  {p.estado === "En producción" && (
+                  {(p.estado === "Señado" || p.estado === "En producción") && (
                     <button
                       type="button"
                       disabled={updatingId === p.id}

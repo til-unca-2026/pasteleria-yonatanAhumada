@@ -263,8 +263,9 @@ function MisPedidosContent() {
       );
       setConfirmed(true);
 
+      const codigoPedido = `#${activePedido.id.slice(0, 8).toUpperCase()}`;
       sendTelegramNotification(
-        `🧾 *¡Comprobante de Pago Adjuntado!*\n\n` +
+        `🧾 *¡Comprobante de Pago Adjuntado! (${codigoPedido})*\n\n` +
         `👤 *Cliente:* ${activePedido.cliente_nombre}\n` +
         `📱 *Teléfono:* ${activePedido.cliente_telefono}\n` +
         `📅 *Entrega:* ${activePedido.fecha_entrega}\n` +
