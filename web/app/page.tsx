@@ -136,73 +136,59 @@ export default async function Home() {
       <HeaderHome user={headerUser} isAdmin={isAdmin} />
 
       {/* ── Main Content ── */}
-      <main className="flex-1 px-4 md:px-8 pt-5 md:pt-8 pb-[85px] md:pb-12 max-w-md md:max-w-6xl lg:max-w-7xl mx-auto w-full">
-        <h1 className="sr-only">Catálogo de Tortas Artesanales</h1>
+      <div className="flex-1 flex flex-col md:flex-row w-full max-w-7xl mx-auto">
+        {/* Sidebar vertical acoplado a la izquierda en Desktop / Tablet */}
+        <aside className="hidden md:flex flex-col w-56 lg:w-60 shrink-0 border-r border-slate-200/80 bg-white/70 backdrop-blur-md px-4 py-6 min-h-[calc(100vh-60px)]">
+          <span className="text-[11px] font-bold tracking-wider text-slate-400 uppercase mb-3 px-3">
+            Navegación
+          </span>
 
-        {/* ── Desktop Layout: Sidebar Izquierdo + Área de Vitrina ── */}
-        <div className="flex flex-col md:flex-row items-start gap-8 w-full">
-          {/* Sidebar vertical solo para Desktop / Tablet */}
-          <aside className="hidden md:flex flex-col w-56 lg:w-64 shrink-0 sticky top-6 bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200/80 p-5 shadow-[0px_2px_8px_rgba(0,0,0,0.03)]">
-            <span className="text-[11px] font-bold tracking-wider text-slate-400 uppercase mb-3 px-2">
-              Navegación
+          <nav className="flex flex-col gap-1.5 w-full">
+            <Link
+              href="/"
+              className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-pink-50 text-pink-700 font-semibold text-sm transition-colors border border-pink-100/80"
+            >
+              <span className="text-base">🎂</span>
+              <span>Catálogo</span>
+            </Link>
+
+            <Link
+              href="/mis-pedidos"
+              className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 font-medium text-sm transition-colors"
+            >
+              <span className="text-base">📋</span>
+              <span>Mis Pedidos</span>
+            </Link>
+
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-slate-600 hover:text-pink-700 hover:bg-pink-50/50 font-medium text-sm transition-colors"
+              >
+                <span className="text-base">🛠️</span>
+                <span>Panel Taller</span>
+              </Link>
+            )}
+          </nav>
+
+          {/* Tarjeta de estado de pedidos */}
+          <div className="mt-auto pt-6 border-t border-slate-200/70 flex flex-col gap-2">
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-1">
+              Atención
             </span>
-
-            <nav className="flex flex-col gap-1.5 w-full">
-              <Link
-                href="/"
-                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-pink-50 text-pink-700 font-semibold text-sm transition-colors border border-pink-100/80"
-              >
-                <span className="text-base">🎂</span>
-                <span>Catálogo</span>
-              </Link>
-
-              <Link
-                href="/mis-pedidos"
-                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 font-medium text-sm transition-colors"
-              >
-                <span className="text-base">📋</span>
-                <span>Mis Pedidos</span>
-              </Link>
-
-              {isAdmin && (
-                <Link
-                  href="/admin"
-                  className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-slate-600 hover:text-pink-700 hover:bg-pink-50/50 font-medium text-sm transition-colors"
-                >
-                  <span className="text-base">🛠️</span>
-                  <span>Panel Taller</span>
-                </Link>
-              )}
-            </nav>
-
-            {/* Tarjeta de estado de pedidos */}
-            <div className="mt-6 pt-5 border-t border-slate-100 flex flex-col gap-2">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-2">
-                Atención
-              </span>
-              <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs text-slate-600 leading-relaxed">
-                <p className="font-semibold text-slate-800 m-0 mb-1">📅 Pedidos con 48hs</p>
-                Elaboramos cada torta a pedido con insumos frescos.
-              </div>
+            <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-200/60 text-xs text-slate-600 leading-relaxed">
+              <p className="font-semibold text-slate-800 m-0 mb-1">📅 Pedidos con 48hs</p>
+              Elaboramos cada torta a pedido con insumos frescos.
             </div>
-          </aside>
+          </div>
+        </aside>
 
-          {/* Área principal: Banner + Grilla de Productos */}
-          <div className="flex-1 w-full min-w-0">
-            {/* ── Banner de bienvenida en Desktop ── */}
-            <div className="hidden md:flex w-full mb-6 rounded-2xl bg-gradient-to-r from-pink-500/10 via-purple-500/5 to-slate-900/5 border border-pink-200/50 p-6 items-center justify-between">
-              <div>
-                <span className="text-xs uppercase tracking-widest font-bold text-pink-600">Pastelería de Autor</span>
-                <h2 className="text-2xl font-bold text-slate-800 mt-1">Tortas temáticas y artesanales</h2>
-                <p className="text-sm text-slate-600 mt-1 max-w-xl">
-                  Cotiza en tiempo real, personaliza rellenos, coberturas y agenda tu fecha de entrega con reserva directa.
-                </p>
-              </div>
-              <div className="text-4xl pr-4 select-none">🎂✨</div>
-            </div>
+        {/* Área principal: Vitrina de Productos */}
+        <main className="flex-1 px-4 md:px-8 pt-5 md:pt-6 pb-[85px] md:pb-12 w-full min-w-0">
+          <h1 className="sr-only">Catálogo de Tortas Artesanales</h1>
 
-            {/* ── Catálogo Grid (2 col mobile, 2 col tablet, 3 col desktop con sidebar) ── */}
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3.5 md:gap-5 w-full">
+          {/* ── Catálogo Grid (2 col mobile, 2 col tablet, 3 col desktop con sidebar) ── */}
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3.5 md:gap-5 w-full">
               {cakesCatalog.map((cake) => {
                 const targetUrl = `/pedido?torta=${cake.slug}&nombre=${encodeURIComponent(
                   cake.name
@@ -282,9 +268,8 @@ export default async function Home() {
                 );
               })}
             </div>
-          </div>
+          </main>
         </div>
-      </main>
 
       {/* ── Fixed Bottom Navigation Bar (Mobile only) ── */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0px_-2px_10px_rgba(0,0,0,0.05)] pb-safe">
