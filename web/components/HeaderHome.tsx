@@ -56,14 +56,24 @@ export function HeaderHome({ user, isAdmin }: HeaderHomeProps) {
 
   return (
     <header className="shrink-0 bg-[#1e293b] shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.12)] z-30 relative">
-      <div className="h-[56px] max-w-md mx-auto flex items-center justify-between px-[16px] relative">
+      <div className="h-[56px] md:h-[64px] max-w-md md:max-w-6xl lg:max-w-7xl mx-auto flex items-center justify-between px-4 md:px-8 relative">
         {/* ── LOGO / MARCA (Izquierda) ── */}
-        <Link
-          href="/"
-          className="font-bold text-[#fc79bd] text-[15px] tracking-[1px] uppercase leading-none hover:opacity-90 transition-opacity text-decoration-none"
-        >
-          PASTELERÍA
-        </Link>
+        <div className="flex items-center gap-6">
+          <Link
+            href="/"
+            className="font-bold text-[#fc79bd] text-[15px] md:text-[17px] tracking-[1px] uppercase leading-none hover:opacity-90 transition-opacity text-decoration-none"
+          >
+            PASTELERÍA
+          </Link>
+          <nav className="hidden md:flex items-center gap-5 text-xs font-medium text-slate-300">
+            <Link href="/" className="text-white hover:text-pink-300 transition-colors">
+              Catálogo
+            </Link>
+            <Link href="/mis-pedidos" className="hover:text-pink-300 transition-colors">
+              Mis Pedidos
+            </Link>
+          </nav>
+        </div>
 
         {/* ── ACCIONES (Derecha: Admin si corresponde + Usuario) ── */}
         <div className="flex items-center gap-2">

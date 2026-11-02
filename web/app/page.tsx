@@ -129,18 +129,30 @@ export default async function Home() {
       style={{ background: "linear-gradient(160deg, #f8fafc 0%, #fdf4f8 100%)" }}
     >
       {/* Ambient glows */}
-      <div className="absolute bg-[#ffd8e7] blur-[60px] left-[-80px] opacity-35 rounded-full size-[280px] top-[-60px] pointer-events-none" />
-      <div className="absolute bg-[#e9ddff] blur-[50px] opacity-20 right-[-80px] rounded-full top-[35%] size-[260px] pointer-events-none" />
+      <div className="absolute bg-[#ffd8e7] blur-[70px] left-[-80px] md:left-[10%] opacity-35 rounded-full size-[280px] md:size-[400px] top-[-60px] pointer-events-none" />
+      <div className="absolute bg-[#e9ddff] blur-[60px] opacity-20 right-[-80px] md:right-[10%] rounded-full top-[35%] size-[260px] md:size-[380px] pointer-events-none" />
 
       {/* ── Header ── */}
       <HeaderHome user={headerUser} isAdmin={isAdmin} />
 
       {/* ── Main Content ── */}
-      <main className="flex-1 flex flex-col items-center px-[16px] pt-[20px] pb-[85px] max-w-md mx-auto w-full">
+      <main className="flex-1 flex flex-col items-center px-4 md:px-8 pt-5 md:pt-8 pb-[85px] md:pb-12 max-w-md md:max-w-6xl lg:max-w-7xl mx-auto w-full">
         <h1 className="sr-only">Catálogo de Tortas Artesanales</h1>
 
-        {/* ── Catálogo Grid (2 Columnas) ── */}
-        <div className="grid grid-cols-2 gap-3.5 w-full">
+        {/* ── Banner de bienvenida en Desktop ── */}
+        <div className="hidden md:flex w-full mb-8 rounded-2xl bg-gradient-to-r from-pink-500/10 via-purple-500/5 to-slate-900/5 border border-pink-200/50 p-6 items-center justify-between">
+          <div>
+            <span className="text-xs uppercase tracking-widest font-bold text-pink-600">Pastelería de Autor</span>
+            <h2 className="text-2xl font-bold text-slate-800 mt-1">Tortas temáticas y artesanales</h2>
+            <p className="text-sm text-slate-600 mt-1 max-w-xl">
+              Cotiza en tiempo real, personaliza rellenos, coberturas y agenda tu fecha de entrega con reserva directa.
+            </p>
+          </div>
+          <div className="text-4xl pr-4 select-none">🎂✨</div>
+        </div>
+
+        {/* ── Catálogo Grid (2 col mobile, 3 col tablet, 4 col desktop) ── */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 md:gap-5 w-full">
           {cakesCatalog.map((cake) => {
             const targetUrl = `/pedido?torta=${cake.slug}&nombre=${encodeURIComponent(
               cake.name
@@ -149,10 +161,10 @@ export default async function Home() {
             return (
               <div
                 key={cake.id}
-                className="bg-white rounded-[14px] border border-slate-200/80 shadow-[0px_2px_6px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow group"
+                className="bg-white rounded-[14px] md:rounded-2xl border border-slate-200/80 shadow-[0px_2px_6px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col justify-between hover:shadow-lg hover:border-pink-300/60 transition-all duration-200 group"
               >
                 {/* Imagen o Placeholder pastelero */}
-                <div className="relative w-full h-[125px] bg-slate-100 overflow-hidden flex items-center justify-center">
+                <div className="relative w-full h-[130px] md:h-[180px] bg-slate-100 overflow-hidden flex items-center justify-center">
                   {cake.image ? (
                     <img
                       src={cake.image}
@@ -162,38 +174,38 @@ export default async function Home() {
                     />
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-pink-50 via-white to-amber-50/50 text-slate-400 p-3 text-center">
-                      <div className="size-10 rounded-full bg-white shadow-2xs border border-pink-100 flex items-center justify-center text-xl mb-1 group-hover:scale-110 transition-transform">
+                      <div className="size-10 md:size-12 rounded-full bg-white shadow-2xs border border-pink-100 flex items-center justify-center text-xl md:text-2xl mb-1 group-hover:scale-110 transition-transform">
                         🎂
                       </div>
-                      <span className="text-[10px] font-semibold text-slate-500">Pastelería Artesanal</span>
+                      <span className="text-[10px] md:text-xs font-semibold text-slate-500">Pastelería Artesanal</span>
                     </div>
                   )}
                 </div>
 
                 {/* Contenido de la tarjeta */}
-                <div className="p-3 flex-1 flex flex-col justify-between">
+                <div className="p-3 md:p-4 flex-1 flex flex-col justify-between">
                   <div>
-                    <h2 className="font-bold text-[#0f172a] text-[13px] leading-tight m-0 line-clamp-1">
+                    <h2 className="font-bold text-[#0f172a] text-[13px] md:text-[15px] leading-tight m-0 line-clamp-1">
                       {cake.name}
                     </h2>
-                    <p className="text-[11px] text-slate-500 leading-snug m-0 mt-1 line-clamp-2">
+                    <p className="text-[11px] md:text-[12px] text-slate-500 leading-snug m-0 mt-1.5 line-clamp-2">
                       {cake.description}
                     </p>
                   </div>
 
-                  <div className="mt-3 pt-2 border-t border-slate-100">
-                    <div className="flex items-baseline justify-between mb-2">
-                      <span className="text-[10px] text-slate-400 font-medium">Desde</span>
-                      <span className="text-[13px] font-bold text-pink-700">
+                  <div className="mt-3 md:mt-4 pt-2.5 border-t border-slate-100">
+                    <div className="flex items-baseline justify-between mb-2.5">
+                      <span className="text-[10px] md:text-xs text-slate-400 font-medium">Desde</span>
+                      <span className="text-[13px] md:text-[15px] font-bold text-pink-700">
                         ${cake.pricePerKg.toLocaleString("es-AR")}{" "}
-                        <span className="text-[10px] font-normal text-slate-500">/kg</span>
+                        <span className="text-[10px] md:text-xs font-normal text-slate-500">/kg</span>
                       </span>
                     </div>
 
                     {isReceptionOpen ? (
                       <Link
                         href={targetUrl}
-                        className="w-full bg-[#1e293b] hover:bg-[#334155] text-white py-2 px-2 rounded-[8px] text-[11px] font-semibold text-center transition-colors flex items-center justify-center gap-1 active:scale-[0.98]"
+                        className="w-full bg-[#1e293b] hover:bg-pink-700 text-white py-2 md:py-2.5 px-2 rounded-[8px] md:rounded-[10px] text-[11px] md:text-xs font-semibold text-center transition-colors flex items-center justify-center gap-1 active:scale-[0.98]"
                       >
                         <span>{cake.ctaText}</span>
                         <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -209,7 +221,7 @@ export default async function Home() {
                     ) : (
                       <button
                         disabled
-                        className="w-full bg-slate-200 text-slate-400 py-1.5 px-1 rounded-[8px] text-[10px] font-semibold text-center cursor-not-allowed"
+                        className="w-full bg-slate-200 text-slate-400 py-1.5 px-1 rounded-[8px] text-[10px] md:text-xs font-semibold text-center cursor-not-allowed"
                       >
                         Pausado
                       </button>
@@ -224,8 +236,8 @@ export default async function Home() {
 
       </main>
 
-      {/* ── Fixed Bottom Navigation Bar (Mobile-first) ── */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0px_-2px_10px_rgba(0,0,0,0.05)] pb-safe">
+      {/* ── Fixed Bottom Navigation Bar (Mobile only) ── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0px_-2px_10px_rgba(0,0,0,0.05)] pb-safe">
         <div className="max-w-md mx-auto h-[54px] px-6 flex items-center justify-around">
           <Link
             href="/"
