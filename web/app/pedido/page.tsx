@@ -610,13 +610,23 @@ function PedidoWizardContent() {
       {/* ── Header idéntico y consistente ── */}
       <HeaderHome user={currentUser} isAdmin={isAdminUser} />
 
-      {/* ── Barra horizontal de pasos (Stepper) ── */}
-      <Stepper currentStep={currentStep} onSelectStep={handleSelectStep} isFixedRecipe={isFixedRecipe} />
+      {/* ── Stepper (solo visible en Mobile) ── */}
+      <div className="md:hidden">
+        <Stepper currentStep={currentStep} onSelectStep={handleSelectStep} isFixedRecipe={isFixedRecipe} />
+      </div>
 
       {/* ── Layout unificado: Sidebar Izquierdo + Área de Cotización + Resumen Sticky ── */}
       <div className="flex-1 flex flex-col md:flex-row w-full">
-        {/* Sidebar vertical izquierdo consistente con la tienda */}
-        <SidebarNav currentPath="/pedido" isAdmin={isAdminUser} />
+        {/* Sidebar vertical izquierdo consistente con la tienda y con el progreso de pasos integrado */}
+        <SidebarNav
+          currentPath="/pedido"
+          isAdmin={isAdminUser}
+          wizardStep={{
+            currentStep,
+            isFixedRecipe,
+            onSelectStep: handleSelectStep,
+          }}
+        />
 
         {/* Contenido principal del cotizador */}
         <main className="flex-1 px-4 md:px-8 pt-4 md:pt-6 pb-[100px] md:pb-16 w-full min-w-0">
