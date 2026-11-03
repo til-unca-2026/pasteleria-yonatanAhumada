@@ -3,6 +3,8 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { HeaderHome } from "@/components/HeaderHome";
+import { SidebarNav } from "@/components/SidebarNav";
 import { HeaderMisPedidos } from "@/components/mis-pedidos/HeaderMisPedidos";
 import {
   PedidoActivoCard,
@@ -33,6 +35,7 @@ function MisPedidosContent() {
   const supabase = createClient();
 
   const [currentUser, setCurrentUser] = useState<{ id: string; email?: string; name?: string; phone?: string } | null>(null);
+  const [isAdminUser, setIsAdminUser] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [pedidosList, setPedidosList] = useState<PedidoConDetalles[]>([]);
   const [selectedPedidoId, setSelectedPedidoId] = useState<string | null>(queryId);
@@ -88,6 +91,15 @@ function MisPedidosContent() {
             name: userName,
             phone: userPhone,
           });
+
+          const { data: adminRecord } = await supabase
+            .from("admins")
+            .select("id")
+            .eq("id", user.id)
+            .maybeSingle();
+          if (adminRecord) {
+            setIsAdminUser(true);
+          }
 
           if (userPhone) setTelefonoInput(userPhone);
         } else if (typeof window !== "undefined") {
@@ -364,190 +376,203 @@ function MisPedidosContent() {
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-[#f8fafc] text-[#0f172a] relative">
-      {/* ── Top Header ── */}
-      <HeaderMisPedidos
-        onBack={() => {
-          if (selectedPedidoId && pedidosList.length > 1) {
-            setSelectedPedidoId(null);
-          } else {
-            router.push("/");
-          }
-        }}
-        title={selectedPedidoId ? `Pedido #${selectedPedidoId.slice(0, 8).toUpperCase()}` : "Mis Pedidos"}
-        userInitial={currentUser?.name?.charAt(0) || currentUser?.email?.charAt(0) || "U"}
-      />
+      {/* ── Top Header consistente en desktop / header móvil en mobile ── */}
+      <div className="hidden md:block">
+        <HeaderHome user={currentUser} isAdmin={isAdminUser} />
+      </div>
+      <div className="md:hidden">
+        <HeaderMisPedidos
+          onBack={() => {
+            if (selectedPedidoId && pedidosList.length > 1) {
+              setSelectedPedidoId(null);
+            } else {
+              router.push("/");
+            }
+          }}
+          title={selectedPedidoId ? `Pedido #${selectedPedidoId.slice(0, 8).toUpperCase()}` : "Mis Pedidos"}
+          userInitial={currentUser?.name?.charAt(0) || currentUser?.email?.charAt(0) || "U"}
+        />
+      </div>
 
-      {/* ── Main Container ── */}
-      <main className="flex-1 w-full max-w-md mx-auto pt-[56px] pb-[100px] px-[16px]">
-        {/* Barra de búsqueda por teléfono / sincronización */}
-        <div className="pt-[14px] pb-[10px]">
-          <form onSubmit={handleBuscarPorTelefono} className="flex gap-2">
-            <input
-              type="tel"
-              placeholder="Buscar por WhatsApp (ej. 11 4829...)"
-              value={telefonoInput}
-              onChange={(e) => setTelefonoInput(e.target.value)}
-              className="flex-1 border border-[#cbd5e1] rounded-[8px] px-3 py-2 text-xs outline-none focus:border-[#1e293b] bg-white"
-            />
-            <button
-              type="submit"
-              disabled={buscando}
-              className="bg-[#1e293b] hover:bg-[#334155] text-white text-xs font-semibold px-3 py-2 rounded-[8px] border-0 cursor-pointer disabled:opacity-50"
-            >
-              {buscando ? "Buscando..." : "Buscar"}
-            </button>
-          </form>
-          {errorMessage && (
-            <span className="text-[11px] text-red-500 font-medium mt-1 block">
-              {errorMessage}
-            </span>
-          )}
-        </div>
+      {/* ── Layout unificado: Sidebar Izquierdo + Área de Pedidos ── */}
+      <div className="flex-1 flex flex-col md:flex-row w-full">
+        <SidebarNav currentPath="/mis-pedidos" isAdmin={isAdminUser} />
 
-        {loading ? (
-          <div className="py-16 flex flex-col items-center justify-center text-slate-400 gap-2">
-            <div className="size-6 border-2 border-[#1e293b] border-t-transparent rounded-full animate-spin"></div>
-            <span className="text-xs">Cargando tus pedidos...</span>
+        {/* ── Main Container ── */}
+        <main className="flex-1 w-full max-w-md md:max-w-4xl lg:max-w-5xl mx-auto pt-[56px] md:pt-6 pb-[100px] md:pb-16 px-4 md:px-8">
+          {/* Barra de búsqueda por teléfono / sincronización */}
+          <div className="pt-2 md:pt-0 pb-4 max-w-xl">
+            <form onSubmit={handleBuscarPorTelefono} className="flex gap-2">
+              <input
+                type="tel"
+                placeholder="Buscar pedidos por WhatsApp (ej. 11 4829...)"
+                value={telefonoInput}
+                onChange={(e) => setTelefonoInput(e.target.value)}
+                className="flex-1 border border-[#cbd5e1] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:border-pink-500 bg-white shadow-2xs"
+              />
+              <button
+                type="submit"
+                disabled={buscando}
+                className="bg-[#1e293b] hover:bg-pink-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl border-0 cursor-pointer disabled:opacity-50 transition-colors shadow-2xs"
+              >
+                {buscando ? "Buscando..." : "Buscar"}
+              </button>
+            </form>
+            {errorMessage && (
+              <span className="text-[11px] text-red-500 font-medium mt-1.5 block">
+                {errorMessage}
+              </span>
+            )}
           </div>
-        ) : selectedPedidoId && activePedidoData ? (
-          /* ── VISTA DETALLE DEL PEDIDO SELECCIONADO ── */
-          <>
-            {pedidosList.length > 1 && (
-              <div className="mb-3 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedPedidoId(null);
-                    setFile(null);
-                  }}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#fc79bd] hover:text-[#a43073] bg-transparent border-0 cursor-pointer p-0"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <polyline points="15 18 9 12 15 6" />
-                  </svg>
-                  <span>Ver todos mis pedidos ({pedidosList.length})</span>
-                </button>
-                <span className="text-[11px] text-slate-400">
-                  Cliente: {activePedido?.cliente_nombre}
+
+          {loading ? (
+            <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-2">
+              <div className="size-7 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-xs">Cargando tus pedidos...</span>
+            </div>
+          ) : selectedPedidoId && activePedidoData ? (
+            /* ── VISTA DETALLE DEL PEDIDO SELECCIONADO ── */
+            <div className="max-w-xl">
+              {pedidosList.length > 1 && (
+                <div className="mb-4 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPedidoId(null);
+                      setFile(null);
+                    }}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-pink-700 hover:text-pink-800 bg-transparent border-0 cursor-pointer p-0"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                    <span>Ver todos mis pedidos ({pedidosList.length})</span>
+                  </button>
+                  <span className="text-[11px] text-slate-400">
+                    Cliente: {activePedido?.cliente_nombre}
+                  </span>
+                </div>
+              )}
+
+              <PedidoActivoCard
+                pedido={activePedidoData}
+                file={file}
+                onFileChange={setFile}
+                confirmed={confirmed}
+              />
+
+              <div className="flex items-start gap-2 mt-3 px-1 text-slate-500">
+                <svg width="15" height="15" viewBox="0 0 14 14" fill="none" className="shrink-0 mt-0.5">
+                  <circle cx="7" cy="7" r="6" stroke="#94a3b8" strokeWidth="1.1" />
+                  <path d="M7 6V10M7 4.5V4" stroke="#94a3b8" strokeWidth="1.3" strokeLinecap="round" />
+                </svg>
+                <span className="font-normal text-[11px] leading-relaxed">
+                  Tu cupo queda reservado por 24 hs. Una vez validado el pago, recibirás confirmación automática por Telegram.
                 </span>
               </div>
-            )}
-
-            <PedidoActivoCard
-              pedido={activePedidoData}
-              file={file}
-              onFileChange={setFile}
-              confirmed={confirmed}
-            />
-
-            <div className="flex items-start gap-[8px] mt-[14px] px-[2px]">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0 mt-[1px]">
-                <circle cx="7" cy="7" r="6" stroke="#94a3b8" strokeWidth="1.1" />
-                <path d="M7 6V10M7 4.5V4" stroke="#94a3b8" strokeWidth="1.3" strokeLinecap="round" />
-              </svg>
-              <span className="font-normal text-[#94a3b8] text-[11px] leading-[16px]">
-                Tu cupo queda reservado por 24 hs. Una vez validado el pago, recibirás confirmación automática por Telegram.
-              </span>
             </div>
-          </>
-        ) : pedidosList.length > 0 ? (
-          /* ── LISTADO DE ÚLTIMOS 20 PEDIDOS DEL USUARIO ── */
-          <div className="space-y-3">
-            <div className="flex items-center justify-between pb-1">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 m-0">Historial de Pedidos</h2>
-                <span className="text-[11px] text-slate-500">Últimos {pedidosList.length} pedidos (más recientes primero)</span>
-              </div>
-              <Link
-                href="/pedido"
-                className="text-xs font-semibold text-[#fc79bd] hover:underline text-decoration-none"
-              >
-                + Nuevo pedido
-              </Link>
-            </div>
-
-            {pedidosList.map((p) => {
-              const displayData = buildPedidoActivoData(p);
-              const isPaid = p.estado === "Señado" || p.estado === "En producción" || p.estado === "Listo";
-              const hasReceipt = Boolean(p.comprobante_url);
-
-              return (
-                <div
-                  key={p.id}
-                  onClick={() => {
-                    setSelectedPedidoId(p.id);
-                    setConfirmed(Boolean(p.comprobante_url));
-                    setFile(null);
-                  }}
-                  className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs hover:border-pink-300 hover:shadow-md transition-all cursor-pointer relative"
-                >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div>
-                      <span className="text-xs font-bold text-slate-900 block">
-                        Pedido {displayData.numeroPedido}
-                      </span>
-                      <span className="text-[11px] text-slate-500">
-                        Entrega: <strong className="text-slate-700">{p.fecha_entrega}</strong> • {p.peso_kg} kg
-                      </span>
-                    </div>
-
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0 ${
-                        isPaid
-                          ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                          : hasReceipt
-                          ? "bg-blue-100 text-blue-800 border border-blue-200"
-                          : "bg-amber-100 text-amber-800 border border-amber-200"
-                      }`}
-                    >
-                      {p.estado}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="size-6 rounded-md overflow-hidden bg-pink-50 border border-slate-200 shrink-0 flex items-center justify-center">
-                      {displayData.tortaImagen ? (
-                        <img
-                          src={displayData.tortaImagen}
-                          alt={displayData.modeloNombre || displayData.nombreProducto}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-[11px]">🎂</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-700 font-medium line-clamp-1 m-0">
-                      {displayData.modeloNombre ? (
-                        <>
-                          <strong className="text-slate-900">{displayData.modeloNombre}</strong>
-                          <span className="text-slate-500"> • {displayData.nombreProducto}</span>
-                        </>
-                      ) : (
-                        displayData.nombreProducto
-                      )}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                    <div>
-                      <span className="text-[10px] text-slate-400 block uppercase font-semibold">Total a transferir</span>
-                      <span className="text-sm font-bold text-slate-900">
-                        ${p.total_estimado.toLocaleString("es-AR")}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1 text-xs font-semibold text-[#fc79bd]">
-                      <span>{hasReceipt ? "Ver comprobante" : "Subir comprobante"}</span>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <polyline points="9 18 15 12 9 6" />
-                      </svg>
-                    </div>
-                  </div>
+          ) : pedidosList.length > 0 ? (
+            /* ── LISTADO DE ÚLTIMOS 20 PEDIDOS DEL USUARIO (GRID EN DESKTOP) ── */
+            <div>
+              <div className="flex items-center justify-between pb-3 mb-2 border-b border-slate-200">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 m-0">Historial de Pedidos</h2>
+                  <span className="text-xs text-slate-500">Últimos {pedidosList.length} pedidos registrados</span>
                 </div>
-              );
-            })}
-          </div>
-        ) : (
+                <Link
+                  href="/pedido"
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-pink-500/10 text-pink-700 hover:bg-pink-500/20 transition-colors text-decoration-none"
+                >
+                  + Nuevo pedido
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {pedidosList.map((p) => {
+                  const displayData = buildPedidoActivoData(p);
+                  const isPaid = p.estado === "Señado" || p.estado === "En producción" || p.estado === "Listo";
+                  const hasReceipt = Boolean(p.comprobante_url);
+
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => {
+                        setSelectedPedidoId(p.id);
+                        setConfirmed(Boolean(p.comprobante_url));
+                        setFile(null);
+                      }}
+                      className="bg-white rounded-xl border border-slate-200/90 p-4 shadow-2xs hover:border-pink-300 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-2 mb-2.5">
+                          <div>
+                            <span className="text-xs font-bold text-slate-900 block">
+                              Pedido {displayData.numeroPedido}
+                            </span>
+                            <span className="text-[11px] text-slate-500">
+                              Entrega: <strong className="text-slate-700">{p.fecha_entrega}</strong> • {p.peso_kg} kg
+                            </span>
+                          </div>
+
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0 ${
+                              isPaid
+                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                : hasReceipt
+                                ? "bg-blue-100 text-blue-800 border border-blue-200"
+                                : "bg-amber-100 text-amber-800 border border-amber-200"
+                            }`}
+                          >
+                            {p.estado}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2.5 mb-3 bg-slate-50/70 p-2 rounded-lg border border-slate-100">
+                          <div className="size-8 rounded-md overflow-hidden bg-white border border-slate-200 shrink-0 flex items-center justify-center">
+                            {displayData.tortaImagen ? (
+                              <img
+                                src={displayData.tortaImagen}
+                                alt={displayData.modeloNombre || displayData.nombreProducto}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-xs">🎂</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-700 font-medium line-clamp-1 m-0">
+                            {displayData.modeloNombre ? (
+                              <>
+                                <strong className="text-slate-900">{displayData.modeloNombre}</strong>
+                                <span className="text-slate-500"> • {displayData.nombreProducto}</span>
+                              </>
+                            ) : (
+                              displayData.nombreProducto
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 mt-2">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block uppercase font-semibold">Total a transferir</span>
+                          <span className="text-sm font-bold text-pink-700">
+                            ${p.total_estimado.toLocaleString("es-AR")}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1 text-xs font-semibold text-pink-700">
+                          <span>{hasReceipt ? "Ver comprobante" : "Subir comprobante"}</span>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <polyline points="9 18 15 12 9 6" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
           /* ── ESTADO VACÍO (SIN PEDIDOS PARA ESTA CUENTA) ── */
           <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center mt-4 shadow-sm">
             <div className="size-14 rounded-full bg-pink-50 flex items-center justify-center mx-auto mb-3 text-2xl">
@@ -580,6 +605,7 @@ function MisPedidosContent() {
           </div>
         )}
       </main>
+      </div>
 
       {/* ── Botón flotante para confirmar comprobante si está viendo un pedido con comprobante pendiente ── */}
       {activePedidoData && !confirmed && !activePedidoData.comprobanteUrl && (

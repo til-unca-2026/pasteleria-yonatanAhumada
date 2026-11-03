@@ -3,7 +3,8 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { StepNumber, AccordionStep } from "@/components/pedido/types";
-import { HeaderPedido } from "@/components/pedido/HeaderPedido";
+import { HeaderHome } from "@/components/HeaderHome";
+import { SidebarNav } from "@/components/SidebarNav";
 import { Stepper } from "@/components/pedido/Stepper";
 import { Paso1FechaPeso } from "@/components/pedido/Paso1FechaPeso";
 import { Paso2Sabores } from "@/components/pedido/Paso2Sabores";
@@ -258,7 +259,10 @@ function PedidoWizardContent() {
     loadActiveInsumos();
   }, [isFixedRecipe, tortaSlug]);
 
-  // Cargar datos de usuario para autocompletar contacto
+  const [currentUser, setCurrentUser] = useState<{ id: string; email?: string; name?: string } | null>(null);
+  const [isAdminUser, setIsAdminUser] = useState<boolean>(false);
+
+  // Cargar datos de usuario para autocompletar contacto y header
   useEffect(() => {
     async function loadUserData() {
       try {
@@ -271,6 +275,22 @@ function PedidoWizardContent() {
               ? localStorage.getItem(`user_phone_${user.id}`) || localStorage.getItem("ultimo_pedido_telefono")
               : "") ||
             "";
+
+          setCurrentUser({
+            id: user.id,
+            email: user.email,
+            name: defaultName,
+          });
+
+          // Chequear admin
+          const { data: adminRecord } = await supabase
+            .from("admins")
+            .select("id")
+            .eq("id", user.id)
+            .maybeSingle();
+          if (adminRecord) {
+            setIsAdminUser(true);
+          }
 
           if (defaultName) setNombre(defaultName);
           if (defaultPhone) setTelefono(defaultPhone);
@@ -587,78 +607,198 @@ function PedidoWizardContent() {
       {/* ── Custom Toast Notification ── */}
       <ToastNotification message={toastMessage} onClose={() => setToastMessage(null)} />
 
-      {/* ── Header ── */}
-      <HeaderPedido currentStep={currentStep} onBack={handleBack} />
+      {/* ── Header idéntico y consistente ── */}
+      <HeaderHome user={currentUser} isAdmin={isAdminUser} />
 
-      {/* ── Stepper ── */}
-      <Stepper currentStep={currentStep} onSelectStep={handleSelectStep} isFixedRecipe={isFixedRecipe} />
+      {/* ── Stepper (solo visible en Mobile) ── */}
+      <div className="md:hidden">
+        <Stepper currentStep={currentStep} onSelectStep={handleSelectStep} isFixedRecipe={isFixedRecipe} />
+      </div>
 
-      {/* ── Main Content Container ── */}
-      <main className="flex-1 w-full max-w-md mx-auto px-[16px] pt-[16px] pb-[100px]">
-        {currentStep === 1 && (
-          <Paso1FechaPeso
-            selectedDateStr={deliveryDateStr}
-            onSelectDate={handleSelectDate}
-            selectedWeight={selectedWeight}
-            onSelectWeight={handleSelectWeight}
-            tortaNombre={tortaNombre}
-            tortaImagen={tortaImagen}
-            basePricePerKg={basePricePerKg}
-            onAvailabilityChange={setIsDeliveryDateAvailable}
-          />
-        )}
+      {/* ── Layout unificado: Sidebar Izquierdo + Área de Cotización + Resumen Sticky ── */}
+      <div className="flex-1 flex flex-col md:flex-row w-full">
+        {/* Sidebar vertical izquierdo consistente con la tienda y con el progreso de pasos integrado */}
+        <SidebarNav
+          currentPath="/pedido"
+          isAdmin={isAdminUser}
+          wizardStep={{
+            currentStep,
+            isFixedRecipe,
+            onSelectStep: handleSelectStep,
+          }}
+        />
 
-        {currentStep === 2 && (
-          <Paso2Sabores
-            insumos={insumos}
-            loadingInsumos={loadingInsumos}
-            selectedBase={selectedBase}
-            onSelectBase={setSelectedBase}
-            selectedFillings={selectedFillings}
-            onToggleFilling={handleToggleFilling}
-            selectedCoverage={selectedCoverage}
-            onSelectCoverage={setSelectedCoverage}
-            selectedTopping={selectedTopping}
-            onSelectTopping={setSelectedTopping}
-            activeAccordion={activeAccordion}
-            setActiveAccordion={setActiveAccordion}
-            doneAccordions={doneAccordions}
-            onCompleteAccordion={handleCompleteAccordion}
-            onNext={handleNext}
-            isFixedRecipe={isFixedRecipe}
-            tortaNombre={tortaNombre}
-            tortaSlug={tortaSlug}
-            onConfirmFixedRecipe={() => {
-              setCurrentStep(3);
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-          />
-        )}
+        {/* Contenido principal del cotizador */}
+        <main className="flex-1 px-4 md:px-8 pt-4 md:pt-6 pb-[100px] md:pb-16 w-full min-w-0">
+          <div className="flex flex-col lg:flex-row lg:items-start gap-8 w-full max-w-5xl">
+            {/* Columna central: Pasos del Wizard */}
+            <div className="flex-1 w-full min-w-0">
+              {currentStep === 1 && (
+                <Paso1FechaPeso
+                  selectedDateStr={deliveryDateStr}
+                  onSelectDate={handleSelectDate}
+                  selectedWeight={selectedWeight}
+                  onSelectWeight={handleSelectWeight}
+                  tortaNombre={tortaNombre}
+                  tortaImagen={tortaImagen}
+                  basePricePerKg={basePricePerKg}
+                  onAvailabilityChange={setIsDeliveryDateAvailable}
+                />
+              )}
 
-        {currentStep === 3 && (
-          <Paso3Detalles
-            deliveryDate={deliveryDate}
-            selectedWeight={selectedWeight}
-            selectedPrice={selectedPrice}
-            selectedBaseNombre={selectedBaseObj?.nombre}
-            selectedFillingsNombres={selectedFillingsObjs.map((f) => f.nombre)}
-            selectedCoverageNombre={selectedCoverageObj?.nombre}
-            selectedToppingNombre={selectedToppingObj?.nombre}
-            nombre={nombre}
-            onChangeNombre={setNombre}
-            telefono={telefono}
-            onChangeTelefono={setTelefono}
-            notas={notas}
-            onChangeNotas={setNotas}
-            referenciaFile={referenciaFile}
-            onUploadReferencia={setReferenciaFile}
-            tortaNombre={tortaNombre}
-            tortaSlug={tortaSlug}
-            tortaImagen={tortaImagen}
-            isFixedRecipe={isFixedRecipe}
-          />
-        )}
-      </main>
+              {currentStep === 2 && (
+                <Paso2Sabores
+                  insumos={insumos}
+                  loadingInsumos={loadingInsumos}
+                  selectedBase={selectedBase}
+                  onSelectBase={setSelectedBase}
+                  selectedFillings={selectedFillings}
+                  onToggleFilling={handleToggleFilling}
+                  selectedCoverage={selectedCoverage}
+                  onSelectCoverage={setSelectedCoverage}
+                  selectedTopping={selectedTopping}
+                  onSelectTopping={setSelectedTopping}
+                  activeAccordion={activeAccordion}
+                  setActiveAccordion={setActiveAccordion}
+                  doneAccordions={doneAccordions}
+                  onCompleteAccordion={handleCompleteAccordion}
+                  onNext={handleNext}
+                  isFixedRecipe={isFixedRecipe}
+                  tortaNombre={tortaNombre}
+                  tortaSlug={tortaSlug}
+                  onConfirmFixedRecipe={() => {
+                    setCurrentStep(3);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                />
+              )}
+
+              {currentStep === 3 && (
+                <Paso3Detalles
+                  deliveryDate={deliveryDate}
+                  selectedWeight={selectedWeight}
+                  selectedPrice={selectedPrice}
+                  selectedBaseNombre={selectedBaseObj?.nombre}
+                  selectedFillingsNombres={selectedFillingsObjs.map((f) => f.nombre)}
+                  selectedCoverageNombre={selectedCoverageObj?.nombre}
+                  selectedToppingNombre={selectedToppingObj?.nombre}
+                  nombre={nombre}
+                  onChangeNombre={setNombre}
+                  telefono={telefono}
+                  onChangeTelefono={setTelefono}
+                  notas={notas}
+                  onChangeNotas={setNotas}
+                  referenciaFile={referenciaFile}
+                  onUploadReferencia={setReferenciaFile}
+                  tortaNombre={tortaNombre}
+                  tortaSlug={tortaSlug}
+                  tortaImagen={tortaImagen}
+                  isFixedRecipe={isFixedRecipe}
+                />
+              )}
+            </div>
+
+            {/* Columna derecha: Resumen Sticky en Desktop */}
+            <aside className="hidden lg:flex flex-col w-80 lg:w-88 shrink-0 sticky top-20 bg-white rounded-2xl border border-slate-200/90 shadow-sm p-5 select-none">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 pb-2 border-b border-slate-100">
+                Resumen de tu Pedido
+              </h3>
+
+              {/* Ficha rápida de la torta */}
+              <div className="flex items-center gap-3.5 mb-4">
+                <div className="size-16 rounded-xl bg-pink-50 border border-slate-200/80 overflow-hidden shrink-0 flex items-center justify-center">
+                  {tortaImagen ? (
+                    <img src={tortaImagen} alt={tortaNombre} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="text-2xl">🎂</div>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[11px] font-bold text-pink-700 uppercase">Modelo</span>
+                  <h4 className="text-sm font-bold text-slate-900 truncate m-0">{tortaNombre}</h4>
+                  <span className="text-xs text-slate-500 font-medium">
+                    {selectedWeight} kg · {isFixedRecipe ? "Receta Clásica" : "Personalizada"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Lista de selecciones actuales */}
+              <div className="space-y-2 text-xs py-3 border-y border-slate-100 text-slate-600">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Entrega:</span>
+                  <span className="font-semibold text-slate-800">
+                    {deliveryDateStr || "Sin seleccionar"}
+                  </span>
+                </div>
+
+                {!isFixedRecipe && (
+                  <>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Bizcochuelo:</span>
+                      <span className="font-medium text-slate-800 truncate max-w-[170px]">
+                        {selectedBaseObj?.nombre || "Vainilla"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Rellenos:</span>
+                      <span className="font-medium text-slate-800 truncate max-w-[170px]">
+                        {selectedFillingsObjs.map((f) => f.nombre).join(", ") || "A elección"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Cobertura:</span>
+                      <span className="font-medium text-slate-800 truncate max-w-[170px]">
+                        {selectedCoverageObj?.nombre || "Fondant"}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Total estimado */}
+              <div className="mt-4 pt-2">
+                <div className="flex items-baseline justify-between mb-4">
+                  <span className="text-xs text-slate-500 font-medium">Total a transferir</span>
+                  <span className="text-2xl font-bold text-pink-700">
+                    ${selectedPrice.toLocaleString("es-AR")}
+                  </span>
+                </div>
+
+                {/* Botón principal de acción para Desktop */}
+                <button
+                  type="button"
+                  disabled={submitting || (currentStep === 1 && !isDeliveryDateAvailable)}
+                  onClick={handleNext}
+                  className="w-full bg-[#1e293b] hover:bg-pink-700 text-white font-semibold py-3 px-4 rounded-xl text-sm transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? (
+                    <div className="flex items-center gap-2">
+                      <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Procesando...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <span>{getNextLabel()}</span>
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <path
+                          d="M2 7H12M12 7L8 3M12 7L8 11"
+                          stroke="white"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </>
+                  )}
+                </button>
+                <p className="text-[11px] text-slate-400 text-center mt-2 m-0">
+                  Reserva sujeta a validación de comprobante
+                </p>
+              </div>
+            </aside>
+          </div>
+        </main>
+      </div>
 
       {/* ── Bottom Fixed Action Bar ── */}
       <BottomBar

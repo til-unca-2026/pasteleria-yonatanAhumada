@@ -48,35 +48,69 @@ export function AdminLayout({
     }
   };
 
+  const tabs: { key: Tab; label: string }[] = [
+    { key: "pedidos", label: "Pedidos" },
+    { key: "cupos", label: "Cupos" },
+    { key: "catalogo", label: "Catálogo" },
+    { key: "metricas", label: "Métricas" },
+  ];
+
   return (
     <div className="flex flex-col min-h-screen w-full bg-[#f8fafc] text-[#0f172a] relative">
       {/* ── Top Header ── */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-[#1e293b] shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.12)]">
-        <div className="h-[56px] max-w-md mx-auto flex items-center px-[16px] justify-between">
-          <button
-            onClick={onBack}
-            className="bg-transparent border-0 cursor-pointer flex items-center justify-center rounded-full size-[32px] text-white hover:bg-slate-700/50 transition-colors"
-            title="Ir a la tienda como cliente"
-            aria-label="Volver"
-          >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M13 16L7 10L13 4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
+      <header className="sticky top-0 left-0 right-0 z-40 bg-[#1e293b] border-b border-slate-800 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.12)]">
+        <div className="h-[56px] md:h-[60px] w-full flex items-center px-4 md:px-8 justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={onBack}
+              className="bg-transparent border-0 cursor-pointer flex items-center justify-center rounded-full size-[32px] text-white hover:bg-slate-700/50 transition-colors"
+              title="Ir a la tienda como cliente"
+              aria-label="Volver"
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M13 16L7 10L13 4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
 
-          <div className="flex flex-col items-center">
-            <span className="font-semibold text-[#fc79bd] text-[11px] tracking-[0.55px] uppercase leading-[16.5px]">
-              PASTELERÍA ARTESANAL
-            </span>
-            <span className="font-semibold text-white text-[15px] leading-[20px]">{title}</span>
+            <div className="flex items-center gap-3">
+              <span className="font-bold text-[#fc79bd] text-[15px] md:text-[17px] tracking-[1px] uppercase leading-none">
+                PASTELERÍA
+              </span>
+              <span className="text-slate-500 hidden md:inline">|</span>
+              <span className="hidden md:inline font-semibold text-white text-sm">
+                Panel de Taller
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-[8px]">
+          <div className="flex items-center gap-3">
+            {/* Toggle de recepción en header para desktop */}
+            <div className="hidden md:flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-700">
+              <div className={`rounded-full size-2 ${isReceptionOpen ? "bg-[#10B981]" : "bg-[#ef4444]"}`} />
+              <span className="text-xs text-slate-300 font-medium">
+                Recepción: <strong className={isReceptionOpen ? "text-[#10B981]" : "text-[#ef4444]"}>{isReceptionOpen ? "ABIERTO" : "CERRADO"}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={onToggleReception}
+                className={`w-9 h-5 rounded-full relative cursor-pointer border-0 transition-colors ml-1 p-0 ${
+                  isReceptionOpen ? "bg-[#10B981]" : "bg-slate-600"
+                }`}
+                title="Alternar recepción"
+              >
+                <div
+                  className={`absolute top-[2px] bg-white rounded-full size-4 shadow-xs transition-transform ${
+                    isReceptionOpen ? "right-[2px]" : "left-[2px]"
+                  }`}
+                />
+              </button>
+            </div>
+
             {rightAction ?? (
               <button
                 onClick={() => setShowLogoutModal(true)}
                 title="Cerrar sesión de admin"
-                className="bg-slate-800/80 hover:bg-rose-950/60 border border-slate-700 hover:border-rose-800/80 cursor-pointer flex items-center gap-1 px-2.5 py-1 rounded-lg text-slate-200 hover:text-rose-200 transition-all text-xs font-semibold shadow-2xs"
+                className="bg-slate-800/80 hover:bg-rose-950/60 border border-slate-700 hover:border-rose-800/80 cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-slate-200 hover:text-rose-200 transition-all text-xs font-semibold shadow-2xs"
                 aria-label="Cerrar sesión"
               >
                 <span>Salir</span>
@@ -89,12 +123,6 @@ export function AdminLayout({
             )}
           </div>
         </div>
-
-        {subtitle && (
-          <div className="max-w-md mx-auto px-[16px] pb-[8px]">
-            <span className="font-normal text-[#94a3b8] text-[11px]">{subtitle}</span>
-          </div>
-        )}
       </header>
 
       {/* ── Modal de Confirmación de Cierre de Sesión ── */}
@@ -136,13 +164,54 @@ export function AdminLayout({
         </div>
       )}
 
-      {/* ── Scrollable Content Area ── */}
-      <main className="flex-1 w-full max-w-md mx-auto pt-[56px] pb-[120px]">
-        {children}
-      </main>
+      {/* ── Layout Principal: Sidebar de Taller + Contenido Expandido ── */}
+      <div className="flex-1 flex flex-col md:flex-row w-full">
+        {/* Sidebar exclusivo para Admin en Desktop */}
+        <aside className="hidden md:flex flex-col w-60 lg:w-64 shrink-0 bg-[#1e293b] border-r border-slate-700/80 px-4 py-6 min-h-[calc(100vh-60px)] shadow-lg select-none">
+          <span className="text-[11px] font-bold tracking-wider text-slate-400 uppercase mb-3 px-3">
+            Módulos del Taller
+          </span>
 
-      {/* ── Fixed Bottom Bars ── */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#e2e8f0]">
+          <nav className="flex flex-col gap-2 w-full">
+            {tabs.map((tab) => {
+              const active = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => onTabChange(tab.key)}
+                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-colors text-left border-0 cursor-pointer ${
+                    active
+                      ? "bg-pink-500/15 text-[#fc79bd] font-semibold border border-pink-500/30"
+                      : "bg-transparent text-slate-300 hover:text-white hover:bg-slate-800/80 font-medium"
+                  }`}
+                >
+                  <TabIcon tab={tab.key} active={active} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="mt-auto pt-6 border-t border-slate-700/80 flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex items-center gap-2 text-xs text-slate-400 hover:text-pink-300 transition-colors bg-transparent border-0 cursor-pointer p-0 px-2 text-left"
+            >
+              <span>← Volver a la Tienda</span>
+            </button>
+          </div>
+        </aside>
+
+        {/* ── Área de Trabajo Expandida en Desktop ── */}
+        <main className="flex-1 w-full max-w-md md:max-w-6xl lg:max-w-7xl mx-auto pt-4 md:pt-6 pb-[120px] md:pb-16 px-4 md:px-8 min-w-0">
+          {children}
+        </main>
+      </div>
+
+      {/* ── Fixed Bottom Bars (Solo Mobile) ── */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#e2e8f0]">
         <div className="max-w-md mx-auto flex flex-col">
           {/* Reception status bar */}
           <div className="px-[16px] py-[8px] flex items-center justify-between border-b border-[#f1f5f9]">

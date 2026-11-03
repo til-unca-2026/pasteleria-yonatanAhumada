@@ -889,8 +889,8 @@ export function CatalogoTab() {
         </div>
       </div>
 
-      {/* ── Grilla 2 Columnas de Tortas (Mockup 2.3) ── */}
-      <div className="px-[16px]">
+      {/* ── Grilla Responsiva de Tortas (2 col mobile, 3 tablet, 4 desktop) ── */}
+      <div className="px-4 md:px-0">
         {loading ? (
           <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-400">
             <div className="size-6 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
@@ -908,7 +908,7 @@ export function CatalogoTab() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-[12px] mb-[16px]">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 md:gap-4 mb-16">
             {tortas.map((torta) => (
               <div
                 key={torta.id}

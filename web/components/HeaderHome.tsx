@@ -55,12 +55,12 @@ export function HeaderHome({ user, isAdmin }: HeaderHomeProps) {
   const displayName = user?.name || user?.email?.split("@")[0] || "Usuario";
 
   return (
-    <header className="shrink-0 bg-[#1e293b] shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.12)] z-30 relative">
-      <div className="h-[56px] max-w-md mx-auto flex items-center justify-between px-[16px] relative">
+    <header className="shrink-0 bg-[#1e293b] border-b border-slate-800 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.12)] z-30 relative w-full">
+      <div className="h-[56px] md:h-[60px] w-full flex items-center justify-between px-4 md:px-8 relative">
         {/* ── LOGO / MARCA (Izquierda) ── */}
         <Link
           href="/"
-          className="font-bold text-[#fc79bd] text-[15px] tracking-[1px] uppercase leading-none hover:opacity-90 transition-opacity text-decoration-none"
+          className="font-bold text-[#fc79bd] text-[15px] md:text-[17px] tracking-[1px] uppercase leading-none hover:opacity-90 transition-opacity text-decoration-none"
         >
           PASTELERÍA
         </Link>
