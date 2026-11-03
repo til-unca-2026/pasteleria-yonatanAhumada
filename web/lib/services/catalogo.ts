@@ -391,7 +391,7 @@ export async function getInsumosPorTorta(tortaSlug?: string): Promise<InsumoDB[]
     }
 
     if (rows.length === 0) {
-      return getInsumosActivos();
+      return [];
     }
 
     // Comprobar si hay defaults guardados en localStorage como fallback
@@ -416,10 +416,10 @@ export async function getInsumosPorTorta(tortaSlug?: string): Promise<InsumoDB[]
         };
       });
 
-    return compatibles.length > 0 ? compatibles : getInsumosActivos();
+    return compatibles;
   } catch (err) {
     console.error("Error al obtener insumos por torta:", err);
-    return getInsumosActivos();
+    return [];
   }
 }
 

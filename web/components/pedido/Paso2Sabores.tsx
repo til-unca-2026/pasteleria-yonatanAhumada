@@ -233,6 +233,32 @@ export function Paso2Sabores({
     );
   }
 
+  // Si la torta no tiene insumos configurados en el taller
+  if (!loadingInsumos && insumos.length === 0) {
+    return (
+      <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 text-center">
+          <div className="size-12 rounded-full bg-pink-50 text-pink-500 flex items-center justify-center mx-auto mb-3 text-2xl">
+            🥣
+          </div>
+          <h3 className="text-base font-bold text-slate-900 mb-1">
+            Sin opciones personalizables
+          </h3>
+          <p className="text-xs text-slate-500 max-w-xs mx-auto mb-4 leading-relaxed">
+            Esta torta aún no tiene opciones de bizcochuelo o rellenos habilitadas en el taller.
+          </p>
+          <button
+            type="button"
+            onClick={onNext}
+            className="w-full bg-[#1e293b] hover:bg-[#334155] text-white py-2.5 px-4 rounded-xl font-semibold text-xs transition-colors cursor-pointer"
+          >
+            Continuar al Resumen
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const bases = insumos
     .filter((i) => i.tipo === "bizcochuelo")
     .sort((a, b) => {
