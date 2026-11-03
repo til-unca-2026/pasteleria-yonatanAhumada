@@ -731,27 +731,39 @@ function PedidoWizardContent() {
                   </span>
                 </div>
 
-                {!isFixedRecipe && (
+                {!isFixedRecipe && insumos.length > 0 && (
                   <>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-500">Bizcochuelo:</span>
-                      <span className="font-medium text-slate-800 truncate max-w-[170px]">
-                        {selectedBaseObj?.nombre || "Vainilla"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-500">Rellenos:</span>
-                      <span className="font-medium text-slate-800 truncate max-w-[170px]">
-                        {selectedFillingsObjs.map((f) => f.nombre).join(", ") || "A elección"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-500">Cobertura:</span>
-                      <span className="font-medium text-slate-800 truncate max-w-[170px]">
-                        {selectedCoverageObj?.nombre || "Fondant"}
-                      </span>
-                    </div>
+                    {selectedBaseObj && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">Bizcochuelo:</span>
+                        <span className="font-medium text-slate-800 truncate max-w-[170px]">
+                          {selectedBaseObj.nombre}
+                        </span>
+                      </div>
+                    )}
+                    {selectedFillingsObjs.length > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">Rellenos:</span>
+                        <span className="font-medium text-slate-800 truncate max-w-[170px]">
+                          {selectedFillingsObjs.map((f) => f.nombre).join(", ")}
+                        </span>
+                      </div>
+                    )}
+                    {selectedCoverageObj && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">Cobertura:</span>
+                        <span className="font-medium text-slate-800 truncate max-w-[170px]">
+                          {selectedCoverageObj.nombre}
+                        </span>
+                      </div>
+                    )}
                   </>
+                )}
+                {insumos.length === 0 && (
+                  <div className="flex justify-between items-center text-slate-500">
+                    <span>Receta:</span>
+                    <span className="font-medium text-slate-800">Estándar del Taller</span>
+                  </div>
                 )}
               </div>
 
