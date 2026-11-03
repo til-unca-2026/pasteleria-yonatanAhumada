@@ -186,7 +186,8 @@ export function Paso2Sabores({
   tortaSlug,
   onConfirmFixedRecipe,
 }: Paso2Props) {
-  if (isFixedRecipe) {
+  // Si es receta fija o si la torta no tiene insumos configurados en el taller
+  if (isFixedRecipe || (!loadingInsumos && insumos.length === 0)) {
     return (
       <div className="flex flex-col gap-4 animate-in fade-in duration-200">
         <div className="bg-white rounded-[14px] border border-amber-200/80 shadow-[0px_2px_8px_rgba(245,158,11,0.08)] p-5 text-center">
@@ -227,32 +228,6 @@ export function Paso2Sabores({
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
               <path d="M2.5 6H9.5M9.5 6L6.5 3M9.5 6L6.5 9" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Si la torta no tiene insumos configurados en el taller
-  if (!loadingInsumos && insumos.length === 0) {
-    return (
-      <div className="flex flex-col gap-4 animate-in fade-in duration-200">
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 text-center">
-          <div className="size-12 rounded-full bg-pink-50 text-pink-500 flex items-center justify-center mx-auto mb-3 text-2xl">
-            🥣
-          </div>
-          <h3 className="text-base font-bold text-slate-900 mb-1">
-            Sin opciones personalizables
-          </h3>
-          <p className="text-xs text-slate-500 max-w-xs mx-auto mb-4 leading-relaxed">
-            Esta torta aún no tiene opciones de bizcochuelo o rellenos habilitadas en el taller.
-          </p>
-          <button
-            type="button"
-            onClick={onNext}
-            className="w-full bg-[#1e293b] hover:bg-[#334155] text-white py-2.5 px-4 rounded-xl font-semibold text-xs transition-colors cursor-pointer"
-          >
-            Continuar al Resumen
           </button>
         </div>
       </div>
@@ -562,19 +537,29 @@ export function Paso2Sabores({
     <div className="flex flex-col gap-[10px] w-full animate-in fade-in duration-200">
       {/* Renderizado dinámico de los acordeones personalizables */}
       {activeSections.length === 0 ? (
-        <div className="bg-white rounded-[12px] border border-slate-200 p-6 text-center">
-          <span className="text-2xl mb-2 block">🎂</span>
-          <h4 className="text-sm font-bold text-slate-800 mb-1">
-            Receta sin opciones personalizables adicionales
+        <div className="bg-white rounded-[14px] border border-amber-200/80 shadow-[0px_2px_8px_rgba(245,158,11,0.08)] p-5 text-center">
+          <div className="size-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-3 text-2xl border border-amber-200">
+            ✨
+          </div>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 bg-amber-100/60 px-2.5 py-0.5 rounded-full inline-block mb-2">
+            Receta Artesanal del Taller
+          </span>
+          <h4 className="text-base font-bold text-slate-900 mb-1">
+            {tortaNombre || "Receta Estandarizada"}
           </h4>
-          <p className="text-xs text-slate-500 mb-4">
-            Este modelo se elabora con los insumos artesanales estandarizados del taller.
+          <p className="text-xs text-slate-600 leading-relaxed max-w-xs mx-auto mb-4">
+            Este modelo se elabora con la combinación exacta de insumos artesanales estandarizados del taller.
           </p>
-          <ConfirmBtn
-            label="Continuar al Resumen"
-            enabled={true}
+          <button
+            type="button"
             onClick={onNext}
-          />
+            className="w-full bg-[#1e293b] hover:bg-[#334155] text-white py-3 px-4 rounded-[10px] font-semibold text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <span>Continuar al Resumen</span>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M2.5 6H9.5M9.5 6L6.5 3M9.5 6L6.5 9" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
         </div>
       ) : (
         activeSections.map((sec, idx) => {

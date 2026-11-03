@@ -124,7 +124,7 @@ function PedidoWizardContent() {
   const [basePricePerKg, setBasePricePerKg] = useState<number>(() => {
     return queryPrecio ? parseInt(queryPrecio, 10) : 18500;
   });
-  const isFixedRecipe = searchParams.get("tipo") === "receta_fija";
+  const isQueryFixed = searchParams.get("tipo") === "receta_fija";
   const queryImagen = searchParams.get("imagen") || "";
   const [tortaImagen, setTortaImagen] = useState<string>(queryImagen);
 
@@ -164,6 +164,7 @@ function PedidoWizardContent() {
   // Insumos desde Supabase
   const [insumos, setInsumos] = useState<InsumoDB[]>([]);
   const [loadingInsumos, setLoadingInsumos] = useState<boolean>(true);
+  const isFixedRecipe = isQueryFixed || (!loadingInsumos && insumos.length === 0);
 
   // Step 1 state
   const [deliveryDateStr, setDeliveryDateStr] = useState<string>("");
@@ -190,11 +191,11 @@ function PedidoWizardContent() {
         // Si es torta personalizable, ordenar para que las opciones default aparezcan primeras
         const recipeConfig = DEFAULT_RECIPES_BY_SLUG[tortaSlug] || DEFAULT_GENERIC_RECIPE;
         const sortedData =
-          !isFixedRecipe && data.length > 0 ? sortInsumosWithDefaults(data, recipeConfig) : data;
+          !isQueryFixed && data.length > 0 ? sortInsumosWithDefaults(data, recipeConfig) : data;
         setInsumos(sortedData);
 
         // Preselección de opción default (exactamente 1 por categoría o fallback al primer activo)
-        if (!isFixedRecipe && sortedData.length > 0) {
+        if (!isQueryFixed && sortedData.length > 0) {
           // 1. Bizcochuelo base default
           setSelectedBase((prev) => {
             if (prev) return prev;
@@ -257,7 +258,7 @@ function PedidoWizardContent() {
       }
     }
     loadActiveInsumos();
-  }, [isFixedRecipe, tortaSlug]);
+  }, [isQueryFixed, tortaSlug]);
 
   const [currentUser, setCurrentUser] = useState<{ id: string; email?: string; name?: string } | null>(null);
   const [isAdminUser, setIsAdminUser] = useState<boolean>(false);
