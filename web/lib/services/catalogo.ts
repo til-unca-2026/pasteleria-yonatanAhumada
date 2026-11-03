@@ -110,6 +110,20 @@ export async function updateTorta(id: string, cambios: Partial<TortaDB>): Promis
   return (data && data[0]) ? (data[0] as TortaDB) : ({ id, ...cambios } as TortaDB);
 }
 
+export async function deleteTorta(id: string): Promise<boolean> {
+  const supabase = createClient();
+  // 1. Eliminar relaciones de insumos compatibles
+  await supabase.from("tortas_insumos").delete().eq("torta_id", id);
+
+  // 2. Eliminar la torta
+  const { error } = await supabase.from("tortas").delete().eq("id", id);
+  if (error) {
+    console.error("Error al eliminar torta de Supabase:", error);
+    throw error;
+  }
+  return true;
+}
+
 export async function createTorta(torta: Partial<TortaDB>): Promise<TortaDB> {
   const supabase = createClient();
   const slug =
