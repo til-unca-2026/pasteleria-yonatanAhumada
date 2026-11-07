@@ -48,7 +48,6 @@ export default function ConfigurarTortaPage() {
   const [nombre, setNombre] = useState<string>("");
   const [precioKg, setPrecioKg] = useState<string>("");
   const [descripcion, setDescripcion] = useState<string>("");
-  const [tipo, setTipo] = useState<"personalizable" | "receta_fija">("personalizable");
   const [imagenUrl, setImagenUrl] = useState<string>("");
   const [imagenFile, setImagenFile] = useState<File | null>(null);
   const [imagenPreview, setImagenPreview] = useState<string | null>(null);
@@ -150,7 +149,6 @@ export default function ConfigurarTortaPage() {
             setNombre(t.nombre);
             setPrecioKg(t.precio_base_kg.toString());
             setDescripcion(t.descripcion || "");
-            setTipo(t.tipo);
             setImagenUrl(t.imagen_url || "");
             setImagenPreview(t.imagen_url || null);
 
@@ -323,12 +321,21 @@ export default function ConfigurarTortaPage() {
         finalImageUrl = await uploadTortaImagen(imagenFile);
       }
 
+      // El tipo se determina dinámicamente: si tiene más de 1 opción en alguna categoría es personalizable
+      const assignedInsumos = allInsumos.filter((i) => compatibleIds.has(i.id));
+      const hasMultipleOptions =
+        assignedInsumos.filter((i) => i.tipo === "bizcochuelo").length > 1 ||
+        assignedInsumos.filter((i) => i.tipo === "relleno").length > 1 ||
+        assignedInsumos.filter((i) => i.tipo === "cobertura").length > 1 ||
+        assignedInsumos.filter((i) => i.tipo === "topping").length > 1;
+      const finalTipo = hasMultipleOptions ? "personalizable" : "receta_fija";
+
       if (isNueva) {
         const nueva = await createTorta({
           nombre: nombre.trim(),
           descripcion: descripcion.trim(),
           precio_base_kg: precio,
-          tipo,
+          tipo: finalTipo,
           imagen_url: finalImageUrl,
           activo: true,
         });
@@ -344,7 +351,7 @@ export default function ConfigurarTortaPage() {
           nombre: nombre.trim(),
           descripcion: descripcion.trim(),
           precio_base_kg: precio,
-          tipo,
+          tipo: finalTipo,
           imagen_url: finalImageUrl,
         });
       }
@@ -685,52 +692,8 @@ export default function ConfigurarTortaPage() {
                   </div>
                 </div>
 
-                {/* Selector de Modalidad: Personalizable vs Receta Fija */}
-                <div className="pt-2 border-t border-slate-100">
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1.5">
-                    Estrategia de Elaboración
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setTipo("personalizable")}
-                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                        tipo === "personalizable"
-                          ? "border-pink-500 bg-pink-50/30 text-pink-900 ring-1 ring-pink-400 shadow-2xs"
-                          : "border-slate-200 bg-white hover:bg-slate-50 text-slate-600"
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                        <span className="text-sm">🎨</span>
-                        <span className="text-xs font-bold">Personalizable</span>
-                      </div>
-                      <p className="text-[10px] text-slate-500 leading-tight m-0">
-                        El cliente elige bizcochuelo y rellenos en el cotizador.
-                      </p>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setTipo("receta_fija")}
-                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                        tipo === "receta_fija"
-                          ? "border-amber-500 bg-amber-50/40 text-amber-900 ring-1 ring-amber-400 shadow-2xs"
-                          : "border-slate-200 bg-white hover:bg-slate-50 text-slate-600"
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                        <span className="text-sm">✨</span>
-                        <span className="text-xs font-bold">Receta Tradicional</span>
-                      </div>
-                      <p className="text-[10px] text-slate-500 leading-tight m-0">
-                        Fórmula fija de autor. Saltea el paso 2 de sabores.
-                      </p>
-                    </button>
-                  </div>
-                </div>
-
                 {/* Campo: Descripción */}
-                <div>
+                <div className="pt-2 border-t border-slate-100">
                   <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                     Descripción del Catálogo
                   </label>
@@ -742,27 +705,6 @@ export default function ConfigurarTortaPage() {
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-pink-500 bg-white resize-none shadow-2xs"
                   />
                 </div>
-              </div>
-            </div>
-
-            {/* Ficha Resumen de Receta en Desktop */}
-            <div className="hidden lg:block bg-slate-50 rounded-2xl border border-slate-200/80 p-4 text-xs text-slate-600 space-y-2.5">
-              <span className="font-bold text-slate-800 uppercase text-[10px] tracking-wider block">
-                Composición en Taller
-              </span>
-              <div className="flex justify-between items-center py-1 border-b border-slate-200/60">
-                <span className="text-slate-500">Insumos vinculados:</span>
-                <span className="font-bold text-slate-800">{compatibleIds.size} opciones</span>
-              </div>
-              <div className="flex justify-between items-center py-1 border-b border-slate-200/60">
-                <span className="text-slate-500">Receta base definida:</span>
-                <span className="font-bold text-amber-700">{defaultInsumoIds.size} preseleccionados</span>
-              </div>
-              <div className="flex justify-between items-center py-1">
-                <span className="text-slate-500">Impacto en tienda:</span>
-                <span className="font-semibold text-slate-700">
-                  {tipo === "personalizable" ? "Cotizador dinámico (3 pasos)" : "Pedido directo (2 pasos)"}
-                </span>
               </div>
             </div>
           </div>
