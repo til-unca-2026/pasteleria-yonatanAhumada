@@ -48,7 +48,6 @@ export default function ConfigurarTortaPage() {
   const [nombre, setNombre] = useState<string>("");
   const [precioKg, setPrecioKg] = useState<string>("");
   const [descripcion, setDescripcion] = useState<string>("");
-  const [tipo, setTipo] = useState<"personalizable" | "receta_fija">("personalizable");
   const [imagenUrl, setImagenUrl] = useState<string>("");
   const [imagenFile, setImagenFile] = useState<File | null>(null);
   const [imagenPreview, setImagenPreview] = useState<string | null>(null);
@@ -150,7 +149,6 @@ export default function ConfigurarTortaPage() {
             setNombre(t.nombre);
             setPrecioKg(t.precio_base_kg.toString());
             setDescripcion(t.descripcion || "");
-            setTipo(t.tipo);
             setImagenUrl(t.imagen_url || "");
             setImagenPreview(t.imagen_url || null);
 
@@ -323,12 +321,21 @@ export default function ConfigurarTortaPage() {
         finalImageUrl = await uploadTortaImagen(imagenFile);
       }
 
+      // El tipo se determina dinámicamente: si tiene más de 1 opción en alguna categoría es personalizable
+      const assignedInsumos = allInsumos.filter((i) => compatibleIds.has(i.id));
+      const hasMultipleOptions =
+        assignedInsumos.filter((i) => i.tipo === "bizcochuelo").length > 1 ||
+        assignedInsumos.filter((i) => i.tipo === "relleno").length > 1 ||
+        assignedInsumos.filter((i) => i.tipo === "cobertura").length > 1 ||
+        assignedInsumos.filter((i) => i.tipo === "topping").length > 1;
+      const finalTipo = hasMultipleOptions ? "personalizable" : "receta_fija";
+
       if (isNueva) {
         const nueva = await createTorta({
           nombre: nombre.trim(),
           descripcion: descripcion.trim(),
           precio_base_kg: precio,
-          tipo,
+          tipo: finalTipo,
           imagen_url: finalImageUrl,
           activo: true,
         });
@@ -344,7 +351,7 @@ export default function ConfigurarTortaPage() {
           nombre: nombre.trim(),
           descripcion: descripcion.trim(),
           precio_base_kg: precio,
-          tipo,
+          tipo: finalTipo,
           imagen_url: finalImageUrl,
         });
       }
@@ -521,457 +528,489 @@ export default function ConfigurarTortaPage() {
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-[#f8fafc] text-[#0f172a] relative">
-      {/* ── Top Header Oscuro con Volver y Guardar (Mockup 2.4) ── */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-[#1e293b] shadow-md">
-        <div className="h-[56px] mx-auto flex items-center px-4 justify-between" style={{ maxWidth: 430 }}>
-          <button
-            type="button"
-            onClick={() => router.push("/admin?tab=catalogo")}
-            className="flex items-center gap-1 text-white bg-transparent border-0 cursor-pointer text-xs font-semibold hover:text-pink-300 transition-colors p-0"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-            <span>Volver</span>
-          </button>
+      {/* ── Top Header Oscuro con Volver y Guardar ── */}
+      <header className="fixed top-0 left-0 right-0 z-40 bg-[#1e293b] shadow-md border-b border-slate-800">
+        <div className="h-[56px] md:h-[60px] max-w-6xl mx-auto flex items-center px-4 md:px-8 justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => router.push("/admin?tab=catalogo")}
+              className="flex items-center gap-1.5 text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 px-3 py-1.5 rounded-xl border border-slate-700 text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              <span>Volver a Catálogo</span>
+            </button>
 
-          <span className="font-bold text-white text-[15px] truncate max-w-[200px]">
-            {isNueva ? "Nueva Torta" : "Configuración de Torta"}
-          </span>
+            <span className="hidden sm:inline text-slate-600 text-xs">/</span>
 
-          <button
-            type="button"
-            onClick={handleGuardar}
-            disabled={saving}
-            className="border-[1.5px] border-[#fc79bd] text-[#fc79bd] bg-transparent hover:bg-[#fc79bd]/15 active:scale-95 transition-all font-bold text-xs px-4 py-1 rounded-full cursor-pointer disabled:opacity-50 shadow-xs"
-          >
-            {saving ? "Guardando..." : "Guardar"}
-          </button>
+            <span className="font-bold text-white text-sm md:text-base truncate max-w-[200px] md:max-w-xs">
+              {isNueva ? "Nueva Torta" : nombre || "Configuración de Torta"}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 md:gap-4">
+            {/* Switch Recepción para desktop */}
+            <div className="hidden md:flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-700/80 text-xs">
+              <span className={`size-2.5 rounded-full ${isReceptionOpen ? "bg-[#10B981]" : "bg-slate-400"}`} />
+              <span className="text-slate-300 font-medium">Recepción:</span>
+              <button
+                type="button"
+                onClick={handleToggleReception}
+                className={`px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition-colors ${
+                  isReceptionOpen ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-700 text-slate-400"
+                }`}
+              >
+                {isReceptionOpen ? "ABIERTO" : "CERRADO"}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGuardar}
+              disabled={saving}
+              className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-bold text-xs md:text-sm px-4 md:px-5 py-2 rounded-xl cursor-pointer disabled:opacity-50 shadow-md transition-all active:scale-95 flex items-center gap-1.5"
+            >
+              {saving ? (
+                <>
+                  <div className="size-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Guardando...</span>
+                </>
+              ) : (
+                <>
+                  <span>💾</span>
+                  <span>Guardar Cambios</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* ── Main Container (Mockup 2.4 - admin_catalogo_id.png) ── */}
-      <main className="flex-1 w-full mx-auto pt-[68px] pb-[130px] px-4 space-y-4" style={{ maxWidth: 430 }}>
-        {/* ── SECCIÓN 1: Datos Básicos ── */}
-        <div>
-          <h2 className="text-base font-bold text-slate-800 mb-2 px-0.5">Datos Básicos</h2>
-          <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 shadow-xs">
-            <div className="flex gap-3 mb-3">
-              {/* Foto con botón "Cambiar" o caja para subir si no hay imagen */}
-              {imagenPreview || imagenUrl ? (
-                <div className="shrink-0 flex flex-col" style={{ width: 110, minWidth: 110 }}>
-                  <div
-                    className="rounded-t-xl overflow-hidden bg-slate-100 border border-slate-200 border-b-0 relative"
-                    style={{ width: 110, height: 95 }}
-                  >
-                    <img
-                      src={imagenPreview || imagenUrl}
-                      alt={nombre || "Torta"}
-                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                    />
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleTortaImageChange}
-                    className="hidden"
-                    id="foto-torta-change"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    style={{ width: 110, height: 32 }}
-                    className="bg-[#1e293b] hover:bg-[#334155] text-white text-xs font-semibold rounded-b-xl border border-[#1e293b] cursor-pointer shadow-xs transition-colors flex items-center justify-center text-center"
-                  >
-                    Cambiar
-                  </button>
-                </div>
-              ) : (
-                <div className="shrink-0" style={{ width: 110, minWidth: 110 }}>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleTortaImageChange}
-                    className="hidden"
-                    id="foto-torta-change"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    style={{ width: 110, height: 127 }}
-                    className="w-full h-full rounded-xl border-2 border-dashed border-slate-200 hover:border-pink-400 hover:bg-pink-50/20 bg-slate-50 flex flex-col items-center justify-center gap-1.5 p-2 text-center cursor-pointer transition-colors group"
-                  >
-                    <div className="size-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 group-hover:text-pink-500 group-hover:border-pink-300 transition-colors shadow-2xs">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                        <circle cx="12" cy="13" r="4"/>
-                      </svg>
+      {/* ── Main Container (2 Columnas en Desktop) ── */}
+      <main className="flex-1 w-full max-w-6xl mx-auto pt-[72px] md:pt-[84px] pb-[130px] md:pb-16 px-4 md:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+          
+          {/* ── COLUMNA IZQUIERDA: Datos Básicos (5 cols en desktop, sticky) ── */}
+          <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-[84px]">
+            <div>
+              <div className="flex items-center justify-between mb-2 px-0.5">
+                <h2 className="text-base font-bold text-slate-800">Datos Básicos</h2>
+                <span className="text-xs text-slate-400 font-medium">Ficha del modelo</span>
+              </div>
+              <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-4">
+                {/* Foto y Selector */}
+                <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
+                  {imagenPreview || imagenUrl ? (
+                    <div className="shrink-0 flex flex-col w-full sm:w-[130px]">
+                      <div className="rounded-t-xl overflow-hidden bg-slate-100 border border-slate-200 border-b-0 relative w-full h-[120px]">
+                        <img
+                          src={imagenPreview || imagenUrl}
+                          alt={nombre || "Torta"}
+                          className="w-full h-full object-cover block"
+                        />
+                      </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleTortaImageChange}
+                        className="hidden"
+                        id="foto-torta-change"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full h-8 bg-[#1e293b] hover:bg-[#334155] text-white text-xs font-semibold rounded-b-xl border border-[#1e293b] cursor-pointer shadow-xs transition-colors flex items-center justify-center text-center"
+                      >
+                        Cambiar foto
+                      </button>
                     </div>
-                    <span className="text-[11px] font-semibold text-slate-600 group-hover:text-pink-600 leading-tight">
-                      Subir foto
-                    </span>
-                    <span className="text-[9px] text-slate-400 leading-tight">
-                      Opcional
-                    </span>
-                  </button>
-                </div>
-              )}
+                  ) : (
+                    <div className="shrink-0 w-full sm:w-[130px]">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleTortaImageChange}
+                        className="hidden"
+                        id="foto-torta-change"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full h-[120px] rounded-xl border-2 border-dashed border-slate-200 hover:border-pink-400 hover:bg-pink-50/20 bg-slate-50 flex flex-col items-center justify-center gap-1.5 p-2 text-center cursor-pointer transition-colors group"
+                      >
+                        <div className="size-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 group-hover:text-pink-500 group-hover:border-pink-300 transition-colors shadow-2xs">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                            <circle cx="12" cy="13" r="4"/>
+                          </svg>
+                        </div>
+                        <span className="text-[11px] font-semibold text-slate-600 group-hover:text-pink-600 leading-tight">
+                          Subir foto
+                        </span>
+                        <span className="text-[9px] text-slate-400 leading-tight">
+                          Recomendado
+                        </span>
+                      </button>
+                    </div>
+                  )}
 
-              {/* Campos: Nombre y Precio por Kg */}
-              <div className="flex-1 min-w-0 flex flex-col justify-between">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                    Nombre de la Torta
-                  </label>
-                  <input
-                    type="text"
-                    value={nombre}
-                    onChange={(e) => setNombre(e.target.value)}
-                    placeholder="Ej: Torta Selva Negra"
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:border-pink-500 bg-white shadow-2xs"
-                  />
-                </div>
+                  {/* Campos: Nombre y Precio por Kg */}
+                  <div className="flex-1 min-w-0 w-full flex flex-col gap-3">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                        Nombre de la Torta
+                      </label>
+                      <input
+                        type="text"
+                        value={nombre}
+                        onChange={(e) => setNombre(e.target.value)}
+                        placeholder="Ej: Torta Selva Negra"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:border-pink-500 bg-white shadow-2xs"
+                      />
+                    </div>
 
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                    Precio por Kg
-                  </label>
-                  <div className="relative flex items-center">
-                    <span className="absolute left-3 text-xs font-bold text-slate-500">$</span>
-                    <input
-                      type="number"
-                      value={precioKg}
-                      onChange={(e) => setPrecioKg(e.target.value)}
-                      placeholder="Ej: 18000"
-                      className="w-full pl-6 pr-12 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:border-pink-500 bg-white shadow-2xs"
-                    />
-                    <span className="absolute right-3 text-xs text-slate-400 font-medium">/ kg</span>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                        Precio por Kg
+                      </label>
+                      <div className="relative flex items-center">
+                        <span className="absolute left-3 text-xs font-bold text-slate-500">$</span>
+                        <input
+                          type="number"
+                          value={precioKg}
+                          onChange={(e) => setPrecioKg(e.target.value)}
+                          placeholder="Ej: 18000"
+                          className="w-full pl-6 pr-12 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:border-pink-500 bg-white shadow-2xs"
+                        />
+                        <span className="absolute right-3 text-xs text-slate-400 font-medium">/ kg</span>
+                      </div>
+                    </div>
                   </div>
+                </div>
+
+                {/* Campo: Descripción */}
+                <div className="pt-2 border-t border-slate-100">
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    Descripción del Catálogo
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={descripcion}
+                    onChange={(e) => setDescripcion(e.target.value)}
+                    placeholder="Descripción o detalles especiales para los clientes..."
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-pink-500 bg-white resize-none shadow-2xs"
+                  />
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Campo: Descripción */}
+          {/* ── COLUMNA DERECHA: Insumos Compatibles (7 cols en desktop) ── */}
+          <div className="lg:col-span-7 space-y-4">
             <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                Descripción
-              </label>
-              <textarea
-                rows={2}
-                value={descripcion}
-                onChange={(e) => setDescripcion(e.target.value)}
-                placeholder="Descripción o detalles especiales (opcional)..."
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-pink-500 bg-white resize-none shadow-2xs"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* ── SECCIÓN 2: Insumos Compatibles (Mockup 2.4) ── */}
-        <div>
-          {/* Header con título y botones de acción */}
-          <div className="flex flex-col gap-2.5 mb-3">
-            <div className="flex items-center justify-between px-0.5">
-              <h2 className="text-base font-bold text-slate-800 m-0">Insumos Compatibles</h2>
-              <span className="text-xs text-slate-400 font-medium">
-                {compatibleIds.size} {compatibleIds.size === 1 ? "vinculado" : "vinculados"}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setIsModalAsignarOpen(true)}
-                className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 rounded-xl py-2 px-3 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs transition-colors text-xs font-semibold"
-                title="Vincular un insumo ya existente del catálogo"
-              >
-                <span className="text-pink-600 font-bold text-sm leading-none">+</span>
-                <span>Asignar Existente</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setNuevoInsumoTipo(currentCategoryKey);
-                  setIsModalInsumoOpen(true);
-                }}
-                className="bg-[#1e293b] hover:bg-[#334155] rounded-xl py-2 px-3 flex items-center justify-center gap-1.5 cursor-pointer border-0 shadow-2xs transition-colors text-white text-xs font-semibold"
-              >
-                <span className="font-bold text-sm leading-none">+</span>
-                <span>Nuevo Insumo</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Selector de categorías en cuadrícula 2x2 (sin scroll, todo a 1 toque) */}
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            {INSUMO_CATEGORIES.map((tab, idx) => {
-              const count = allInsumos.filter((i) => i.tipo === tab.key && compatibleIds.has(i.id)).length;
-              const isActive = idx === activeTab;
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveTab(idx)}
-                  className={`py-2 px-3 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center justify-between border ${
-                    isActive
-                      ? "bg-[#1e293b] text-white border-[#1e293b] shadow-xs"
-                      : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 shadow-2xs"
-                  }`}
-                >
-                  <span className="font-semibold truncate">{tab.label}</span>
-                  <span
-                    className={`ml-1 text-[11px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
-                      isActive
-                        ? "bg-slate-700 text-slate-200"
-                        : count > 0
-                        ? "bg-pink-50 text-pink-600 border border-pink-200"
-                        : "bg-slate-100 text-slate-400"
-                    }`}
-                  >
-                    {count}
+              {/* Header con título y botones de acción */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3 px-0.5">
+                <div>
+                  <h2 className="text-base font-bold text-slate-800 m-0">Insumos Compatibles</h2>
+                  <span className="text-xs text-slate-400 font-medium">
+                    {compatibleIds.size} {compatibleIds.size === 1 ? "vinculado" : "vinculados"} en total
                   </span>
-                </button>
-              );
-            })}
-          </div>
+                </div>
 
-          {/* Item destacado con interruptor switch y acciones ergonómicas para móviles */}
-          {featuredInsumo ? (
-            <div className="rounded-2xl border border-slate-200/90 p-3 mb-3 bg-white shadow-xs">
-              {/* Fila superior: Foto, Nombre completo y Conmutador de disponibilidad */}
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div
-                    className="rounded-xl bg-amber-50/50 border border-slate-100 overflow-hidden shrink-0 flex items-center justify-center text-xl"
-                    style={{ width: 50, height: 50, minWidth: 50, maxWidth: 50 }}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalAsignarOpen(true)}
+                    className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 rounded-xl py-2 px-3 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs transition-colors text-xs font-semibold"
+                    title="Vincular un insumo ya existente del catálogo"
                   >
-                    {featuredInsumo.imagen_url ? (
-                      <img
-                        src={featuredInsumo.imagen_url}
-                        alt={featuredInsumo.nombre}
-                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                      />
-                    ) : (
-                      INSUMO_CATEGORIES[activeTab]?.emoji || "🍰"
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-bold text-slate-900 text-sm capitalize leading-snug">
-                        {featuredInsumo.nombre}
-                      </span>
-                      {isFeaturedDefault && (
-                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold border border-amber-300 shrink-0">
-                          ★ Base
-                        </span>
-                      )}
-                    </div>
-                    <span
-                      className={`text-xs font-semibold ${
-                        featuredInsumo.recargo_extra > 0 ? "text-purple-600" : "text-emerald-600"
+                    <span className="text-pink-600 font-bold text-sm leading-none">+</span>
+                    <span>Asignar Existente</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNuevoInsumoTipo(currentCategoryKey);
+                      setIsModalInsumoOpen(true);
+                    }}
+                    className="bg-[#1e293b] hover:bg-[#334155] rounded-xl py-2 px-3 flex items-center justify-center gap-1.5 cursor-pointer border-0 shadow-2xs transition-colors text-white text-xs font-semibold"
+                  >
+                    <span className="font-bold text-sm leading-none">+</span>
+                    <span>Nuevo Insumo</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Selector de categorías en 4 columnas en desktop */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                {INSUMO_CATEGORIES.map((tab, idx) => {
+                  const count = allInsumos.filter((i) => i.tipo === tab.key && compatibleIds.has(i.id)).length;
+                  const isActive = idx === activeTab;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setActiveTab(idx)}
+                      className={`py-2 px-3 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center justify-between border ${
+                        isActive
+                          ? "bg-[#1e293b] text-white border-[#1e293b] shadow-xs"
+                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 shadow-2xs"
                       }`}
                     >
-                      {featuredInsumo.recargo_extra > 0
-                        ? `+$${featuredInsumo.recargo_extra.toLocaleString("es-AR")} recargo`
-                        : "Sin costo extra"}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Switch de disponibilidad / stock */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <span
-                    className={`text-[11px] font-semibold hidden sm:inline ${
-                      featuredInsumo.activo ? "text-emerald-600" : "text-slate-400"
-                    }`}
-                  >
-                    {featuredInsumo.activo ? "Disponible" : "Sin stock"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleInsumoActivo(featuredInsumo.id, featuredInsumo.activo)}
-                    style={{ width: 44, height: 24, minWidth: 44 }}
-                    className={`rounded-full relative cursor-pointer border-0 transition-colors p-0 shrink-0 ${
-                      featuredInsumo.activo ? "bg-[#10B981]" : "bg-slate-300"
-                    }`}
-                    aria-label={`Alternar stock de ${featuredInsumo.nombre}`}
-                    title={
-                      featuredInsumo.activo
-                        ? "Disponible: Clic para pausar por falta de stock"
-                        : "Sin stock: Clic para habilitar disponibilidad"
-                    }
-                  >
-                    <div
-                      style={{
-                        width: 20,
-                        height: 20,
-                        top: 2,
-                        left: featuredInsumo.activo ? "calc(100% - 22px)" : 2,
-                        position: "absolute",
-                      }}
-                      className="rounded-full bg-white shadow-xs transition-all duration-200"
-                    />
-                  </button>
-                </div>
-              </div>
-
-              {/* Fila inferior: Botones de acción táctiles cómodos de tocar */}
-              <div className="flex items-center gap-2 pt-2.5 mt-2.5 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => handleOpenEditInsumo(featuredInsumo)}
-                  className="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold cursor-pointer transition-colors border bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 flex items-center justify-center gap-1.5 shadow-2xs"
-                  title="Editar precio, nombre o foto de este insumo"
-                >
-                  <span>✏️</span>
-                  <span>Editar</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleToggleInsumoDefault(featuredInsumo.id, featuredInsumo.tipo)}
-                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold cursor-pointer transition-colors border flex items-center justify-center gap-1.5 shadow-2xs ${
-                    isFeaturedDefault
-                      ? "bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200"
-                      : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
-                  }`}
-                  title={isFeaturedDefault ? "Quitar de receta base" : "Marcar como receta base / default para esta torta"}
-                >
-                  <span className={isFeaturedDefault ? "text-amber-600" : "text-slate-400"}>★</span>
-                  <span>{isFeaturedDefault ? "Receta base" : "Hacer base"}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setInsumoADesvincular({
-                      id: featuredInsumo.id,
-                      nombre: featuredInsumo.nombre,
-                    });
-                  }}
-                  className="py-1.5 px-3 rounded-lg text-xs font-semibold text-rose-500 hover:text-rose-700 hover:bg-rose-50 cursor-pointer transition-colors border border-transparent hover:border-rose-100"
-                  title="Desvincular de esta torta"
-                >
-                  Quitar
-                </button>
-              </div>
-            </div>
-          ) : null}
-
-          {/* Grilla con SOLO los insumos vinculados a esta torta */}
-          {linkedCategoryInsumos.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center bg-white shadow-2xs">
-              <span className="text-3xl mb-1.5 block">{INSUMO_CATEGORIES[activeTab]?.emoji || "🍰"}</span>
-              <p className="text-xs font-bold text-slate-800 mb-0.5">
-                No hay {INSUMO_CATEGORIES[activeTab]?.label.toLowerCase()} vinculados
-              </p>
-              <p className="text-[11px] text-slate-500 max-w-xs mx-auto mb-3.5 leading-relaxed">
-                Esta torta no tiene opciones de esta categoría. Podés agregar insumos ya creados en el catálogo o crear uno nuevo.
-              </p>
-              <div className="flex items-center justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsModalAsignarOpen(true)}
-                  className="px-3 py-1.5 rounded-lg bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 text-xs font-semibold cursor-pointer transition-colors shadow-2xs"
-                >
-                  + Asignar del Catálogo
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNuevoInsumoTipo(currentCategoryKey);
-                    setIsModalInsumoOpen(true);
-                  }}
-                  className="px-3 py-1.5 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-white text-xs font-semibold cursor-pointer transition-colors shadow-2xs"
-                >
-                  + Crear Nuevo
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-2.5">
-              {linkedCategoryInsumos.map((insumo) => {
-                const isSelected = insumo.id === selectedInsumoId;
-
-                return (
-                  <div
-                    key={insumo.id}
-                    onClick={() => setSelectedInsumoId(insumo.id)}
-                    className={`relative rounded-xl border p-2 flex flex-col items-center text-center cursor-pointer transition-all shadow-xs ${
-                      isSelected
-                        ? "border-pink-500 bg-pink-50/20 ring-2 ring-pink-400"
-                        : "border-slate-200/90 bg-white hover:border-slate-300"
-                    } ${!insumo.activo ? "opacity-60 grayscale-[35%]" : ""}`}
-                  >
-                    {/* Indicador de estado de stock y receta base en esquina superior izquierda */}
-                    <div className="absolute top-1.5 left-1.5 z-10 flex items-center gap-1">
+                      <span className="font-semibold truncate">{tab.label}</span>
                       <span
-                        className={`inline-block size-2 rounded-full ring-2 ring-white ${
-                          insumo.activo ? "bg-emerald-500" : "bg-slate-400"
+                        className={`ml-1 text-[11px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
+                          isActive
+                            ? "bg-slate-700 text-slate-200"
+                            : count > 0
+                            ? "bg-pink-50 text-pink-600 border border-pink-200"
+                            : "bg-slate-100 text-slate-400"
                         }`}
-                        title={insumo.activo ? "Disponible" : "Sin stock / Pausado"}
-                      />
-                      {defaultInsumoIds.has(insumo.id) && (
-                        <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded-full bg-amber-100 border border-amber-300 text-[8px] font-bold text-amber-800 shadow-2xs">
-                          ★ Base
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Item destacado con interruptor switch y acciones ergonómicas */}
+              {featuredInsumo ? (
+                <div className="rounded-2xl border border-slate-200/90 p-4 mb-3.5 bg-white shadow-xs">
+                  {/* Fila superior: Foto, Nombre completo y Conmutador de disponibilidad */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div
+                        className="rounded-xl bg-amber-50/50 border border-slate-100 overflow-hidden shrink-0 flex items-center justify-center text-xl size-14"
+                      >
+                        {featuredInsumo.imagen_url ? (
+                          <img
+                            src={featuredInsumo.imagen_url}
+                            alt={featuredInsumo.nombre}
+                            className="w-full h-full object-cover block"
+                          />
+                        ) : (
+                          INSUMO_CATEGORIES[activeTab]?.emoji || "🍰"
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-slate-900 text-sm md:text-base capitalize leading-snug">
+                            {featuredInsumo.nombre}
+                          </span>
+                          {isFeaturedDefault && (
+                            <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold border border-amber-300 shrink-0">
+                              ★ Base
+                            </span>
+                          )}
+                        </div>
+                        <span
+                          className={`text-xs font-semibold ${
+                            featuredInsumo.recargo_extra > 0 ? "text-purple-600" : "text-emerald-600"
+                          }`}
+                        >
+                          {featuredInsumo.recargo_extra > 0
+                            ? `+$${featuredInsumo.recargo_extra.toLocaleString("es-AR")} recargo`
+                            : "Sin costo extra"}
                         </span>
-                      )}
+                      </div>
                     </div>
 
-                    {/* Botón para quitar de la receta de esta torta */}
+                    {/* Switch de disponibilidad / stock */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span
+                        className={`text-xs font-semibold hidden sm:inline ${
+                          featuredInsumo.activo ? "text-emerald-600" : "text-slate-400"
+                        }`}
+                      >
+                        {featuredInsumo.activo ? "Disponible" : "Sin stock"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleInsumoActivo(featuredInsumo.id, featuredInsumo.activo)}
+                        style={{ width: 44, height: 24, minWidth: 44 }}
+                        className={`rounded-full relative cursor-pointer border-0 transition-colors p-0 shrink-0 ${
+                          featuredInsumo.activo ? "bg-[#10B981]" : "bg-slate-300"
+                        }`}
+                        aria-label={`Alternar stock de ${featuredInsumo.nombre}`}
+                        title={
+                          featuredInsumo.activo
+                            ? "Disponible: Clic para pausar por falta de stock"
+                            : "Sin stock: Clic para habilitar disponibilidad"
+                        }
+                      >
+                        <div
+                          style={{
+                            width: 20,
+                            height: 20,
+                            top: 2,
+                            left: featuredInsumo.activo ? "calc(100% - 22px)" : 2,
+                            position: "absolute",
+                          }}
+                          className="rounded-full bg-white shadow-xs transition-all duration-200"
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Fila inferior: Botones de acción ergonómicos */}
+                  <div className="flex items-center gap-2 pt-3 mt-3 border-t border-slate-100">
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
+                      onClick={() => handleOpenEditInsumo(featuredInsumo)}
+                      className="flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold cursor-pointer transition-colors border bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 flex items-center justify-center gap-1.5 shadow-2xs"
+                      title="Editar precio, nombre o foto de este insumo"
+                    >
+                      <span>✏️</span>
+                      <span>Editar</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleInsumoDefault(featuredInsumo.id, featuredInsumo.tipo)}
+                      className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold cursor-pointer transition-colors border flex items-center justify-center gap-1.5 shadow-2xs ${
+                        isFeaturedDefault
+                          ? "bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200"
+                          : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
+                      }`}
+                      title={isFeaturedDefault ? "Quitar de receta base" : "Marcar como receta base / default para esta torta"}
+                    >
+                      <span className={isFeaturedDefault ? "text-amber-600" : "text-slate-400"}>★</span>
+                      <span>{isFeaturedDefault ? "Receta base" : "Hacer base"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
                         setInsumoADesvincular({
-                          id: insumo.id,
-                          nombre: insumo.nombre,
+                          id: featuredInsumo.id,
+                          nombre: featuredInsumo.nombre,
                         });
                       }}
-                      className="absolute top-1.5 right-1.5 size-5 rounded-full bg-white/90 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer border border-slate-200 shadow-2xs z-10"
-                      title="Quitar de la receta de esta torta"
+                      className="py-1.5 px-3 rounded-xl text-xs font-semibold text-rose-500 hover:text-rose-700 hover:bg-rose-50 cursor-pointer transition-colors border border-transparent hover:border-rose-100"
+                      title="Desvincular de esta torta"
                     >
-                      ✕
+                      Quitar
                     </button>
-
-                    <div
-                      className="rounded-lg bg-slate-100 overflow-hidden mb-1.5 flex items-center justify-center text-lg w-full"
-                      style={{ height: 68 }}
-                    >
-                      {insumo.imagen_url ? (
-                        <img
-                          src={insumo.imagen_url}
-                          alt={insumo.nombre}
-                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                        />
-                      ) : (
-                        INSUMO_CATEGORIES[activeTab]?.emoji || "🍰"
-                      )}
-                    </div>
-
-                    <span className="text-xs font-semibold text-slate-700 line-clamp-1 truncate w-full capitalize">
-                      {insumo.nombre}
-                    </span>
-                    {insumo.activo ? (
-                      insumo.recargo_extra > 0 ? (
-                        <span className="text-[10px] font-semibold text-pink-600">
-                          +${insumo.recargo_extra.toLocaleString("es-AR")}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-normal text-slate-400">
-                          Incluido
-                        </span>
-                      )
-                    ) : (
-                      <span className="text-[10px] font-semibold text-rose-500">
-                        Sin stock
-                      </span>
-                    )}
                   </div>
-                );
-              })}
+                </div>
+              ) : null}
+
+              {/* Grilla con SOLO los insumos vinculados a esta torta (2 a 4 columnas en desktop) */}
+              {linkedCategoryInsumos.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center bg-white shadow-2xs">
+                  <span className="text-3xl mb-2 block">{INSUMO_CATEGORIES[activeTab]?.emoji || "🍰"}</span>
+                  <p className="text-sm font-bold text-slate-800 mb-1">
+                    No hay {INSUMO_CATEGORIES[activeTab]?.label.toLowerCase()} vinculados
+                  </p>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto mb-4 leading-relaxed">
+                    Esta torta no tiene opciones de esta categoría. Podés agregar insumos ya creados en el catálogo o crear uno nuevo.
+                  </p>
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsModalAsignarOpen(true)}
+                      className="px-3.5 py-2 rounded-xl bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 text-xs font-semibold cursor-pointer transition-colors shadow-2xs"
+                    >
+                      + Asignar del Catálogo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNuevoInsumoTipo(currentCategoryKey);
+                        setIsModalInsumoOpen(true);
+                      }}
+                      className="px-3.5 py-2 rounded-xl bg-[#1e293b] hover:bg-[#334155] text-white text-xs font-semibold cursor-pointer transition-colors shadow-2xs"
+                    >
+                      + Crear Nuevo
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+                  {linkedCategoryInsumos.map((insumo) => {
+                    const isSelected = insumo.id === selectedInsumoId;
+
+                    return (
+                      <div
+                        key={insumo.id}
+                        onClick={() => setSelectedInsumoId(insumo.id)}
+                        className={`relative rounded-xl border p-2.5 flex flex-col items-center text-center cursor-pointer transition-all shadow-xs ${
+                          isSelected
+                            ? "border-pink-500 bg-pink-50/20 ring-2 ring-pink-400"
+                            : "border-slate-200/90 bg-white hover:border-slate-300"
+                        } ${!insumo.activo ? "opacity-60 grayscale-[35%]" : ""}`}
+                      >
+                        {/* Indicador de estado de stock y receta base en esquina superior izquierda */}
+                        <div className="absolute top-2 left-2 z-10 flex items-center gap-1">
+                          <span
+                            className={`inline-block size-2.5 rounded-full ring-2 ring-white ${
+                              insumo.activo ? "bg-emerald-500" : "bg-slate-400"
+                            }`}
+                            title={insumo.activo ? "Disponible" : "Sin stock / Pausado"}
+                          />
+                          {defaultInsumoIds.has(insumo.id) && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full bg-amber-100 border border-amber-300 text-[8px] font-bold text-amber-800 shadow-2xs">
+                              ★ Base
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Botón para quitar de la receta de esta torta */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setInsumoADesvincular({
+                              id: insumo.id,
+                              nombre: insumo.nombre,
+                            });
+                          }}
+                          className="absolute top-2 right-2 size-5 rounded-full bg-white/90 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer border border-slate-200 shadow-2xs z-10"
+                          title="Quitar de la receta de esta torta"
+                        >
+                          ✕
+                        </button>
+
+                        <div className="rounded-lg bg-slate-100 overflow-hidden mb-2 flex items-center justify-center text-lg w-full h-20">
+                          {insumo.imagen_url ? (
+                            <img
+                              src={insumo.imagen_url}
+                              alt={insumo.nombre}
+                              className="w-full h-full object-cover block"
+                            />
+                          ) : (
+                            <span className="text-2xl">{INSUMO_CATEGORIES[activeTab]?.emoji || "🍰"}</span>
+                          )}
+                        </div>
+
+                        <span className="text-xs font-bold text-slate-800 line-clamp-1 truncate w-full capitalize">
+                          {insumo.nombre}
+                        </span>
+                        {insumo.activo ? (
+                          insumo.recargo_extra > 0 ? (
+                            <span className="text-[11px] font-semibold text-pink-600 mt-0.5">
+                              +${insumo.recargo_extra.toLocaleString("es-AR")}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] font-medium text-slate-400 mt-0.5">
+                              Incluido
+                            </span>
+                          )
+                        ) : (
+                          <span className="text-[11px] font-semibold text-rose-500 mt-0.5">
+                            Sin stock
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </main>
 
@@ -1394,8 +1433,8 @@ export default function ConfigurarTortaPage() {
         </div>
       )}
 
-      {/* ── Bottom Bar con Master Switch y Navegación (Mockup 2.4) ── */}
-      <footer className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#e2e8f0] shadow-md pb-safe">
+      {/* ── Bottom Bar con Master Switch y Navegación (Móvil) ── */}
+      <footer className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#e2e8f0] shadow-md pb-safe">
         <div className="mx-auto" style={{ maxWidth: 430 }}>
           {/* Fila superior: Conmutador de recepción */}
           <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
