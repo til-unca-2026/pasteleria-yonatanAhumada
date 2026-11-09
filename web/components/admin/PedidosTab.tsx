@@ -10,7 +10,11 @@ import {
 } from "@/lib/services/pedidos";
 import { getTodasLasTortas, TortaDB } from "@/lib/services/catalogo";
 import { toWhatsAppPhone } from "@/lib/phone";
-import { sendTelegramNotification } from "@/lib/services/telegram";
+import {
+  notifyPagoAprobado,
+  notifyPedidoListo,
+  notifyPedidoRechazado,
+} from "@/lib/services/telegram";
 
 const FALLBACK_TORTA_IMAGES: Record<string, string> = {
   "torta de frutos rojos": "https://zmqaitjziznxocdppsnk.supabase.co/storage/v1/object/public/catalogo/tortas/torta-frutos-rojos.jpg",
@@ -134,33 +138,31 @@ export function PedidosTab() {
       await updatePedidoEstado(id, nuevoEstado);
 
       if (pedidoActual) {
-        const codigo = `#${pedidoActual.id.slice(0, 8).toUpperCase()}`;
         const { modeloNombre } = parseModeloYNotas(pedidoActual.notas);
-        let alertaMsg = "";
 
         if (nuevoEstado === "Señado") {
-          alertaMsg =
-            `✅ *Pago Aprobado - Pedido ${codigo}*\n\n` +
-            (modeloNombre ? `🎂 *Torta:* ${modeloNombre}\n` : "") +
-            `👤 *Cliente:* ${pedidoActual.cliente_nombre}\n` +
-            `📱 *Teléfono:* ${pedidoActual.cliente_telefono}\n` +
-            `📅 *Fecha de Entrega:* ${pedidoActual.fecha_entrega}\n` +
-            `⚖️ *Peso:* ${pedidoActual.peso_kg} kg\n` +
-            `💵 *Total Confirmado:* $${Number(pedidoActual.total_estimado).toLocaleString("es-AR")}\n` +
-            `📌 _El pago fue validado y la comanda está confirmada en el taller._`;
+          notifyPagoAprobado({
+            id: pedidoActual.id,
+            cliente_nombre: pedidoActual.cliente_nombre,
+            cliente_telefono: pedidoActual.cliente_telefono,
+            fecha_entrega: pedidoActual.fecha_entrega,
+            peso_kg: pedidoActual.peso_kg,
+            total_estimado: pedidoActual.total_estimado,
+            modeloNombre,
+          }).catch((err) =>
+            console.warn("Aviso no bloqueante al notificar pago a Telegram:", err)
+          );
         } else if (nuevoEstado === "Listo") {
-          alertaMsg =
-            `🎉 *¡Pedido Listo para Retiro! - ${codigo}*\n\n` +
-            (modeloNombre ? `🎂 *Torta:* ${modeloNombre}\n` : "") +
-            `👤 *Cliente:* ${pedidoActual.cliente_nombre}\n` +
-            `📱 *Teléfono:* ${pedidoActual.cliente_telefono}\n` +
-            `📅 *Fecha de Entrega:* ${pedidoActual.fecha_entrega}\n` +
-            `🎂 _La comanda está terminada y lista para retirar por el taller._`;
-        }
-
-        if (alertaMsg) {
-          sendTelegramNotification(alertaMsg).catch((err) =>
-            console.warn("Aviso no bloqueante al enviar alerta a Telegram:", err)
+          notifyPedidoListo({
+            id: pedidoActual.id,
+            cliente_nombre: pedidoActual.cliente_nombre,
+            cliente_telefono: pedidoActual.cliente_telefono,
+            fecha_entrega: pedidoActual.fecha_entrega,
+            peso_kg: pedidoActual.peso_kg,
+            total_estimado: pedidoActual.total_estimado,
+            modeloNombre,
+          }).catch((err) =>
+            console.warn("Aviso no bloqueante al notificar comanda lista a Telegram:", err)
           );
         }
       }
@@ -177,6 +179,7 @@ export function PedidosTab() {
     if (!pedidoToReject) return;
     const id = pedidoToReject.id;
     const fecha = pedidoToReject.fecha_entrega;
+    const cliente = pedidoToReject.cliente_nombre;
     setRejecting(true);
 
     try {
@@ -185,6 +188,15 @@ export function PedidosTab() {
         prev.map((p) => (p.id === id ? { ...p, estado: "Expirado" as EstadoPedido } : p))
       );
       setPedidoToReject(null);
+
+      // Notificación automática a Telegram de cupo liberado
+      notifyPedidoRechazado({
+        id,
+        cliente_nombre: cliente,
+        fecha_entrega: fecha,
+      }).catch((err) =>
+        console.warn("Aviso no bloqueante al notificar rechazo a Telegram:", err)
+      );
     } catch (err) {
       console.error("Error al rechazar pedido:", err);
       alert("Error al rechazar el pedido en el servidor.");

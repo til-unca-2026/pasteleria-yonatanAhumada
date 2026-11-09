@@ -18,7 +18,7 @@ import {
   PedidoConDetalles,
 } from "@/lib/services/pedidos";
 import { getTortasActivas, TortaDB } from "@/lib/services/catalogo";
-import { sendTelegramNotification } from "@/lib/services/telegram";
+import { notifyComprobanteAdjuntado } from "@/lib/services/telegram";
 import { createClient } from "@/lib/supabase/client";
 
 const FALLBACK_TORTA_IMAGES: Record<string, string> = {
@@ -275,15 +275,15 @@ function MisPedidosContent() {
       );
       setConfirmed(true);
 
-      const codigoPedido = `#${activePedido.id.slice(0, 8).toUpperCase()}`;
-      sendTelegramNotification(
-        `🧾 *¡Comprobante de Pago Adjuntado! (${codigoPedido})*\n\n` +
-        `👤 *Cliente:* ${activePedido.cliente_nombre}\n` +
-        `📱 *Teléfono:* ${activePedido.cliente_telefono}\n` +
-        `📅 *Entrega:* ${activePedido.fecha_entrega}\n` +
-        `💵 *Monto Total:* $${activePedido.total_estimado.toLocaleString("es-AR")}\n` +
-        `🧾 [Ver Comprobante Adjunto](${updated.comprobante_url})`
-      ).catch((err) => console.error("Telegram notification error:", err));
+      notifyComprobanteAdjuntado({
+        id: activePedido.id,
+        cliente_nombre: activePedido.cliente_nombre,
+        cliente_telefono: activePedido.cliente_telefono,
+        fecha_entrega: activePedido.fecha_entrega,
+        peso_kg: activePedido.peso_kg,
+        total_estimado: activePedido.total_estimado,
+        comprobante_url: updated.comprobante_url,
+      }).catch((err) => console.warn("Aviso al notificar comprobante a Telegram:", err));
     } catch (err) {
       console.error("Error al subir comprobante:", err);
       alert("Hubo un error al subir el comprobante. Por favor intenta nuevamente.");

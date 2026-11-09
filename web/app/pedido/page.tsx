@@ -14,7 +14,7 @@ import { SuccessModal } from "@/components/pedido/SuccessModal";
 import { ToastNotification } from "@/components/pedido/ToastNotification";
 import { createNuevoPedido } from "@/lib/services/pedidos";
 import { getInsumosPorTorta, getTortaPorSlug, getPrecioBaseKg, InsumoDB, TipoInsumo } from "@/lib/services/catalogo";
-import { sendTelegramNotification } from "@/lib/services/telegram";
+import { notifyNuevoPedido } from "@/lib/services/telegram";
 import { createClient } from "@/lib/supabase/client";
 import { extractLocalPhone } from "@/lib/phone";
 
@@ -560,20 +560,18 @@ function PedidoWizardContent() {
           }).catch((e) => console.warn("Error sincronizando metadata usuario:", e));
         }
 
-        // Alerta asíncrona a Telegram
-        const codigoPedido = `#${pedido.id.slice(0, 8).toUpperCase()}`;
-        sendTelegramNotification(
-          `🎂 *¡Nuevo Pedido Recibido! (${codigoPedido})*\n\n` +
-          (tortaNombre ? `🍰 *Modelo:* ${tortaNombre}${isFixedRecipe ? " (Receta Tradicional)" : ""}\n` : "") +
-          `👤 *Cliente:* ${nombre.trim()}\n` +
-          `📱 *Teléfono:* ${telefono.trim()}\n` +
-          `📅 *Entrega:* ${deliveryDateStr}\n` +
-          `⚖️ *Peso:* ${selectedWeight} kg\n` +
-          `💰 *Total a Transferir:* $${selectedPrice.toLocaleString("es-AR")}\n` +
-          (fullNotas ? `📝 *Notas:* ${fullNotas}\n` : "") +
-          (pedido.foto_referencia_url ? `🖼️ [Ver Foto de Referencia](${pedido.foto_referencia_url})\n` : "") +
-          `ℹ️ _Pago pendiente de comprobante en Mis Pedidos_`
-        ).catch((err) => console.error("Telegram notification error:", err));
+        // Alerta asíncrona a Telegram vinculada al ciclo de vida
+        notifyNuevoPedido({
+          id: pedido.id,
+          cliente_nombre: nombre.trim(),
+          cliente_telefono: telefono.trim(),
+          fecha_entrega: deliveryDateStr,
+          peso_kg: selectedWeight,
+          total_estimado: selectedPrice,
+          modeloNombre: tortaNombre ? `${tortaNombre}${isFixedRecipe ? " (Receta Tradicional)" : ""}` : null,
+          dedicatoria: fullNotas || null,
+          foto_referencia_url: pedido.foto_referencia_url,
+        }).catch((err) => console.warn("Aviso: No se pudo enviar notificación a Telegram:", err));
 
         setIsSuccessModalOpen(true);
       } catch (err) {
