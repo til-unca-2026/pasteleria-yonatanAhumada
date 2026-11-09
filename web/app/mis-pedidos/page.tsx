@@ -461,6 +461,32 @@ function MisPedidosContent() {
                 confirmed={confirmed}
               />
 
+              {activePedido && (
+                <a
+                  href={`https://t.me/PasteleriaAhumadaBot?start=${activePedido.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-between p-3.5 mt-3 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-sm transition-all active:scale-[0.98] text-decoration-none"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="size-8 rounded-full bg-white/20 flex items-center justify-center text-base shrink-0">
+                      ✈️
+                    </div>
+                    <div className="text-left">
+                      <div className="font-bold text-xs">Recibir avisos por Telegram</div>
+                      <div className="text-[10px] text-sky-100 font-normal">
+                        {activePedido.telegram_chat_id
+                          ? "✓ Pedido vinculado para notificaciones automáticas"
+                          : "Te avisamos al celular cuando el pago se apruebe y la torta esté lista"}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-[11px] bg-white text-blue-700 px-2.5 py-1 rounded-lg font-bold shrink-0">
+                    {activePedido.telegram_chat_id ? "Vinculado ✓" : "Vincular ↗"}
+                  </span>
+                </a>
+              )}
+
               <div className="flex items-start gap-2 mt-3 px-1 text-slate-500">
                 <svg width="15" height="15" viewBox="0 0 14 14" fill="none" className="shrink-0 mt-0.5">
                   <circle cx="7" cy="7" r="6" stroke="#94a3b8" strokeWidth="1.1" />

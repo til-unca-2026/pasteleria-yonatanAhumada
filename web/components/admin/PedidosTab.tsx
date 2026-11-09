@@ -149,6 +149,7 @@ export function PedidosTab() {
             peso_kg: pedidoActual.peso_kg,
             total_estimado: pedidoActual.total_estimado,
             modeloNombre,
+            telegram_chat_id: pedidoActual.telegram_chat_id,
           }).catch((err) =>
             console.warn("Aviso no bloqueante al notificar pago a Telegram:", err)
           );
@@ -161,6 +162,7 @@ export function PedidosTab() {
             peso_kg: pedidoActual.peso_kg,
             total_estimado: pedidoActual.total_estimado,
             modeloNombre,
+            telegram_chat_id: pedidoActual.telegram_chat_id,
           }).catch((err) =>
             console.warn("Aviso no bloqueante al notificar comanda lista a Telegram:", err)
           );
@@ -180,6 +182,7 @@ export function PedidosTab() {
     const id = pedidoToReject.id;
     const fecha = pedidoToReject.fecha_entrega;
     const cliente = pedidoToReject.cliente_nombre;
+    const tgChatId = pedidoToReject.telegram_chat_id;
     setRejecting(true);
 
     try {
@@ -194,6 +197,7 @@ export function PedidosTab() {
         id,
         cliente_nombre: cliente,
         fecha_entrega: fecha,
+        telegram_chat_id: tgChatId,
       }).catch((err) =>
         console.warn("Aviso no bloqueante al notificar rechazo a Telegram:", err)
       );

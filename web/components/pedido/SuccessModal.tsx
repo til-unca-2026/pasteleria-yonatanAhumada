@@ -62,6 +62,16 @@ export function SuccessModal({
         </div>
 
         <div className="w-full flex flex-col gap-2">
+          {pedidoId && (
+            <a
+              href={`https://t.me/PasteleriaAhumadaBot?start=${pedidoId}`}
+              target="_blank"
+              rel="noreferrer"
+              className="w-full py-2.5 px-3 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs transition-colors shadow-xs text-decoration-none flex items-center justify-center gap-1.5"
+            >
+              <span>✈️ Recibir avisos en Telegram</span>
+            </a>
+          )}
           <button
             onClick={() => router.push(pedidoId ? `/mis-pedidos?id=${pedidoId}` : "/mis-pedidos")}
             className="w-full h-11 rounded-xl bg-[#1e293b] text-white font-semibold text-[13px] hover:bg-[#334155] transition-all cursor-pointer border-0 shadow-md"

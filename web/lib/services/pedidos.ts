@@ -21,6 +21,7 @@ export interface PedidoConDetalles {
   comprobante_url?: string | null;
   foto_referencia_url?: string | null;
   expiracion_reserva?: string | null;
+  telegram_chat_id?: string | null;
   created_at: string;
   detalles: {
     id: string;

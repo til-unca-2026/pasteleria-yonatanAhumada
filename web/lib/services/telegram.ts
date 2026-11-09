@@ -19,7 +19,7 @@ export async function sendTelegramNotification(
       return Boolean(data.ok);
     }
 
-    // Ejecución directa en servidor (SSR / Server Actions)
+    // Ejecución directa en servidor (SSR / Server Actions / Webhook)
     const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
     const targetChatId = chatId?.trim() || process.env.TELEGRAM_CHAT_ID?.trim();
 
@@ -57,6 +57,7 @@ export interface NotifPedidoParams {
   dedicatoria?: string | null;
   comprobante_url?: string | null;
   foto_referencia_url?: string | null;
+  telegram_chat_id?: string | null;
 }
 
 const getBaseAppUrl = () => {
@@ -125,7 +126,8 @@ export async function notifyComprobanteAdjuntado(params: NotifPedidoParams): Pro
 export async function notifyPagoAprobado(params: NotifPedidoParams): Promise<boolean> {
   const codigo = `#${params.id.slice(0, 8).toUpperCase()}`;
 
-  const lines = [
+  // 1. Mensaje para el taller
+  const tallerMsg = [
     `✅ *¡Pago Aprobado y Comanda Confirmada! (${codigo})*`,
     "",
     params.modeloNombre ? `🎂 *Torta:* ${params.modeloNombre}` : "",
@@ -136,9 +138,24 @@ export async function notifyPagoAprobado(params: NotifPedidoParams): Promise<boo
     `💵 *Total Confirmado:* $${Number(params.total_estimado).toLocaleString("es-AR")}`,
     "",
     "🧑‍🍳 *La comanda ingresó en la cola de producción del taller.*",
-  ].filter(Boolean);
+  ].filter(Boolean).join("\n");
 
-  return sendTelegramNotification(lines.join("\n"));
+  await sendTelegramNotification(tallerMsg);
+
+  // 2. Alerta directa al Telegram personal del cliente (si vinculó su cuenta)
+  if (params.telegram_chat_id) {
+    const clienteMsg = [
+      `✅ *¡Hola ${params.cliente_nombre}! Tu pago fue confirmado.*`,
+      "",
+      `Tu pedido *${codigo}* (${params.modeloNombre || "Torta Artesanal"}) fue verificado con éxito y ya está en cola de elaboración.`,
+      `📅 *Fecha programada de retiro:* ${params.fecha_entrega}`,
+      "",
+      `Te avisaremos por acá automáticamente cuando tu torta esté lista para retirar. ¡Gracias por confiar en nosotros! 🎂`,
+    ].join("\n");
+    await sendTelegramNotification(clienteMsg, params.telegram_chat_id);
+  }
+
+  return true;
 }
 
 // 4. Notificación: Pedido Rechazado y Cupo Liberado
@@ -147,30 +164,41 @@ export async function notifyPedidoRechazado(params: {
   cliente_nombre: string;
   fecha_entrega: string;
   motivo?: string;
+  telegram_chat_id?: string | null;
 }): Promise<boolean> {
   const codigo = `#${params.id.slice(0, 8).toUpperCase()}`;
 
-  const lines = [
+  // 1. Notificación al taller
+  const tallerMsg = [
     `❌ *Pedido Rechazado / Cupo Liberado (${codigo})*`,
     "",
     `👤 *Cliente:* ${params.cliente_nombre}`,
     `📅 *Fecha Liberada:* ${params.fecha_entrega}`,
-  ];
+    params.motivo ? `ℹ️ *Motivo:* ${params.motivo}` : "ℹ️ *Detalle:* El pedido fue cancelado y el cupo del día fue restablecido.",
+  ].join("\n");
 
-  if (params.motivo) {
-    lines.push(`ℹ️ *Motivo:* ${params.motivo}`);
-  } else {
-    lines.push("ℹ️ *Detalle:* El pedido fue rechazado desde el panel de taller. El cupo del día fue restablecido.");
+  await sendTelegramNotification(tallerMsg);
+
+  // 2. Alerta directa al Telegram del cliente si estaba vinculado
+  if (params.telegram_chat_id) {
+    const clienteMsg = [
+      `❌ *Hola ${params.cliente_nombre}, aviso sobre tu pedido ${codigo}*`,
+      "",
+      `Lamentablemente tu pedido no pudo ser confirmado por el taller en este momento.`,
+      params.motivo ? `ℹ️ *Motivo:* ${params.motivo}` : "ℹ️ Si realizaste una transferencia, por favor contactanos para verificar los datos de la operación.",
+    ].join("\n");
+    await sendTelegramNotification(clienteMsg, params.telegram_chat_id);
   }
 
-  return sendTelegramNotification(lines.join("\n"));
+  return true;
 }
 
 // 5. Notificación: Pedido Listo para Retiro
 export async function notifyPedidoListo(params: NotifPedidoParams): Promise<boolean> {
   const codigo = `#${params.id.slice(0, 8).toUpperCase()}`;
 
-  const lines = [
+  // 1. Notificación al taller
+  const tallerMsg = [
     `🎉 *¡Pedido Listo para Retiro! (${codigo})*`,
     "",
     params.modeloNombre ? `🎂 *Torta:* ${params.modeloNombre}` : "",
@@ -178,8 +206,22 @@ export async function notifyPedidoListo(params: NotifPedidoParams): Promise<bool
     `📱 *Teléfono:* ${params.cliente_telefono}`,
     `📅 *Fecha de Entrega:* ${params.fecha_entrega}`,
     "",
-    "🎂 *La torta está terminada, decorada y en frío lista para entregar al cliente.*",
-  ].filter(Boolean);
+    "🎂 *La torta está terminada, decorada y en frío lista para entregar.*",
+  ].filter(Boolean).join("\n");
 
-  return sendTelegramNotification(lines.join("\n"));
+  await sendTelegramNotification(tallerMsg);
+
+  // 2. Alerta directa al Telegram del cliente
+  if (params.telegram_chat_id) {
+    const clienteMsg = [
+      `🎉 *¡Hola ${params.cliente_nombre}! Tu torta está lista.*`,
+      "",
+      `Tu pedido *${codigo}* (${params.modeloNombre || "Torta Artesanal"}) ya está terminado, decorado y en frío.`,
+      "",
+      `📍 Podés pasar a retirarlo por el taller. ¡Te esperamos! 🎂`,
+    ].join("\n");
+    await sendTelegramNotification(clienteMsg, params.telegram_chat_id);
+  }
+
+  return true;
 }
