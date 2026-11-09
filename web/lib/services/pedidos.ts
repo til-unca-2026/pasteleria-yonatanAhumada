@@ -237,6 +237,43 @@ export async function updatePedidoEstado(id: string, nuevoEstado: EstadoPedido) 
   return data;
 }
 
+export async function rechazarPedido(id: string, fechaEntrega?: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("pedidos")
+    .update({ estado: "Expirado" })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error al rechazar pedido:", error);
+    throw error;
+  }
+
+  // Liberar cupo ocupado si se especifica la fecha
+  if (fechaEntrega) {
+    try {
+      const { data: cupo } = await supabase
+        .from("cupos_diarios")
+        .select("cupos_ocupados")
+        .eq("fecha", fechaEntrega)
+        .maybeSingle();
+
+      if (cupo && cupo.cupos_ocupados > 0) {
+        await supabase
+          .from("cupos_diarios")
+          .update({ cupos_ocupados: Math.max(0, cupo.cupos_ocupados - 1) })
+          .eq("fecha", fechaEntrega);
+      }
+    } catch (err) {
+      console.warn("Aviso liberando cupo tras rechazo:", err);
+    }
+  }
+
+  return data;
+}
+
 export async function uploadComprobante(file: File): Promise<string> {
   const supabase = createClient();
   const ext = file.name.split(".").pop();
