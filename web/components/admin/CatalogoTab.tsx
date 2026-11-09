@@ -126,6 +126,11 @@ export function CatalogoTab() {
       setTortas((prev) =>
         prev.map((t) => (t.id === id ? { ...t, activo: currentActive } : t))
       );
+      alert(
+        `No se pudo actualizar el estado de la torta en la base de datos:\n${
+          err instanceof Error ? err.message : "Error desconocido"
+        }`
+      );
     }
   };
 

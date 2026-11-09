@@ -16,70 +16,27 @@ interface CakeCard {
   ctaText: string;
 }
 
-const CAKES_CATALOG: CakeCard[] = [
-  {
-    id: "torta-tematica",
-    name: "Torta Temática Infantil",
-    slug: "torta-tematica",
-    image: "/tortas/torta-tematica.jpg",
-    pricePerKg: 18000,
-    type: "personalizable",
-    badge: "100% Personalizable",
-    description: "Masa húmeda y rellenos a elección. Decoración artesanal temática.",
-    ctaText: "Personalizar",
-  },
-  {
-    id: "chocotorta-clasica",
-    name: "Chocotorta Clásica",
-    slug: "chocotorta-clasica",
-    image: "/tortas/chocotorta-clasica.jpg",
-    pricePerKg: 16000,
-    type: "receta_fija",
-    badge: "Receta Tradicional",
-    description: "Galletitas Chocolinas con crema colonial de dulce de leche y queso.",
-    ctaText: "Pedir",
-  },
-  {
-    id: "torta-frutos-rojos",
-    name: "Torta de Frutos Rojos",
-    slug: "torta-frutos-rojos",
-    image: "https://zmqaitjziznxocdppsnk.supabase.co/storage/v1/object/public/catalogo/tortas/torta-frutos-rojos.jpg",
-    pricePerKg: 19500,
-    type: "personalizable",
-    badge: "100% Personalizable",
-    description: "Bizcochuelo húmedo, crema chantilly suave y abundante cubierta de frutillas frescas y frutos del bosque.",
-    ctaText: "Personalizar",
-  },
-  {
-    id: "torta-floral",
-    name: "Torta Floral Vintage",
-    slug: "torta-floral",
-    image: "/tortas/torta-floral.jpg",
-    pricePerKg: 19000,
-    type: "receta_fija",
-    badge: "Receta Tradicional",
-    description: "Diseño botánico romántico con crema suave y flores comestibles.",
-    ctaText: "Pedir",
-  },
-];
-
 export default async function Home() {
   let isReceptionOpen = true;
   let isAdmin = false;
   let headerUser: HeaderUser | null = null;
-  let cakesCatalog: CakeCard[] = CAKES_CATALOG;
+  let cakesCatalog: CakeCard[] = [];
+  let hasCatalogError = false;
 
   try {
     const supabase = await createClient();
 
     // 1. Cargar tortas activas desde Supabase
-    const { data: tortasFromDb } = await supabase
+    const { data: tortasFromDb, error: tortasError } = await supabase
       .from("tortas")
       .select("*")
       .eq("activo", true)
       .order("created_at", { ascending: true });
 
-    if (tortasFromDb && tortasFromDb.length > 0) {
+    if (tortasError) {
+      console.error("Error cargando catálogo de tortas desde Supabase:", tortasError);
+      hasCatalogError = true;
+    } else if (tortasFromDb) {
       cakesCatalog = tortasFromDb.map((t) => ({
         id: t.slug,
         name: t.nombre,
@@ -91,6 +48,7 @@ export default async function Home() {
         ctaText: t.cta_text || (t.tipo === "personalizable" ? "Personalizar" : "Pedir"),
       }));
     }
+
     const { data } = await supabase
       .from("configuracion")
       .select("valor")
@@ -120,7 +78,8 @@ export default async function Home() {
       }
     }
   } catch (e) {
-    console.error("Error consultando estado de recepción:", e);
+    console.error("Error consultando datos de inicio:", e);
+    hasCatalogError = true;
   }
 
   return (
@@ -200,7 +159,45 @@ export default async function Home() {
           <h1 className="sr-only">Catálogo de Tortas Artesanales</h1>
 
           {/* ── Catálogo Grid (2 col mobile, 2 col tablet, 3 col desktop con sidebar) ── */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3.5 md:gap-5 w-full">
+          {hasCatalogError ? (
+            <div className="w-full bg-rose-50/80 border border-rose-200/90 rounded-2xl p-6 md:p-10 text-center flex flex-col items-center justify-center my-4 shadow-sm">
+              <div className="size-12 md:size-14 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mb-3">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </div>
+              <h2 className="text-base md:text-lg font-bold text-slate-900 m-0">
+                No pudimos conectar con el taller en este momento
+              </h2>
+              <p className="text-xs md:text-sm text-slate-600 max-w-md mt-1.5 mb-5 leading-relaxed">
+                Ocurrió un problema al obtener las tortas disponibles. Verificá tu conexión o reintentá cargar la vitrina.
+              </p>
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1e293b] hover:bg-pink-700 text-white text-xs md:text-sm font-semibold transition-all shadow-sm active:scale-95"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                </svg>
+                <span>Reintentar</span>
+              </Link>
+            </div>
+          ) : cakesCatalog.length === 0 ? (
+            <div className="w-full bg-white/80 border border-slate-200/80 rounded-2xl p-8 md:p-12 text-center flex flex-col items-center justify-center my-4 shadow-sm">
+              <div className="size-14 rounded-full bg-pink-50 text-pink-500 flex items-center justify-center text-3xl mb-3 border border-pink-100">
+                🎂
+              </div>
+              <h2 className="text-base md:text-lg font-bold text-slate-900 m-0">
+                No hay tortas disponibles en este momento
+              </h2>
+              <p className="text-xs md:text-sm text-slate-500 max-w-md mt-1.5 leading-relaxed">
+                El taller actualizará las creaciones artesanales próximamente. ¡Volvé a consultar pronto!
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3.5 md:gap-5 w-full">
               {cakesCatalog.map((cake) => {
                 const targetUrl = `/pedido?torta=${cake.slug}&nombre=${encodeURIComponent(
                   cake.name
@@ -280,6 +277,7 @@ export default async function Home() {
                 );
               })}
             </div>
+          )}
           </main>
         </div>
 
