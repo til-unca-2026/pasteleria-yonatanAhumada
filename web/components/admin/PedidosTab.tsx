@@ -20,10 +20,10 @@ const FALLBACK_TORTA_IMAGES: Record<string, string> = {
 };
 
 const ESTADO_FILTERS: { label: string; value: string }[] = [
-  { label: "Todos", value: "Todos" },
   { label: "Pendientes", value: "Pendiente" },
-  { label: "Pagados", value: "Señado" },
+  { label: "Para Elaborar", value: "Señado" },
   { label: "Listos", value: "Listo" },
+  { label: "Historial", value: "Todos" },
 ];
 
 export function PedidosTab() {
@@ -61,7 +61,25 @@ export function PedidosTab() {
     try {
       const data = await getPedidos();
       setPedidos(data);
-      if (data && data.length > 0 && !selectedId) {
+
+      // Determinación inteligente de la pestaña inicial:
+      // Si hay pedidos pendientes (especialmente con comprobante), abrir en "Pendientes" (idx 0).
+      // Si no, abrir directamente en "Para Elaborar" (idx 1) o 0.
+      const hasPendientes = data.some((p) => p.estado === "Pendiente");
+      const hasParaElaborar = data.some((p) => p.estado === "Señado" || p.estado === "En producción");
+      const defaultIdx = hasPendientes ? 0 : hasParaElaborar ? 1 : 0;
+      setFilterIdx(defaultIdx);
+
+      const targetFilter = ESTADO_FILTERS[defaultIdx].value;
+      const initialMatches = data.filter((p) => {
+        if (targetFilter === "Todos") return true;
+        if (targetFilter === "Señado") return p.estado === "Señado" || p.estado === "En producción";
+        return p.estado === targetFilter;
+      });
+
+      if (initialMatches.length > 0) {
+        setSelectedId(initialMatches[0].id);
+      } else if (data.length > 0) {
         setSelectedId(data[0].id);
       }
     } catch (err) {
@@ -353,9 +371,13 @@ export function PedidosTab() {
             <div className="py-12 text-center text-slate-500 text-sm bg-white rounded-2xl border border-slate-200 p-6">
               <p className="font-semibold text-slate-700 mb-1">No hay pedidos en esta sección</p>
               <p className="text-xs text-slate-400">
-                {currentFilter === "Todos"
-                  ? "Los encargos confirmados por los clientes aparecerán aquí."
-                  : `No hay pedidos con estado "${currentFilter}".`}
+                {currentFilter === "Pendiente"
+                  ? "No hay pedidos pendientes de pago en este momento."
+                  : currentFilter === "Señado"
+                  ? "No hay pedidos en cola para elaborar en el taller."
+                  : currentFilter === "Listo"
+                  ? "No hay pedidos terminados esperando retiro."
+                  : "No hay pedidos registrados en el historial."}
               </p>
             </div>
           ) : (
