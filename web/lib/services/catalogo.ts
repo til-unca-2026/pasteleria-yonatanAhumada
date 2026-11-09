@@ -91,9 +91,15 @@ export async function updateTortaActivo(id: string, activo: boolean): Promise<To
     .select();
 
   if (error) {
-    console.warn("Aviso al actualizar activo de torta (posible RLS):", error);
+    console.error("Error al actualizar activo de torta:", error);
+    throw new Error(error.message || "Error al actualizar estado en Supabase");
   }
-  return (data && data[0]) ? (data[0] as TortaDB) : ({ id, activo } as TortaDB);
+  if (!data || data.length === 0) {
+    const rlsError = new Error("No se pudo actualizar en Supabase (0 filas modificadas). Revisa las políticas RLS en la tabla 'tortas'.");
+    console.error(rlsError);
+    throw rlsError;
+  }
+  return data[0] as TortaDB;
 }
 
 export async function updateTorta(id: string, cambios: Partial<TortaDB>): Promise<TortaDB> {
