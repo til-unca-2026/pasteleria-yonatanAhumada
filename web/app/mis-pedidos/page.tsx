@@ -18,7 +18,7 @@ import {
   PedidoConDetalles,
 } from "@/lib/services/pedidos";
 import { getTortasActivas, TortaDB } from "@/lib/services/catalogo";
-import { sendTelegramNotification } from "@/lib/services/telegram";
+import { notifyComprobanteAdjuntado } from "@/lib/services/telegram";
 import { createClient } from "@/lib/supabase/client";
 
 const FALLBACK_TORTA_IMAGES: Record<string, string> = {
@@ -275,15 +275,15 @@ function MisPedidosContent() {
       );
       setConfirmed(true);
 
-      const codigoPedido = `#${activePedido.id.slice(0, 8).toUpperCase()}`;
-      sendTelegramNotification(
-        `🧾 *¡Comprobante de Pago Adjuntado! (${codigoPedido})*\n\n` +
-        `👤 *Cliente:* ${activePedido.cliente_nombre}\n` +
-        `📱 *Teléfono:* ${activePedido.cliente_telefono}\n` +
-        `📅 *Entrega:* ${activePedido.fecha_entrega}\n` +
-        `💵 *Monto Total:* $${activePedido.total_estimado.toLocaleString("es-AR")}\n` +
-        `🧾 [Ver Comprobante Adjunto](${updated.comprobante_url})`
-      ).catch((err) => console.error("Telegram notification error:", err));
+      notifyComprobanteAdjuntado({
+        id: activePedido.id,
+        cliente_nombre: activePedido.cliente_nombre,
+        cliente_telefono: activePedido.cliente_telefono,
+        fecha_entrega: activePedido.fecha_entrega,
+        peso_kg: activePedido.peso_kg,
+        total_estimado: activePedido.total_estimado,
+        comprobante_url: updated.comprobante_url,
+      }).catch((err) => console.warn("Aviso al notificar comprobante a Telegram:", err));
     } catch (err) {
       console.error("Error al subir comprobante:", err);
       alert("Hubo un error al subir el comprobante. Por favor intenta nuevamente.");
@@ -460,6 +460,32 @@ function MisPedidosContent() {
                 onFileChange={setFile}
                 confirmed={confirmed}
               />
+
+              {activePedido && (
+                <a
+                  href={`https://t.me/PasteleriaAhumadaBot?start=${activePedido.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-between p-3.5 mt-3 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-sm transition-all active:scale-[0.98] text-decoration-none"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="size-8 rounded-full bg-white/20 flex items-center justify-center text-base shrink-0">
+                      ✈️
+                    </div>
+                    <div className="text-left">
+                      <div className="font-bold text-xs">Recibir avisos por Telegram</div>
+                      <div className="text-[10px] text-sky-100 font-normal">
+                        {activePedido.telegram_chat_id
+                          ? "✓ Pedido vinculado para notificaciones automáticas"
+                          : "Te avisamos al celular cuando el pago se apruebe y la torta esté lista"}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-[11px] bg-white text-blue-700 px-2.5 py-1 rounded-lg font-bold shrink-0">
+                    {activePedido.telegram_chat_id ? "Vinculado ✓" : "Vincular ↗"}
+                  </span>
+                </a>
+              )}
 
               <div className="flex items-start gap-2 mt-3 px-1 text-slate-500">
                 <svg width="15" height="15" viewBox="0 0 14 14" fill="none" className="shrink-0 mt-0.5">

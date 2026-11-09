@@ -44,7 +44,7 @@ flowchart TD
     end
 
     subgraph MENSAJERIA["4. Servicios Externos"]
-        D["✈️ Telegram Bot API<br/>(Alertas al Taller)"]
+        D["✈️ Telegram Bot API<br/>(Alertas al Taller y Clientes)"]
     end
 
     %% Conexiones
@@ -54,7 +54,8 @@ flowchart TD
     B2 -->|Transacciones y consultas| C1
     B2 -->|Guarda imágenes| C2
     B2 -->|Valida credenciales| C3
-    B2 -->|Dispara notificación de nuevo pedido| D
+    B2 -->|Dispara alertas de ciclo de vida| D
+    D -.->|Webhook /start vincula chat_id| B2
 ```
 
 ### Explicación Técnica de la Arquitectura
@@ -65,7 +66,7 @@ flowchart TD
   * *PostgreSQL:* Gestiona el estado transaccional (ACID) del negocio (pedidos, registro de pagos por transferencia, bloqueo de cupos de producción).
   * *Storage:* Bucket dedicado para el resguardo de imágenes de referencia y comprobantes de pago.
   * *Auth:* Mecanismo de autenticación basado en JWT para restringir el acceso al portal de administración.
-* **Servicios Externos (Telegram Bot API):** Canal de mensajería asíncrono desacoplado del ciclo de renderizado web, utilizado como sistema de eventos *push* para alertar al taller de nuevas solicitudes en tiempo real sin costos adicionales.
+* **Servicios Externos (Telegram Bot API):** Canal de mensajería asíncrono desacoplado del ciclo de renderizado web. Actúa como sistema de eventos *push* para alertar al taller en tiempo real y, a su vez, despacha avisos automatizados al chat personal del cliente (vinculado mediante *deep linking* y un *webhook* que registra su `chat_id`).
 
 ---
 
@@ -164,11 +165,12 @@ erDiagram
         uuid torta_id FK
         string cliente_nombre
         string cliente_telefono
+        string telegram_chat_id "chat_id para alertas al cliente"
         date fecha_entrega FK
         float peso_kg
         decimal total_estimado
         decimal sena_requerida "monto total a transferir"
-        string estado "Pendiente | Expirado | Señado_Pagado | En producción | Listo"
+        string estado "Pendiente | Expirado | Señado | En producción | Listo | Rechazado"
         string comprobante_url
         string foto_referencia_url
         timestamp expiracion_reserva
