@@ -14,6 +14,7 @@ import {
   getPedidoById,
   getPedidosPorTelefono,
   getPedidosPorIds,
+  buscarPedidos,
   adjuntarComprobanteAPedido,
   PedidoConDetalles,
 } from "@/lib/services/pedidos";
@@ -39,6 +40,7 @@ function MisPedidosContent() {
   const [loading, setLoading] = useState<boolean>(true);
   const [pedidosList, setPedidosList] = useState<PedidoConDetalles[]>([]);
   const [selectedPedidoId, setSelectedPedidoId] = useState<string | null>(queryId);
+  const [estadoFiltro, setEstadoFiltro] = useState<"Todos" | "Pendientes" | "Confirmados" | "Expirados">("Todos");
   const [telefonoInput, setTelefonoInput] = useState<string>("");
   const [buscando, setBuscando] = useState<boolean>(false);
 
@@ -219,44 +221,31 @@ function MisPedidosContent() {
   const countdownFormatted = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
   const isCountdownExpired = secondsLeft <= 0;
 
-  // 3. Buscar pedidos por teléfono y asociarlo a la cuenta activa
+  // 3. Buscar pedidos por código o teléfono sin sobrescribir los datos de la cuenta logueada
   const handleBuscarPorTelefono = async (e: React.FormEvent) => {
     e.preventDefault();
-    const tel = telefonoInput.trim();
-    if (!tel) return;
+    const termino = telefonoInput.trim();
+    if (!termino) return;
 
     setBuscando(true);
     setErrorMessage(null);
     try {
-      const orders = await getPedidosPorTelefono(tel);
+      const orders = await buscarPedidos(termino);
       if (orders.length > 0) {
         setPedidosList(orders.slice(0, 20));
-        setSelectedPedidoId(orders[0].id);
-        setConfirmed(Boolean(orders[0].comprobante_url));
-
-        if (typeof window !== "undefined") {
-          if (currentUser) {
-            localStorage.setItem(`user_phone_${currentUser.id}`, tel);
-            const userOrdersKey = `user_orders_${currentUser.id}`;
-            const idsToAdd = orders.map((o) => o.id);
-            localStorage.setItem(userOrdersKey, JSON.stringify(idsToAdd.slice(0, 50)));
-          } else {
-            const guestOrdersKey = "guest_orders";
-            const idsToAdd = orders.map((o) => o.id);
-            localStorage.setItem(guestOrdersKey, JSON.stringify(idsToAdd.slice(0, 50)));
-          }
-        }
-
-        if (currentUser) {
-          supabase.auth.updateUser({
-            data: { phone_number: tel },
-          }).catch((e) => console.warn("Error al guardar teléfono en metadata:", e));
+        setEstadoFiltro("Todos");
+        if (orders.length === 1) {
+          setSelectedPedidoId(orders[0].id);
+          setConfirmed(Boolean(orders[0].comprobante_url));
+        } else {
+          setSelectedPedidoId(null);
+          setConfirmed(false);
         }
       } else {
-        setErrorMessage("No se encontraron pedidos con ese número de teléfono.");
+        setErrorMessage("No se encontraron pedidos con ese código o número de teléfono.");
       }
     } catch (err) {
-      console.error("Error al buscar por teléfono:", err);
+      console.error("Error al buscar pedidos:", err);
       setErrorMessage("Error al buscar pedidos. Por favor intenta de nuevo.");
     } finally {
       setBuscando(false);
@@ -302,38 +291,22 @@ function MisPedidosContent() {
     const rellenosNombres = rellenosObjs.map((r) => r.insumo?.nombre).filter(Boolean);
     const coberturaNombre = coberturaObj?.insumo?.nombre || "Cobertura artesanal";
 
-    const saboresTexto =
-      p.detalles && p.detalles.length > 0
-        ? [baseNombre, ...rellenosNombres, coberturaNombre].filter(Boolean).join(" · ")
-        : "Torta Artesanal Personalizada";
-
-    const fechaTexto = p.fecha_entrega
-      ? new Date(p.fecha_entrega + "T12:00:00").toLocaleDateString("es-AR", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-        })
-      : "Fecha a confirmar";
-
-    const getEstadoLabel = () => {
-      if (p.estado === "Señado" || p.estado === "En producción" || p.estado === "Listo") {
-        return "PAGO CONFIRMADO";
-      }
-      return p.comprobante_url ? "PAGO EN REVISIÓN" : "PAGO PENDIENTE";
-    };
-
     const rawNotas = (p as any).notas || "";
     const matchModelo = rawNotas.match(/\[Modelo:\s*([^\]\-]+?)(?:\s*-\s*[^\]]+)?\]/);
     const modeloNombre = matchModelo ? matchModelo[1].trim() : null;
     const cleanNotas = rawNotas.replace(/\[Modelo:\s*[^\]]+\]/gi, "").trim() || null;
 
     let tortaImagen: string | null = null;
+    let isFixedRecipe = rawNotas.toLowerCase().includes("receta tradicional");
     if (modeloNombre) {
       const found = tortasCatalog.find(
         (t) =>
           t.nombre.toLowerCase().trim() === modeloNombre.toLowerCase().trim() ||
           t.slug.toLowerCase().trim() === modeloNombre.toLowerCase().trim()
       );
+      if (found?.tipo === "receta_fija") {
+        isFixedRecipe = true;
+      }
       if (found?.imagen_url) {
         tortaImagen = found.imagen_url;
       } else {
@@ -346,6 +319,31 @@ function MisPedidosContent() {
         }
       }
     }
+
+    const saboresTexto =
+      p.detalles && p.detalles.length > 0
+        ? [baseNombre, ...rellenosNombres, coberturaNombre].filter(Boolean).join(" · ")
+        : isFixedRecipe
+        ? "Receta Tradicional"
+        : "Torta Artesanal Personalizada";
+
+    const fechaTexto = p.fecha_entrega
+      ? new Date(p.fecha_entrega + "T12:00:00").toLocaleDateString("es-AR", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+        })
+      : "Fecha a confirmar";
+
+    const getEstadoLabel = () => {
+      if (p.estado === "Expirado") {
+        return "RESERVA EXPIRADA";
+      }
+      if (p.estado === "Señado" || p.estado === "En producción" || p.estado === "Listo") {
+        return "PAGO CONFIRMADO";
+      }
+      return p.comprobante_url ? "PAGO EN REVISIÓN" : "PAGO PENDIENTE";
+    };
 
     return {
       id: p.id,
@@ -405,8 +403,8 @@ function MisPedidosContent() {
           <div className="pt-2 md:pt-0 pb-4 max-w-xl">
             <form onSubmit={handleBuscarPorTelefono} className="flex gap-2">
               <input
-                type="tel"
-                placeholder="Buscar pedidos por WhatsApp (ej. 11 4829...)"
+                type="text"
+                placeholder="Buscar por código (#F9B5F24B) o WhatsApp..."
                 value={telefonoInput}
                 onChange={(e) => setTelefonoInput(e.target.value)}
                 className="flex-1 border border-[#cbd5e1] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:border-pink-500 bg-white shadow-2xs"
@@ -514,10 +512,44 @@ function MisPedidosContent() {
                 </Link>
               </div>
 
+              <div className="flex flex-wrap gap-1.5 mb-4">
+                {(["Todos", "Pendientes", "Confirmados", "Expirados"] as const).map((tab) => {
+                  const count = pedidosList.filter((p) => {
+                    if (tab === "Todos") return true;
+                    if (tab === "Pendientes") return p.estado === "Pendiente";
+                    if (tab === "Confirmados") return p.estado === "Señado" || p.estado === "En producción" || p.estado === "Listo";
+                    return p.estado === "Expirado";
+                  }).length;
+                  const active = estadoFiltro === tab;
+                  return (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setEstadoFiltro(tab)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer border ${
+                        active
+                          ? "bg-[#1e293b] text-white border-[#1e293b] shadow-2xs"
+                          : "bg-white text-slate-600 border-slate-200 hover:border-pink-300"
+                      }`}
+                    >
+                      {tab} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {pedidosList.map((p) => {
+                {pedidosList
+                  .filter((p) => {
+                    if (estadoFiltro === "Todos") return true;
+                    if (estadoFiltro === "Pendientes") return p.estado === "Pendiente";
+                    if (estadoFiltro === "Confirmados") return p.estado === "Señado" || p.estado === "En producción" || p.estado === "Listo";
+                    return p.estado === "Expirado";
+                  })
+                  .map((p) => {
                   const displayData = buildPedidoActivoData(p);
                   const isPaid = p.estado === "Señado" || p.estado === "En producción" || p.estado === "Listo";
+                  const isExpired = p.estado === "Expirado";
                   const hasReceipt = Boolean(p.comprobante_url);
 
                   return (
@@ -543,7 +575,9 @@ function MisPedidosContent() {
 
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0 ${
-                              isPaid
+                              isExpired
+                                ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                : isPaid
                                 ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                                 : hasReceipt
                                 ? "bg-blue-100 text-blue-800 border border-blue-200"
@@ -581,14 +615,26 @@ function MisPedidosContent() {
 
                       <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 mt-2">
                         <div>
-                          <span className="text-[10px] text-slate-400 block uppercase font-semibold">Total a transferir</span>
-                          <span className="text-sm font-bold text-pink-700">
+                          <span className="text-[10px] text-slate-400 block uppercase font-semibold">
+                            {isPaid ? "Total abonado" : isExpired ? "Monto" : "Total a transferir"}
+                          </span>
+                          <span className={`text-sm font-bold ${isExpired ? "text-slate-500 line-through" : "text-pink-700"}`}>
                             ${p.total_estimado.toLocaleString("es-AR")}
                           </span>
                         </div>
 
                         <div className="flex items-center gap-1 text-xs font-semibold text-pink-700">
-                          <span>{hasReceipt ? "Ver comprobante" : "Subir comprobante"}</span>
+                          <span>
+                            {isPaid
+                              ? hasReceipt
+                                ? "Ver comprobante"
+                                : "Ver detalle"
+                              : isExpired
+                              ? "Ver detalle"
+                              : hasReceipt
+                              ? "Ver comprobante"
+                              : "Subir comprobante"}
+                          </span>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                             <polyline points="9 18 15 12 9 6" />
                           </svg>
