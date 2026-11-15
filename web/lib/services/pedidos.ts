@@ -181,10 +181,9 @@ export async function getPedidosPorUsuario(userId: string): Promise<PedidoConDet
 export async function getPedidosPorTelefono(telefono: string): Promise<PedidoConDetalles[]> {
   const supabase = createClient();
   const cleanPhone = telefono.replace(/[^0-9]/g, "");
+  if (cleanPhone.length < 4) return [];
 
-  const { data, error } = await supabase
-    .from("pedidos")
-    .select(`
+  const selectQuery = `
       *,
       detalles_pedido (
         id,
@@ -195,9 +194,25 @@ export async function getPedidosPorTelefono(telefono: string): Promise<PedidoCon
           recargo_extra
         )
       )
-    `)
+    `;
+
+  let { data, error } = await supabase
+    .from("pedidos")
+    .select(selectQuery)
     .ilike("cliente_telefono", `%${cleanPhone.slice(-8)}%`)
+    .is("user_id", null)
     .order("created_at", { ascending: false });
+
+  // Compatibilidad si aún no se ejecutó 03_pedidos_user_id.sql
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    const fallback = await supabase
+      .from("pedidos")
+      .select(selectQuery)
+      .ilike("cliente_telefono", `%${cleanPhone.slice(-8)}%`)
+      .order("created_at", { ascending: false });
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     console.error("Error al buscar pedidos por teléfono:", error);
