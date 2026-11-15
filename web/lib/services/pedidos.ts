@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
-import { getCapacidadEstandar } from "@/lib/services/cupos";
+import { getCapacidadEstandar, limpiarReservasExpiradas } from "@/lib/services/cupos";
 
 export type EstadoPedido =
   | "Pendiente"
@@ -35,6 +35,7 @@ export interface PedidoConDetalles {
 }
 
 export async function getPedidos(fecha?: string, estado?: string): Promise<PedidoConDetalles[]> {
+  await limpiarReservasExpiradas();
   const supabase = createClient();
   let query = supabase
     .from("pedidos")
@@ -240,6 +241,21 @@ export async function updatePedidoEstado(id: string, nuevoEstado: EstadoPedido) 
 
 export async function rechazarPedido(id: string, fechaEntrega?: string) {
   const supabase = createClient();
+
+  const { data: rpcData, error: rpcError } = await supabase.rpc("rechazar_pedido_atomico", {
+    p_pedido_id: id,
+  });
+
+  if (!rpcError && rpcData) {
+    return rpcData;
+  }
+
+  // Fallback si la función RPC aún no fue ejecutada en Supabase
+  if (rpcError && rpcError.code !== "PGRST202" && rpcError.code !== "42883") {
+    console.error("Error en rechazar_pedido_atomico:", rpcError);
+    throw rpcError;
+  }
+
   const { data, error } = await supabase
     .from("pedidos")
     .update({ estado: "Expirado" })
@@ -252,7 +268,6 @@ export async function rechazarPedido(id: string, fechaEntrega?: string) {
     throw error;
   }
 
-  // Liberar cupo ocupado si se especifica la fecha
   if (fechaEntrega) {
     try {
       const { data: cupo } = await supabase
@@ -336,7 +351,36 @@ export async function createNuevoPedido(params: {
     foto_referencia_url = await uploadComprobante(params.fotoReferenciaFile);
   }
 
-  // 2. Garantizar que la fecha exista en cupos_diarios y validar disponibilidad estricta
+  // 2. Transacción atómica en Supabase (bloqueo de fila FOR UPDATE + TTL de 60 minutos)
+  const { data: rpcPedido, error: rpcError } = await supabase.rpc(
+    "reservar_cupo_y_crear_pedido",
+    {
+      p_cliente_nombre: params.cliente_nombre,
+      p_cliente_telefono: params.cliente_telefono,
+      p_fecha_entrega: params.fecha_entrega,
+      p_peso_kg: params.peso_kg,
+      p_total_estimado: params.total_estimado,
+      p_sena_requerida: params.sena_requerida,
+      p_notas: params.notas || null,
+      p_comprobante_url: comprobante_url,
+      p_foto_referencia_url: foto_referencia_url,
+      p_insumos_ids: params.insumosIds,
+      p_ttl_minutos: 60,
+    }
+  );
+
+  if (!rpcError && rpcPedido) {
+    return rpcPedido;
+  }
+
+  if (rpcError && rpcError.code !== "PGRST202" && rpcError.code !== "42883") {
+    const cleanMsg = rpcError.message.replace(/^(FECHA_BLOQUEADA|SIN_CUPOS):\s*/i, "");
+    throw new Error(cleanMsg || "Error al reservar cupo y crear el pedido.");
+  }
+
+  // Fallback si la función RPC aún no fue ejecutada en Supabase
+  await limpiarReservasExpiradas();
+
   const { data: cupoExistente } = await supabase
     .from("cupos_diarios")
     .select("fecha, capacidad_maxima, cupos_ocupados, bloqueado_manual")
@@ -368,7 +412,6 @@ export async function createNuevoPedido(params: {
       console.warn("Aviso al registrar cupo en cupos_diarios (posible RLS):", insertCupoError.message);
     }
   } else {
-    // Incrementar cupos ocupados
     const { error: updateCupoError } = await supabase
       .from("cupos_diarios")
       .update({ cupos_ocupados: cupoExistente.cupos_ocupados + 1 })
@@ -378,9 +421,9 @@ export async function createNuevoPedido(params: {
     }
   }
 
-  // 3. Crear el pedido
+  // 3. Crear el pedido (60 minutos de reserva temporal)
   const expiracion = new Date();
-  expiracion.setHours(expiracion.getHours() + 24); // 24 horas de reserva de cupo
+  expiracion.setMinutes(expiracion.getMinutes() + 60);
 
   const insertPayload: Record<string, any> = {
     cliente_nombre: params.cliente_nombre,

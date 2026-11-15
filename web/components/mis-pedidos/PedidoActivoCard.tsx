@@ -95,21 +95,42 @@ export function PedidoActivoCard({
             </span>
           </div>
 
-          <div
-            className={`rounded-full px-[9px] py-[3px] flex items-center gap-[4px] ${
-              pedido.isCountdownExpired
-                ? "bg-[#fee2e2] border border-[#fca5a5]"
-                : "bg-[#fff7ed] border border-[#fed7aa]"
-            }`}
-          >
-            <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
-              <circle cx="5" cy="5" r="4" stroke="#f59e0b" strokeWidth="1.1" />
-              <path d="M5 2.5V5L6.5 6.5" stroke="#f59e0b" strokeWidth="1.1" strokeLinecap="round" />
-            </svg>
-            <span className="font-semibold text-[#92400e] text-[10px]">
-              Expira en {pedido.countdownFormatted} hs
-            </span>
-          </div>
+          {!pedido.comprobanteUrl && (
+            <div
+              className={`rounded-full px-[9px] py-[3px] flex items-center gap-[4px] ${
+                pedido.isCountdownExpired || pedido.estadoOperativo === "Expirado"
+                  ? "bg-[#fee2e2] border border-[#fca5a5]"
+                  : "bg-[#fff7ed] border border-[#fed7aa]"
+              }`}
+            >
+              <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+                <circle
+                  cx="5"
+                  cy="5"
+                  r="4"
+                  stroke={pedido.isCountdownExpired || pedido.estadoOperativo === "Expirado" ? "#dc2626" : "#f59e0b"}
+                  strokeWidth="1.1"
+                />
+                <path
+                  d="M5 2.5V5L6.5 6.5"
+                  stroke={pedido.isCountdownExpired || pedido.estadoOperativo === "Expirado" ? "#dc2626" : "#f59e0b"}
+                  strokeWidth="1.1"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <span
+                className={`font-semibold text-[10px] ${
+                  pedido.isCountdownExpired || pedido.estadoOperativo === "Expirado"
+                    ? "text-[#991b1b]"
+                    : "text-[#92400e]"
+                }`}
+              >
+                {pedido.isCountdownExpired || pedido.estadoOperativo === "Expirado"
+                  ? "Reserva expirada"
+                  : `Expira en ${pedido.countdownFormatted}`}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

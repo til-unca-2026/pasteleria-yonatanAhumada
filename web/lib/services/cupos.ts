@@ -73,7 +73,25 @@ export async function updateRecepcionAbierta(abierta: boolean) {
   return data;
 }
 
+export async function limpiarReservasExpiradas(): Promise<number> {
+  try {
+    const supabase = createClient();
+    const { data, error } = await supabase.rpc("limpiar_reservas_expiradas");
+    if (error) {
+      // No bloquear si la función RPC aún no fue ejecutada en Supabase
+      if (error.code !== "PGRST202" && error.code !== "42883") {
+        console.warn("Aviso limpiando reservas expiradas:", error.message);
+      }
+      return 0;
+    }
+    return Number(data) || 0;
+  } catch {
+    return 0;
+  }
+}
+
 export async function getCuposMes(year: number, month: number): Promise<CupoDiarioDB[]> {
+  await limpiarReservasExpiradas();
   const supabase = createClient();
   const pad = (n: number) => n.toString().padStart(2, "0");
   const primerDia = `${year}-${pad(month)}-01`;
