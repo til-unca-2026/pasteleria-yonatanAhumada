@@ -174,6 +174,55 @@ export async function getPedidosPorTelefono(telefono: string): Promise<PedidoCon
   })) as PedidoConDetalles[];
 }
 
+export async function buscarPedidos(termino: string): Promise<PedidoConDetalles[]> {
+  const raw = termino.trim();
+  if (!raw) return [];
+
+  const cleanCode = raw.replace(/^#/, "").trim().toLowerCase();
+  const isFullUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(cleanCode);
+  const isHexPrefix = /^[0-9a-f]{4,8}$/.test(cleanCode) && (raw.startsWith("#") || /[a-f]/.test(cleanCode));
+
+  if (isFullUuid || isHexPrefix) {
+    const supabase = createClient();
+    let query = supabase
+      .from("pedidos")
+      .select(`
+        *,
+        detalles_pedido (
+          id,
+          insumo:insumos (
+            id,
+            tipo,
+            nombre,
+            recargo_extra
+          )
+        )
+      `)
+      .order("created_at", { ascending: false });
+
+    if (isFullUuid) {
+      query = query.eq("id", cleanCode);
+    } else {
+      const minUuid = `${cleanCode.padEnd(8, "0")}-0000-0000-0000-000000000000`;
+      const maxUuid = `${cleanCode.padEnd(8, "f")}-ffff-ffff-ffff-ffffffffffff`;
+      query = query.gte("id", minUuid).lte("id", maxUuid);
+    }
+
+    const { data, error } = await query;
+    if (!error && data && data.length > 0) {
+      return data.map((p: any) => ({
+        ...p,
+        detalles: (p.detalles_pedido || []).map((dp: any) => ({
+          id: dp.id,
+          insumo: dp.insumo,
+        })),
+      })) as PedidoConDetalles[];
+    }
+  }
+
+  return getPedidosPorTelefono(raw);
+}
+
 export async function getPedidosDeCliente(params: {
   telefono?: string | null;
   nombre?: string | null;
