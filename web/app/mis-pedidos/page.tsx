@@ -325,6 +325,7 @@ function MisPedidosContent() {
     const rawNotas = (p as any).notas || "";
     const matchModelo = rawNotas.match(/\[Modelo:\s*([^\]\-]+?)(?:\s*-\s*[^\]]+)?\]/);
     const modeloNombre = matchModelo ? matchModelo[1].trim() : null;
+    const cleanNotas = rawNotas.replace(/\[Modelo:\s*[^\]]+\]/gi, "").trim() || null;
 
     let tortaImagen: string | null = null;
     if (modeloNombre) {
@@ -367,7 +368,7 @@ function MisPedidosContent() {
       baseNombre,
       rellenosNombres,
       coberturaNombre,
-      notas: (p as any).notas,
+      notas: cleanNotas,
       fotoReferenciaUrl: (p as any).foto_referencia_url,
     };
   };
