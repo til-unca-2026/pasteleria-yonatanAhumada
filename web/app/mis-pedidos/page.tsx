@@ -12,8 +12,8 @@ import {
 } from "@/components/mis-pedidos/PedidoActivoCard";
 import {
   getPedidoById,
-  getPedidosPorTelefono,
   getPedidosPorIds,
+  getPedidosPorUsuario,
   buscarPedidos,
   adjuntarComprobanteAPedido,
   PedidoConDetalles,
@@ -102,8 +102,6 @@ function MisPedidosContent() {
           if (adminRecord) {
             setIsAdminUser(true);
           }
-
-          if (userPhone) setTelefonoInput(userPhone);
         } else if (typeof window !== "undefined") {
           const guestStoredIds = localStorage.getItem("guest_orders");
           if (guestStoredIds) {
@@ -125,16 +123,24 @@ function MisPedidosContent() {
           }
         }
 
-        // Cargar por lista de IDs del usuario logueado (hasta 20)
-        if (userOrderIds.length > 0) {
-          const fetchedByIds = await getPedidosPorIds(userOrderIds.slice(0, 20));
-          fetchedByIds.forEach((o) => ordersMap.set(o.id, o));
-        }
+        // Si hay usuario autenticado, cargar estrictamente sus pedidos de la cuenta (aislamiento por user_id)
+        if (user) {
+          const fetchedByUser = await getPedidosPorUsuario(user.id);
+          fetchedByUser.forEach((o) => ordersMap.set(o.id, o));
 
-        // Cargar por teléfono del usuario si está registrado
-        if (userPhone) {
-          const fetchedByPhone = await getPedidosPorTelefono(userPhone);
-          fetchedByPhone.slice(0, 20).forEach((o) => ordersMap.set(o.id, o));
+          // Compatibilidad con pedidos propios creados antes de migrar user_id (sin mezclar pedidos de otras cuentas)
+          if (userOrderIds.length > 0) {
+            const fetchedByIds = await getPedidosPorIds(userOrderIds.slice(0, 20));
+            fetchedByIds
+              .filter((o) => !o.user_id || o.user_id === user.id)
+              .forEach((o) => ordersMap.set(o.id, o));
+          }
+        } else if (userOrderIds.length > 0) {
+          // Usuario anónimo: solo sus pedidos guardados localmente en este navegador (sin user_id ajeno)
+          const fetchedByIds = await getPedidosPorIds(userOrderIds.slice(0, 20));
+          fetchedByIds
+            .filter((o) => !o.user_id)
+            .forEach((o) => ordersMap.set(o.id, o));
         }
 
         // Convertir y ordenar del más reciente al más antiguo (hasta 20)
