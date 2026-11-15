@@ -325,6 +325,7 @@ function MisPedidosContent() {
     const rawNotas = (p as any).notas || "";
     const matchModelo = rawNotas.match(/\[Modelo:\s*([^\]\-]+?)(?:\s*-\s*[^\]]+)?\]/);
     const modeloNombre = matchModelo ? matchModelo[1].trim() : null;
+    const cleanNotas = rawNotas.replace(/\[Modelo:\s*[^\]]+\]/gi, "").trim() || null;
 
     let tortaImagen: string | null = null;
     if (modeloNombre) {
@@ -367,7 +368,7 @@ function MisPedidosContent() {
       baseNombre,
       rellenosNombres,
       coberturaNombre,
-      notas: (p as any).notas,
+      notas: cleanNotas,
       fotoReferenciaUrl: (p as any).foto_referencia_url,
     };
   };
@@ -493,7 +494,7 @@ function MisPedidosContent() {
                   <path d="M7 6V10M7 4.5V4" stroke="#94a3b8" strokeWidth="1.3" strokeLinecap="round" />
                 </svg>
                 <span className="font-normal text-[11px] leading-relaxed">
-                  Tu cupo queda reservado por 24 hs. Una vez validado el pago, recibirás confirmación automática por Telegram.
+                  Tu cupo queda reservado por 60 minutos. Una vez validado el pago, recibirás confirmación automática por Telegram.
                 </span>
               </div>
             </div>

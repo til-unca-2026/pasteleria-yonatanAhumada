@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
         chat_id: targetChatId,
         text: message,
         parse_mode: "Markdown",
+        disable_web_page_preview: true,
       }),
     });
 
@@ -57,6 +58,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           chat_id: targetChatId,
           text: message.replace(/[*_`]/g, ""),
+          disable_web_page_preview: true,
         }),
       });
     }

@@ -35,6 +35,7 @@ export async function sendTelegramNotification(
         chat_id: targetChatId,
         text: message,
         parse_mode: "Markdown",
+        disable_web_page_preview: true,
       }),
     });
 
@@ -67,32 +68,38 @@ const getBaseAppUrl = () => {
   return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 };
 
+function cleanNotas(raw?: string | null): string {
+  if (!raw) return "";
+  return raw.replace(/\[Modelo:[^\]]*\]/gi, "").trim();
+}
+
 // 1. Notificación: Nuevo Pedido Ingresado
 export async function notifyNuevoPedido(params: NotifPedidoParams): Promise<boolean> {
   const codigo = `#${params.id.slice(0, 8).toUpperCase()}`;
   const appUrl = getBaseAppUrl();
+  const notasLimpias = cleanNotas(params.dedicatoria);
 
   const lines = [
-    `🎂 *¡Nuevo Pedido Recibido! (${codigo})*`,
+    `🎂 *Nuevo Pedido (${codigo})*`,
     "",
-    params.modeloNombre ? `🍰 *Torta:* ${params.modeloNombre}` : "🍰 *Torta:* Personalizada",
-    `👤 *Cliente:* ${params.cliente_nombre}`,
-    `📱 *Teléfono:* ${params.cliente_telefono}`,
-    `📅 *Fecha de Entrega:* ${params.fecha_entrega}`,
-    `⚖️ *Peso:* ${params.peso_kg} kg`,
-    `💰 *Total a Transferir:* $${Number(params.total_estimado).toLocaleString("es-AR")}`,
+    params.modeloNombre ? `• *Torta:* ${params.modeloNombre}` : "• *Torta:* Personalizada",
+    `• *Cliente:* ${params.cliente_nombre}`,
+    `• *Teléfono:* ${params.cliente_telefono}`,
+    `• *Entrega:* ${params.fecha_entrega}`,
+    `• *Peso:* ${params.peso_kg} kg`,
+    `• *Total:* $${Number(params.total_estimado).toLocaleString("es-AR")}`,
   ];
 
-  if (params.dedicatoria) {
-    lines.push(`📝 *Dedicatoria/Notas:* "${params.dedicatoria}"`);
+  if (notasLimpias) {
+    lines.push(`• *Notas:* "${notasLimpias}"`);
   }
   if (params.foto_referencia_url) {
-    lines.push(`🖼️ [Ver Foto de Referencia](${params.foto_referencia_url})`);
+    lines.push(`• [Ver foto de referencia](${params.foto_referencia_url})`);
   }
 
   lines.push("");
-  lines.push("⏳ *Estado:* Esperando comprobante de pago");
-  lines.push(`👉 [Ver Comanda en Panel](${appUrl}/admin?tab=pedidos)`);
+  lines.push("Estado: Esperando comprobante de pago.");
+  lines.push(`[Abrir comanda en el panel](${appUrl}/admin?tab=pedidos)`);
 
   return sendTelegramNotification(lines.join("\n"));
 }
@@ -103,21 +110,21 @@ export async function notifyComprobanteAdjuntado(params: NotifPedidoParams): Pro
   const appUrl = getBaseAppUrl();
 
   const lines = [
-    `🧾 *¡Comprobante de Pago Adjuntado! (${codigo})*`,
+    `🧾 *Comprobante Adjuntado (${codigo})*`,
     "",
-    `👤 *Cliente:* ${params.cliente_nombre}`,
-    `📱 *Teléfono:* ${params.cliente_telefono}`,
-    `📅 *Entrega:* ${params.fecha_entrega}`,
-    `💵 *Monto Informado:* $${Number(params.total_estimado).toLocaleString("es-AR")}`,
+    `• *Cliente:* ${params.cliente_nombre}`,
+    `• *Teléfono:* ${params.cliente_telefono}`,
+    `• *Entrega:* ${params.fecha_entrega}`,
+    `• *Monto:* $${Number(params.total_estimado).toLocaleString("es-AR")}`,
   ];
 
   if (params.comprobante_url) {
-    lines.push(`📎 [Inspeccionar Comprobante de Transferencia](${params.comprobante_url})`);
+    lines.push(`• [Ver comprobante](${params.comprobante_url})`);
   }
 
   lines.push("");
-  lines.push("⚠️ *Acción requerida:* Validar transferencia y aprobar pedido.");
-  lines.push(`👉 [Abrir Panel de Comandas](${appUrl}/admin?tab=pedidos)`);
+  lines.push("Acción requerida: validar transferencia en el panel.");
+  lines.push(`[Ir a Comandas](${appUrl}/admin?tab=pedidos)`);
 
   return sendTelegramNotification(lines.join("\n"));
 }
@@ -128,16 +135,16 @@ export async function notifyPagoAprobado(params: NotifPedidoParams): Promise<boo
 
   // 1. Mensaje para el taller
   const tallerMsg = [
-    `✅ *¡Pago Aprobado y Comanda Confirmada! (${codigo})*`,
+    `✅ *Pago Aprobado (${codigo})*`,
     "",
-    params.modeloNombre ? `🎂 *Torta:* ${params.modeloNombre}` : "",
-    `👤 *Cliente:* ${params.cliente_nombre}`,
-    `📱 *Teléfono:* ${params.cliente_telefono}`,
-    `📅 *Fecha de Entrega:* ${params.fecha_entrega}`,
-    `⚖️ *Peso:* ${params.peso_kg} kg`,
-    `💵 *Total Confirmado:* $${Number(params.total_estimado).toLocaleString("es-AR")}`,
+    params.modeloNombre ? `• *Torta:* ${params.modeloNombre}` : "",
+    `• *Cliente:* ${params.cliente_nombre}`,
+    `• *Teléfono:* ${params.cliente_telefono}`,
+    `• *Entrega:* ${params.fecha_entrega}`,
+    `• *Peso:* ${params.peso_kg} kg`,
+    `• *Total:* $${Number(params.total_estimado).toLocaleString("es-AR")}`,
     "",
-    "🧑‍🍳 *La comanda ingresó en la cola de producción del taller.*",
+    "La comanda ingresó en la cola de producción.",
   ].filter(Boolean).join("\n");
 
   await sendTelegramNotification(tallerMsg);
@@ -145,12 +152,13 @@ export async function notifyPagoAprobado(params: NotifPedidoParams): Promise<boo
   // 2. Alerta directa al Telegram personal del cliente (si vinculó su cuenta)
   if (params.telegram_chat_id) {
     const clienteMsg = [
-      `✅ *¡Hola ${params.cliente_nombre}! Tu pago fue confirmado.*`,
+      `✅ *Pago confirmado (${codigo})*`,
       "",
-      `Tu pedido *${codigo}* (${params.modeloNombre || "Torta Artesanal"}) fue verificado con éxito y ya está en cola de elaboración.`,
-      `📅 *Fecha programada de retiro:* ${params.fecha_entrega}`,
+      `Hola ${params.cliente_nombre}, verificamos tu pago con éxito. Tu pedido (${params.modeloNombre || "Torta Artesanal"}) ya está en cola de elaboración.`,
       "",
-      `Te avisaremos por acá automáticamente cuando tu torta esté lista para retirar. ¡Gracias por confiar en nosotros! 🎂`,
+      `• *Fecha de retiro:* ${params.fecha_entrega}`,
+      "",
+      "Te avisaremos por este medio cuando esté listo para retirar. Gracias por tu compra.",
     ].join("\n");
     await sendTelegramNotification(clienteMsg, params.telegram_chat_id);
   }
@@ -172,9 +180,9 @@ export async function notifyPedidoRechazado(params: {
   const tallerMsg = [
     `❌ *Pedido Rechazado / Cupo Liberado (${codigo})*`,
     "",
-    `👤 *Cliente:* ${params.cliente_nombre}`,
-    `📅 *Fecha Liberada:* ${params.fecha_entrega}`,
-    params.motivo ? `ℹ️ *Motivo:* ${params.motivo}` : "ℹ️ *Detalle:* El pedido fue cancelado y el cupo del día fue restablecido.",
+    `• *Cliente:* ${params.cliente_nombre}`,
+    `• *Fecha liberada:* ${params.fecha_entrega}`,
+    params.motivo ? `• *Motivo:* ${params.motivo}` : "• *Detalle:* El pedido fue cancelado y el cupo del día quedó disponible.",
   ].join("\n");
 
   await sendTelegramNotification(tallerMsg);
@@ -182,10 +190,10 @@ export async function notifyPedidoRechazado(params: {
   // 2. Alerta directa al Telegram del cliente si estaba vinculado
   if (params.telegram_chat_id) {
     const clienteMsg = [
-      `❌ *Hola ${params.cliente_nombre}, aviso sobre tu pedido ${codigo}*`,
+      `❌ *Actualización sobre tu pedido ${codigo}*`,
       "",
-      `Lamentablemente tu pedido no pudo ser confirmado por el taller en este momento.`,
-      params.motivo ? `ℹ️ *Motivo:* ${params.motivo}` : "ℹ️ Si realizaste una transferencia, por favor contactanos para verificar los datos de la operación.",
+      `Hola ${params.cliente_nombre}, lamentablemente tu pedido no pudo ser confirmado por el taller.`,
+      params.motivo ? `• *Motivo:* ${params.motivo}` : "• Si realizaste una transferencia, por favor contactanos para revisar la operación.",
     ].join("\n");
     await sendTelegramNotification(clienteMsg, params.telegram_chat_id);
   }
@@ -199,14 +207,14 @@ export async function notifyPedidoListo(params: NotifPedidoParams): Promise<bool
 
   // 1. Notificación al taller
   const tallerMsg = [
-    `🎉 *¡Pedido Listo para Retiro! (${codigo})*`,
+    `🎉 *Pedido Listo para Retiro (${codigo})*`,
     "",
-    params.modeloNombre ? `🎂 *Torta:* ${params.modeloNombre}` : "",
-    `👤 *Cliente:* ${params.cliente_nombre}`,
-    `📱 *Teléfono:* ${params.cliente_telefono}`,
-    `📅 *Fecha de Entrega:* ${params.fecha_entrega}`,
+    params.modeloNombre ? `• *Torta:* ${params.modeloNombre}` : "",
+    `• *Cliente:* ${params.cliente_nombre}`,
+    `• *Teléfono:* ${params.cliente_telefono}`,
+    `• *Entrega:* ${params.fecha_entrega}`,
     "",
-    "🎂 *La torta está terminada, decorada y en frío lista para entregar.*",
+    "La torta está terminada y en frío, lista para entregar.",
   ].filter(Boolean).join("\n");
 
   await sendTelegramNotification(tallerMsg);
@@ -214,11 +222,11 @@ export async function notifyPedidoListo(params: NotifPedidoParams): Promise<bool
   // 2. Alerta directa al Telegram del cliente
   if (params.telegram_chat_id) {
     const clienteMsg = [
-      `🎉 *¡Hola ${params.cliente_nombre}! Tu torta está lista.*`,
+      `🎉 *Tu torta está lista (${codigo})*`,
       "",
-      `Tu pedido *${codigo}* (${params.modeloNombre || "Torta Artesanal"}) ya está terminado, decorado y en frío.`,
+      `Hola ${params.cliente_nombre}, tu pedido (${params.modeloNombre || "Torta Artesanal"}) ya está terminado y listo para retirar.`,
       "",
-      `📍 Podés pasar a retirarlo por el taller. ¡Te esperamos! 🎂`,
+      "Podés pasar a retirarlo por el taller. ¡Te esperamos!",
     ].join("\n");
     await sendTelegramNotification(clienteMsg, params.telegram_chat_id);
   }

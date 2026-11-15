@@ -262,7 +262,7 @@ export function Paso3Detalles({
           <path d="M8 7V11M8 5.5V5" stroke="#64748b" strokeWidth="1.4" strokeLinecap="round" />
         </svg>
         <p className="text-[11px] text-slate-600 leading-[16px] m-0">
-          Al presionar <strong className="text-slate-900">Confirmar y Reservar Cupo</strong>, guardaremos tu pedido con reserva por 24 horas para que transfieras el total y subas tu comprobante desde la sección <em>Mis Pedidos</em>. El día de la entrega solo pasas a retirar.
+          Al presionar <strong className="text-slate-900">Confirmar y Reservar Cupo</strong>, guardaremos tu pedido con reserva temporal por 60 minutos para que transfieras el total y subas tu comprobante desde la sección <em>Mis Pedidos</em>. El día de la entrega solo pasas a retirar.
         </p>
       </div>
     </div>

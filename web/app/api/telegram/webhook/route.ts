@@ -40,6 +40,7 @@ async function sendTelegramDirect(chatId: string | number, text: string) {
       chat_id: chatId,
       text,
       parse_mode: "Markdown",
+      disable_web_page_preview: true,
     }),
   }).catch((err) => console.warn("Aviso enviando mensaje directo Telegram:", err));
 }
@@ -145,14 +146,13 @@ export async function POST(req: NextRequest) {
           // Respuesta al cliente
           await sendTelegramDirect(
             chatId,
-            `🎂 *¡Hola ${userName}! Tu pedido ${shortCode} quedó vinculado con éxito.*\n\n` +
-              `Te avisaremos automáticamente por acá ante cualquier actualización:\n` +
-              `• ✅ Cuando el taller valide tu pago/transferencia\n` +
-              `• 🧑‍🍳 Cuando ingrese a la cola de elaboración\n` +
-              `• 🎉 Cuando tu torta esté lista para retiro\n\n` +
-              `📅 *Fecha de Retiro:* ${pedido.fecha_entrega}\n` +
-              `💰 *Total:* $${Number(pedido.total_estimado).toLocaleString("es-AR")}\n\n` +
-              `_¡Gracias por elegir Pastelería Artesanal!_`
+            `✅ *Pedido ${shortCode} vinculado con éxito*\n\n` +
+              `Hola ${userName}, te avisaremos automáticamente por acá cuando:\n` +
+              `• Validemos tu comprobante de pago\n` +
+              `• Tu torta esté lista para retirar\n\n` +
+              `• *Fecha de retiro:* ${pedido.fecha_entrega}\n` +
+              `• *Total:* $${Number(pedido.total_estimado).toLocaleString("es-AR")}\n\n` +
+              `_Gracias por elegir Pastelería Artesanal._`
           );
 
           // Notificar al taller que el cliente se vinculó
@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
           if (tallerChatId && String(tallerChatId) !== String(chatId)) {
             await sendTelegramDirect(
               tallerChatId,
-              `🔔 *Cliente Vinculado:* ${pedido.cliente_nombre} vinculó su Telegram al pedido ${shortCode}. Recibirá las alertas automáticamente.`
+              `🔔 *Cliente vinculado:* ${pedido.cliente_nombre} activó las alertas para el pedido ${shortCode}.`
             );
           }
 
@@ -169,8 +169,8 @@ export async function POST(req: NextRequest) {
           // No se encontró el pedido
           await sendTelegramDirect(
             chatId,
-            `⚠️ *No encontramos un pedido activo para el código:* \`${pedidoParam}\`\n\n` +
-              `Por favor ingresá a nuestra web en la sección *Mis Pedidos* y tocá el botón *Recibir avisos por Telegram* para vincularlo correctamente.`
+            `⚠️ *No encontramos un pedido para el código:* \`${pedidoParam}\`\n\n` +
+              `Ingresá en la web a *Mis Pedidos* y tocá *Recibir avisos por Telegram* para vincularlo.`
           );
           return NextResponse.json({ ok: true, notFound: true });
         }
@@ -178,11 +178,11 @@ export async function POST(req: NextRequest) {
         // /start sin parámetro
         await sendTelegramDirect(
           chatId,
-          `🎂 *¡Hola ${userName}! Bienvenido a Pastelería Artesanal.*\n\n` +
-            `Este bot te envía notificaciones automáticas sobre el estado de tus tortas encargadas.\n\n` +
-            `👉 Para vincular tu pedido:\n` +
-            `1. Ingresá a la web en *Mis Pedidos*.\n` +
-            `2. Hacé clic en *🔔 Recibir avisos en Telegram* en el detalle de tu compra.`
+          `🎂 *Bienvenido a Pastelería Artesanal, ${userName}*\n\n` +
+            `Este canal te envía avisos automáticos sobre el estado de tu pedido.\n\n` +
+            `Para vincular tu compra:\n` +
+            `1. Entrá a *Mis Pedidos* en la web.\n` +
+            `2. Tocá *Recibir avisos por Telegram* en el detalle de tu pedido.`
         );
         return NextResponse.json({ ok: true, welcome: true });
       }
