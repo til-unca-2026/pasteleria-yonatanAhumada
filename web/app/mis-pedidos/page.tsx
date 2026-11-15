@@ -167,7 +167,21 @@ function MisPedidosContent() {
     }
 
     loadUserAndOrders();
-  }, [queryId, supabase]);
+  }, [supabase]);
+
+  // Sincronizar botón Atrás / Adelante del navegador o mouse con ?id=
+  const prevQueryIdRef = React.useRef<string | null>(queryId);
+  useEffect(() => {
+    if (prevQueryIdRef.current !== queryId) {
+      prevQueryIdRef.current = queryId;
+      setSelectedPedidoId(queryId);
+      setFile(null);
+      if (queryId) {
+        const match = pedidosList.find((p) => p.id === queryId);
+        if (match) setConfirmed(Boolean(match.comprobante_url));
+      }
+    }
+  }, [queryId, pedidosList]);
 
   const activePedido = pedidosList.find((p) => p.id === selectedPedidoId) || null;
 
@@ -243,9 +257,11 @@ function MisPedidosContent() {
         if (orders.length === 1) {
           setSelectedPedidoId(orders[0].id);
           setConfirmed(Boolean(orders[0].comprobante_url));
+          router.push(`/mis-pedidos?id=${orders[0].id}`, { scroll: false });
         } else {
           setSelectedPedidoId(null);
           setConfirmed(false);
+          if (queryId) router.push("/mis-pedidos", { scroll: false });
         }
       } else {
         setErrorMessage("No se encontraron pedidos con ese código o número de teléfono.");
@@ -389,7 +405,7 @@ function MisPedidosContent() {
         <HeaderMisPedidos
           onBack={() => {
             if (selectedPedidoId && pedidosList.length > 1) {
-              setSelectedPedidoId(null);
+              router.push("/mis-pedidos", { scroll: false });
             } else {
               router.push("/");
             }
@@ -445,6 +461,7 @@ function MisPedidosContent() {
                     onClick={() => {
                       setSelectedPedidoId(null);
                       setFile(null);
+                      router.push("/mis-pedidos", { scroll: false });
                     }}
                     className="inline-flex items-center gap-1.5 text-xs font-bold text-pink-700 hover:text-pink-800 bg-transparent border-0 cursor-pointer p-0"
                   >
@@ -565,6 +582,7 @@ function MisPedidosContent() {
                         setSelectedPedidoId(p.id);
                         setConfirmed(Boolean(p.comprobante_url));
                         setFile(null);
+                        router.push(`/mis-pedidos?id=${p.id}`, { scroll: false });
                       }}
                       className="bg-white rounded-xl border border-slate-200/90 p-4 shadow-2xs hover:border-pink-300 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
                     >
