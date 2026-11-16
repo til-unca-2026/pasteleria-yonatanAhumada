@@ -22,6 +22,7 @@ export interface PedidoConDetalles {
   foto_referencia_url?: string | null;
   expiracion_reserva?: string | null;
   telegram_chat_id?: string | null;
+  user_id?: string | null;
   created_at: string;
   detalles: {
     id: string;
@@ -139,10 +140,9 @@ export async function getPedidosPorIds(ids: string[]): Promise<PedidoConDetalles
   })) as PedidoConDetalles[];
 }
 
-export async function getPedidosPorTelefono(telefono: string): Promise<PedidoConDetalles[]> {
+export async function getPedidosPorUsuario(userId: string): Promise<PedidoConDetalles[]> {
+  if (!userId) return [];
   const supabase = createClient();
-  const cleanPhone = telefono.replace(/[^0-9]/g, "");
-
   const { data, error } = await supabase
     .from("pedidos")
     .select(`
@@ -157,8 +157,62 @@ export async function getPedidosPorTelefono(telefono: string): Promise<PedidoCon
         )
       )
     `)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (error || !data) {
+    // Si la columna user_id aún no existe en Supabase, no bloquear
+    if (error && error.code !== "42703" && error.code !== "PGRST204") {
+      console.error("Error al obtener pedidos por usuario:", error);
+    }
+    return [];
+  }
+
+  return (data || []).map((p: any) => ({
+    ...p,
+    detalles: (p.detalles_pedido || []).map((dp: any) => ({
+      id: dp.id,
+      insumo: dp.insumo,
+    })),
+  })) as PedidoConDetalles[];
+}
+
+export async function getPedidosPorTelefono(telefono: string): Promise<PedidoConDetalles[]> {
+  const supabase = createClient();
+  const cleanPhone = telefono.replace(/[^0-9]/g, "");
+  if (cleanPhone.length < 4) return [];
+
+  const selectQuery = `
+      *,
+      detalles_pedido (
+        id,
+        insumo:insumos (
+          id,
+          tipo,
+          nombre,
+          recargo_extra
+        )
+      )
+    `;
+
+  let { data, error } = await supabase
+    .from("pedidos")
+    .select(selectQuery)
     .ilike("cliente_telefono", `%${cleanPhone.slice(-8)}%`)
+    .is("user_id", null)
     .order("created_at", { ascending: false });
+
+  // Compatibilidad si aún no se ejecutó 03_pedidos_user_id.sql
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    const fallback = await supabase
+      .from("pedidos")
+      .select(selectQuery)
+      .ilike("cliente_telefono", `%${cleanPhone.slice(-8)}%`)
+      .order("created_at", { ascending: false });
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     console.error("Error al buscar pedidos por teléfono:", error);
@@ -172,6 +226,55 @@ export async function getPedidosPorTelefono(telefono: string): Promise<PedidoCon
       insumo: dp.insumo,
     })),
   })) as PedidoConDetalles[];
+}
+
+export async function buscarPedidos(termino: string): Promise<PedidoConDetalles[]> {
+  const raw = termino.trim();
+  if (!raw) return [];
+
+  const cleanCode = raw.replace(/^#/, "").trim().toLowerCase();
+  const isFullUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(cleanCode);
+  const isHexPrefix = /^[0-9a-f]{4,8}$/.test(cleanCode) && (raw.startsWith("#") || /[a-f]/.test(cleanCode));
+
+  if (isFullUuid || isHexPrefix) {
+    const supabase = createClient();
+    let query = supabase
+      .from("pedidos")
+      .select(`
+        *,
+        detalles_pedido (
+          id,
+          insumo:insumos (
+            id,
+            tipo,
+            nombre,
+            recargo_extra
+          )
+        )
+      `)
+      .order("created_at", { ascending: false });
+
+    if (isFullUuid) {
+      query = query.eq("id", cleanCode);
+    } else {
+      const minUuid = `${cleanCode.padEnd(8, "0")}-0000-0000-0000-000000000000`;
+      const maxUuid = `${cleanCode.padEnd(8, "f")}-ffff-ffff-ffff-ffffffffffff`;
+      query = query.gte("id", minUuid).lte("id", maxUuid);
+    }
+
+    const { data, error } = await query;
+    if (!error && data && data.length > 0) {
+      return data.map((p: any) => ({
+        ...p,
+        detalles: (p.detalles_pedido || []).map((dp: any) => ({
+          id: dp.id,
+          insumo: dp.insumo,
+        })),
+      })) as PedidoConDetalles[];
+    }
+  }
+
+  return getPedidosPorTelefono(raw);
 }
 
 export async function getPedidosDeCliente(params: {
@@ -352,22 +455,35 @@ export async function createNuevoPedido(params: {
   }
 
   // 2. Transacción atómica en Supabase (bloqueo de fila FOR UPDATE + TTL de 60 minutos)
-  const { data: rpcPedido, error: rpcError } = await supabase.rpc(
+  const { data: { user } } = await supabase.auth.getUser();
+  const baseRpcParams = {
+    p_cliente_nombre: params.cliente_nombre,
+    p_cliente_telefono: params.cliente_telefono,
+    p_fecha_entrega: params.fecha_entrega,
+    p_peso_kg: params.peso_kg,
+    p_total_estimado: params.total_estimado,
+    p_sena_requerida: params.sena_requerida,
+    p_notas: params.notas || null,
+    p_comprobante_url: comprobante_url,
+    p_foto_referencia_url: foto_referencia_url,
+    p_insumos_ids: params.insumosIds,
+    p_ttl_minutos: 60,
+  };
+
+  let { data: rpcPedido, error: rpcError } = await supabase.rpc(
     "reservar_cupo_y_crear_pedido",
     {
-      p_cliente_nombre: params.cliente_nombre,
-      p_cliente_telefono: params.cliente_telefono,
-      p_fecha_entrega: params.fecha_entrega,
-      p_peso_kg: params.peso_kg,
-      p_total_estimado: params.total_estimado,
-      p_sena_requerida: params.sena_requerida,
-      p_notas: params.notas || null,
-      p_comprobante_url: comprobante_url,
-      p_foto_referencia_url: foto_referencia_url,
-      p_insumos_ids: params.insumosIds,
-      p_ttl_minutos: 60,
+      ...baseRpcParams,
+      p_user_id: user?.id || null,
     }
   );
+
+  // Compatibilidad si aún no se ejecutó 03_pedidos_user_id.sql
+  if (rpcError && rpcError.code === "PGRST202") {
+    const retryRpc = await supabase.rpc("reservar_cupo_y_crear_pedido", baseRpcParams);
+    rpcPedido = retryRpc.data;
+    rpcError = retryRpc.error;
+  }
 
   if (!rpcError && rpcPedido) {
     return rpcPedido;
@@ -441,6 +557,9 @@ export async function createNuevoPedido(params: {
   if (params.notas) {
     insertPayload.notas = params.notas;
   }
+  if (user?.id) {
+    insertPayload.user_id = user.id;
+  }
 
   let { data: pedido, error: errorPedido } = await supabase
     .from("pedidos")
@@ -448,10 +567,10 @@ export async function createNuevoPedido(params: {
     .select()
     .single();
 
-  // Si falló porque la columna 'notas' no existe aún en la tabla de Supabase (PGRST204), reintentar sin notas
-  if (errorPedido && errorPedido.code === "PGRST204" && insertPayload.notas) {
-    console.warn("Columna 'notas' no existe en pedidos, reintentando inserción sin 'notas':", errorPedido.message);
+  // Si falló porque alguna columna opcional no existe aún en Supabase (PGRST204), reintentar sin ella
+  if (errorPedido && errorPedido.code === "PGRST204") {
     delete insertPayload.notas;
+    delete insertPayload.user_id;
     const retry = await supabase
       .from("pedidos")
       .insert([insertPayload])

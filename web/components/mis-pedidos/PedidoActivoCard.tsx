@@ -43,6 +43,20 @@ export function PedidoActivoCard({
   confirmed,
 }: PedidoActivoCardProps) {
   const [showDetails, setShowDetails] = React.useState<boolean>(true);
+  const isPaid =
+    pedido.estadoOperativo === "Señado" ||
+    pedido.estadoOperativo === "En producción" ||
+    pedido.estadoOperativo === "Listo";
+  const isExpired = pedido.estadoOperativo === "Expirado";
+  const hasReceipt = Boolean(pedido.comprobanteUrl);
+
+  const badgeStyle = isExpired
+    ? { bg: "bg-rose-50 border-rose-200", dot: "bg-rose-500", text: "text-rose-800" }
+    : isPaid
+    ? { bg: "bg-emerald-50 border-emerald-200", dot: "bg-emerald-500", text: "text-emerald-800" }
+    : hasReceipt
+    ? { bg: "bg-blue-50 border-blue-200", dot: "bg-blue-500", text: "text-blue-800" }
+    : { bg: "bg-[#fff7ed] border-[#fed7aa]", dot: "bg-[#f59e0b]", text: "text-[#92400e]" };
 
   return (
     <div className="bg-white rounded-[12px] border border-[#e2e8f0] shadow-[0px_2px_8px_rgba(15,23,42,0.07)] overflow-hidden">
@@ -75,9 +89,9 @@ export function PedidoActivoCard({
           </div>
 
           {/* Status badge */}
-          <div className="bg-[#fff7ed] border border-[#fed7aa] rounded-full px-[9px] py-[4px] flex items-center gap-[5px] shrink-0">
-            <div className="bg-[#f59e0b] rounded-full size-[6px]" />
-            <span className="font-semibold text-[#92400e] text-[10px] leading-none whitespace-nowrap">
+          <div className={`${badgeStyle.bg} border rounded-full px-[9px] py-[4px] flex items-center gap-[5px] shrink-0`}>
+            <div className={`${badgeStyle.dot} rounded-full size-[6px]`} />
+            <span className={`font-semibold ${badgeStyle.text} text-[10px] leading-none whitespace-nowrap`}>
               {pedido.estado}
             </span>
           </div>
@@ -95,7 +109,7 @@ export function PedidoActivoCard({
             </span>
           </div>
 
-          {!pedido.comprobanteUrl && (
+          {!isPaid && !pedido.comprobanteUrl && (
             <div
               className={`rounded-full px-[9px] py-[3px] flex items-center gap-[4px] ${
                 pedido.isCountdownExpired || pedido.estadoOperativo === "Expirado"
@@ -283,22 +297,54 @@ export function PedidoActivoCard({
         )}
       </div>
 
-      {/* ── Transfer / Banking Details ── */}
-      <TransferenciaInfo
-        total={pedido.total}
-        seña={pedido.seña}
-        cbu={pedido.cbu}
-        alias={pedido.alias}
-        titular={pedido.titular}
-      />
+      {!isPaid && !isExpired ? (
+        <>
+          {/* ── Transfer / Banking Details ── */}
+          <TransferenciaInfo
+            total={pedido.total}
+            seña={pedido.seña}
+            cbu={pedido.cbu}
+            alias={pedido.alias}
+            titular={pedido.titular}
+          />
 
-      {/* ── Upload Proof Area ── */}
-      <ComprobanteUploader
-        file={file}
-        onFileChange={onFileChange}
-        confirmed={confirmed}
-        comprobanteUrl={pedido.comprobanteUrl}
-      />
+          {/* ── Upload Proof Area ── */}
+          <ComprobanteUploader
+            file={file}
+            onFileChange={onFileChange}
+            confirmed={confirmed}
+            comprobanteUrl={pedido.comprobanteUrl}
+          />
+        </>
+      ) : isExpired ? (
+        <div className="px-[16px] py-[14px] bg-rose-50/70 border-t border-rose-100 text-[12px] text-rose-800">
+          <p className="font-bold m-0 mb-1">Reserva expirada o cancelada</p>
+          <p className="m-0 text-[11px] text-rose-700 leading-relaxed">
+            El tiempo límite para adjuntar el comprobante venció o el pedido fue rechazado, por lo que el cupo volvió a quedar disponible.
+          </p>
+        </div>
+      ) : (
+        <div className="px-[16px] py-[14px] bg-emerald-50/50 border-t border-emerald-100 flex items-center justify-between gap-2 text-[12px]">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">
+              Pago Confirmado
+            </span>
+            <span className="font-bold text-slate-900 text-sm">
+              ${Number(pedido.total).toLocaleString("es-AR")}
+            </span>
+          </div>
+          {pedido.comprobanteUrl && (
+            <a
+              href={pedido.comprobanteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-semibold text-emerald-700 hover:underline bg-white px-3 py-1.5 rounded-lg border border-emerald-200"
+            >
+              Ver comprobante ↗
+            </a>
+          )}
+        </div>
+      )}
     </div>
   );
 }
