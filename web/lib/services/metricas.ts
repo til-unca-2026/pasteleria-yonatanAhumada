@@ -29,7 +29,6 @@ export interface MetricasFinancieras {
   ingresosConfirmados: number;
   ingresosPorValidar: number;
   pedidosConfirmados: number;
-  ticketPromedio: number;
 }
 
 export interface MetricasSemanales extends MetricasFinancieras {
@@ -143,15 +142,12 @@ function calcularFinanzas(pedidosValidos: PedidoMetricaRow[]): MetricasFinancier
   );
   const ingresosPorValidar = Math.max(0, ingresosTotales - ingresosConfirmados);
   const pedidosConfirmados = confirmados.length;
-  const ticketPromedio =
-    pedidosConfirmados > 0 ? Math.round(ingresosConfirmados / pedidosConfirmados) : 0;
 
   return {
     ingresosTotales,
     ingresosConfirmados,
     ingresosPorValidar,
     pedidosConfirmados,
-    ticketPromedio,
   };
 }
 

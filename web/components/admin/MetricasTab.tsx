@@ -41,7 +41,7 @@ function KpiResumenGrid({
   kilosTotales: number;
 }) {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-2xs">
         <div className="text-[11px] font-semibold text-slate-500 tracking-wide mb-1">
           Ingresos Confirmados
@@ -74,19 +74,7 @@ function KpiResumenGrid({
           {totalPedidos}
         </div>
         <div className="text-[10px] text-slate-400 mt-0.5">
-          {kilosTotales.toFixed(1)} kg en total
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-2xs">
-        <div className="text-[11px] font-semibold text-slate-500 tracking-wide mb-1">
-          Ticket Promedio
-        </div>
-        <div className="font-bold text-slate-900 text-xl">
-          {formatCurrency(finanzas?.ticketPromedio || 0)}
-        </div>
-        <div className="text-[10px] text-slate-400 mt-0.5">
-          Facturación est.: {formatCurrency(finanzas?.ingresosTotales || 0)}
+          {kilosTotales.toFixed(1)} kg en total • Est.: {formatCurrency(finanzas?.ingresosTotales || 0)}
         </div>
       </div>
     </div>
