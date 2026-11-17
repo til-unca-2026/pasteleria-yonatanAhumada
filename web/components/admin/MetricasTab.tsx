@@ -294,20 +294,9 @@ export function MetricasTab() {
               </svg>
             </button>
 
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-[#0f172a] text-sm">
-                {dataSemanal?.rangoTexto || "Semana actual"}
-              </span>
-              {!isCurrentWeek && (
-                <button
-                  type="button"
-                  onClick={() => setMondayDate(getMondayOfCurrentWeek())}
-                  className="text-[11px] font-semibold text-pink-600 hover:underline bg-transparent border-0 cursor-pointer p-0"
-                >
-                  Hoy
-                </button>
-              )}
-            </div>
+            <span className="font-extrabold text-[#0f172a] text-sm">
+              {dataSemanal?.rangoTexto || "Semana actual"}
+            </span>
 
             <button
               type="button"
@@ -319,11 +308,21 @@ export function MetricasTab() {
                 <path d="M9 18l6-6-6-6" />
               </svg>
             </button>
+
+            {!isCurrentWeek && (
+              <button
+                type="button"
+                onClick={() => setMondayDate(getMondayOfCurrentWeek())}
+                className="px-2.5 py-1 rounded-full bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 text-[11px] font-semibold cursor-pointer transition-colors"
+              >
+                Semana actual
+              </button>
+            )}
           </div>
         )}
 
         {viewMode === "mensual" && (
-          <div className="flex items-center justify-between md:justify-end gap-3">
+          <div className="flex items-center justify-between md:justify-end gap-2.5">
             <button
               type="button"
               onClick={handlePrevMonth}
@@ -335,20 +334,9 @@ export function MetricasTab() {
               </svg>
             </button>
 
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-[#0f172a] text-sm">
-                {MESES_NOMBRES[currentMonth]} {currentYear}
-              </span>
-              {!isCurrentMonth && (
-                <button
-                  type="button"
-                  onClick={handleResetCurrentMonth}
-                  className="text-[11px] font-semibold text-pink-600 hover:underline bg-transparent border-0 cursor-pointer p-0"
-                >
-                  Hoy
-                </button>
-              )}
-            </div>
+            <span className="font-extrabold text-[#0f172a] text-sm">
+              {MESES_NOMBRES[currentMonth]} {currentYear}
+            </span>
 
             <button
               type="button"
@@ -360,6 +348,16 @@ export function MetricasTab() {
                 <path d="M9 18l6-6-6-6" />
               </svg>
             </button>
+
+            {!isCurrentMonth && (
+              <button
+                type="button"
+                onClick={handleResetCurrentMonth}
+                className="px-2.5 py-1 rounded-full bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 text-[11px] font-semibold cursor-pointer transition-colors"
+              >
+                Mes actual
+              </button>
+            )}
           </div>
         )}
 
