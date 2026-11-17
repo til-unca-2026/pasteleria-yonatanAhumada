@@ -68,7 +68,7 @@ function KpiResumenGrid({
 
       <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-2xs">
         <div className="text-[11px] font-semibold text-slate-500 tracking-wide mb-1">
-          Pedidos Válidos
+          Total Pedidos
         </div>
         <div className="font-bold text-slate-900 text-xl">
           {totalPedidos}
@@ -497,7 +497,7 @@ export function MetricasTab() {
                 <div className="font-bold text-[#0f172a] text-[14px] mb-3">
                   Estado de Comandas del Mes
                 </div>
-                <div className="grid grid-cols-4 gap-2 text-center">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                   <div className="bg-amber-50 rounded-xl p-2.5 border border-amber-100">
                     <span className="text-[10px] text-amber-800 font-semibold block">Pendientes</span>
                     <span className="font-bold text-amber-900 text-lg">
@@ -505,21 +505,21 @@ export function MetricasTab() {
                     </span>
                   </div>
                   <div className="bg-blue-50 rounded-xl p-2.5 border border-blue-100">
-                    <span className="text-[10px] text-blue-800 font-semibold block">Señado</span>
+                    <span className="text-[10px] text-blue-800 font-semibold block">Para Elaborar</span>
                     <span className="font-bold text-blue-900 text-lg">
-                      {dataMensual?.estadosCount.senado || 0}
-                    </span>
-                  </div>
-                  <div className="bg-pink-50 rounded-xl p-2.5 border border-pink-100">
-                    <span className="text-[10px] text-pink-800 font-semibold block">En taller</span>
-                    <span className="font-bold text-pink-900 text-lg">
-                      {dataMensual?.estadosCount.enProduccion || 0}
+                      {(dataMensual?.estadosCount.senado || 0) + (dataMensual?.estadosCount.enProduccion || 0)}
                     </span>
                   </div>
                   <div className="bg-emerald-50 rounded-xl p-2.5 border border-emerald-100">
                     <span className="text-[10px] text-emerald-800 font-semibold block">Listos</span>
                     <span className="font-bold text-emerald-900 text-lg">
                       {dataMensual?.estadosCount.listo || 0}
+                    </span>
+                  </div>
+                  <div className="bg-rose-50 rounded-xl p-2.5 border border-rose-100">
+                    <span className="text-[10px] text-rose-800 font-semibold block">Expirados</span>
+                    <span className="font-bold text-rose-900 text-lg">
+                      {dataMensual?.estadosCount.expirado || 0}
                     </span>
                   </div>
                 </div>
