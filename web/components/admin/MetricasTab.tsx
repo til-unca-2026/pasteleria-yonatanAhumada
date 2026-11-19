@@ -8,11 +8,14 @@ import {
   MetricasSemanales,
   MetricasMensuales,
   MetricasAnuales,
+  MetricasFinancieras,
+  TopInsumo,
+  TopModelo,
 } from "@/lib/services/metricas";
 
 const MESES_NOMBRES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
 function getMondayOfCurrentWeek(): Date {
@@ -24,14 +27,144 @@ function getMondayOfCurrentWeek(): Date {
   return monday;
 }
 
+function formatCurrency(val: number): string {
+  return "$" + Number(val || 0).toLocaleString("es-AR");
+}
+
+function KpiResumenGrid({
+  finanzas,
+  totalPedidos,
+  kilosTotales,
+}: {
+  finanzas?: MetricasFinancieras | null;
+  totalPedidos: number;
+  kilosTotales: number;
+}) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-2xs">
+        <div className="text-[11px] font-semibold text-slate-500 tracking-wide mb-1">
+          Ingresos Confirmados
+        </div>
+        <div className="font-bold text-emerald-600 text-xl">
+          {formatCurrency(finanzas?.ingresosConfirmados || 0)}
+        </div>
+        <div className="text-[10px] text-slate-400 mt-0.5">
+          {finanzas?.pedidosConfirmados || 0} pedidos pagos (100%)
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-2xs">
+        <div className="text-[11px] font-semibold text-slate-500 tracking-wide mb-1">
+          Por Validar
+        </div>
+        <div className="font-bold text-amber-600 text-xl">
+          {formatCurrency(finanzas?.ingresosPorValidar || 0)}
+        </div>
+        <div className="text-[10px] text-slate-400 mt-0.5">
+          Comprobantes pendientes
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-2xs">
+        <div className="text-[11px] font-semibold text-slate-500 tracking-wide mb-1">
+          Total Pedidos
+        </div>
+        <div className="font-bold text-slate-900 text-xl">
+          {totalPedidos}
+        </div>
+        <div className="text-[10px] text-slate-400 mt-0.5">
+          {kilosTotales.toFixed(1)} kg en total • Est.: {formatCurrency(finanzas?.ingresosTotales || 0)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RankingsPanel({
+  modelosTop,
+  saboresTop,
+  emptyLabel,
+}: {
+  modelosTop: TopModelo[];
+  saboresTop: TopInsumo[];
+  emptyLabel: string;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-xs p-4">
+        <div className="flex items-center justify-between mb-3">
+          <span className="font-bold text-[#0f172a] text-[14px]">
+            Modelos de Torta Más Pedidos
+          </span>
+        </div>
+
+        {modelosTop.length === 0 ? (
+          <div className="py-5 text-center text-xs text-slate-400">{emptyLabel}</div>
+        ) : (
+          modelosTop.map((item, idx) => (
+            <div key={item.nombre} className="mb-3 last:mb-0">
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-medium text-slate-800 text-[12px]">
+                  {idx + 1}. {item.nombre} •{" "}
+                  <strong className="text-slate-700 font-semibold">{item.cantidad} pedidos</strong>
+                </span>
+                <span className="font-bold text-pink-600 text-[12px]">{item.porcentaje}%</span>
+              </div>
+              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-pink-600 rounded-full transition-all duration-300"
+                  style={{ width: `${item.porcentaje}%` }}
+                />
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-xs p-4">
+        <div className="flex items-center justify-between mb-3">
+          <span className="font-bold text-[#0f172a] text-[14px]">
+            Sabores e Insumos Más Pedidos
+          </span>
+        </div>
+
+        {saboresTop.length === 0 ? (
+          <div className="py-5 text-center text-xs text-slate-400">
+            Sin insumos personalizados en este período.
+          </div>
+        ) : (
+          saboresTop.map((item, idx) => (
+            <div key={item.id} className="mb-3 last:mb-0">
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-medium text-slate-800 text-[12px]">
+                  {idx + 1}. {item.nombre}{" "}
+                  <span className="text-slate-400 text-[10px]">({item.tipo})</span> •{" "}
+                  <strong className="text-slate-700 font-semibold">{item.cantidad} tortas</strong>
+                </span>
+                <span className="font-bold text-slate-700 text-[12px]">{item.porcentaje}%</span>
+              </div>
+              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-slate-800 rounded-full transition-all duration-300"
+                  style={{ width: `${item.porcentaje}%` }}
+                />
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function MetricasTab() {
   const [viewMode, setViewMode] = useState<"semanal" | "mensual" | "anual">("semanal");
 
-  // Semanal state
-  const [mondayDate, setMondayDate] = useState<Date>(getMondayOfCurrentWeek());
+  const currentMonday = getMondayOfCurrentWeek();
+  const [mondayDate, setMondayDate] = useState<Date>(currentMonday);
   const [dataSemanal, setDataSemanal] = useState<MetricasSemanales | null>(null);
 
-  // Mensual & Anual state
   const now = new Date();
   const [currentYear, setCurrentYear] = useState<number>(now.getFullYear());
   const [currentMonth, setCurrentMonth] = useState<number>(now.getMonth());
@@ -86,6 +219,16 @@ export function MetricasTab() {
     }
   }
 
+  // Week navigation
+  const handleShiftWeek = (days: number) => {
+    setMondayDate((prev) => {
+      const next = new Date(prev);
+      next.setDate(prev.getDate() + days);
+      return next;
+    });
+  };
+  const isCurrentWeek = mondayDate.getTime() === currentMonday.getTime();
+
   // Month navigation
   const handlePrevMonth = () => {
     if (currentMonth === 0) {
@@ -95,7 +238,6 @@ export function MetricasTab() {
       setCurrentMonth((m) => m - 1);
     }
   };
-
   const handleNextMonth = () => {
     if (currentMonth === 11) {
       setCurrentMonth(0);
@@ -104,7 +246,6 @@ export function MetricasTab() {
       setCurrentMonth((m) => m + 1);
     }
   };
-
   const handleResetCurrentMonth = () => {
     const d = new Date();
     setCurrentYear(d.getFullYear());
@@ -112,129 +253,144 @@ export function MetricasTab() {
   };
 
   // Year navigation
-  const handlePrevYear = () => {
-    setCurrentYear((y) => y - 1);
-  };
-
-  const handleNextYear = () => {
-    setCurrentYear((y) => y + 1);
-  };
-
-  const handleResetCurrentYear = () => {
-    setCurrentYear(new Date().getFullYear());
-  };
+  const handlePrevYear = () => setCurrentYear((y) => y - 1);
+  const handleNextYear = () => setCurrentYear((y) => y + 1);
 
   const isCurrentMonth =
     currentYear === now.getFullYear() && currentMonth === now.getMonth();
-  const isCurrentYear = currentYear === now.getFullYear();
-
-  const formatCurrency = (val: number) =>
-    "$" + Number(val || 0).toLocaleString("es-AR");
 
   return (
-    <div className="px-[16px] pt-[14px] pb-24 flex flex-col gap-[14px] w-full animate-in fade-in duration-200">
-      {/* ── View Switcher: Semana vs Mes vs Año ── */}
-      <div className="w-full flex gap-1 bg-slate-100 p-1 rounded-xl">
-        <button
-          type="button"
-          onClick={() => setViewMode("semanal")}
-          className={`flex-1 py-2 rounded-lg cursor-pointer text-xs font-semibold transition-all ${
-            viewMode === "semanal"
-              ? "bg-[#1e293b] text-white shadow-xs"
-              : "text-slate-600 hover:text-slate-900 bg-transparent"
-          }`}
-        >
-          Semana
-        </button>
-        <button
-          type="button"
-          onClick={() => setViewMode("mensual")}
-          className={`flex-1 py-2 rounded-lg cursor-pointer text-xs font-semibold transition-all ${
-            viewMode === "mensual"
-              ? "bg-[#1e293b] text-white shadow-xs"
-              : "text-slate-600 hover:text-slate-900 bg-transparent"
-          }`}
-        >
-          Mes
-        </button>
-        <button
-          type="button"
-          onClick={() => setViewMode("anual")}
-          className={`flex-1 py-2 rounded-lg cursor-pointer text-xs font-semibold transition-all ${
-            viewMode === "anual"
-              ? "bg-[#1e293b] text-white shadow-xs"
-              : "text-slate-600 hover:text-slate-900 bg-transparent"
-          }`}
-        >
-          Año
-        </button>
-      </div>
+    <div className="pt-2 pb-24 flex flex-col gap-4 w-full animate-in fade-in duration-200">
+      {/* ── Header: View Switcher + Period Navigator ── */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div className="w-full md:w-80 flex gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/70">
+          {(["semanal", "mensual", "anual"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setViewMode(mode)}
+              className={`flex-1 py-2 rounded-lg cursor-pointer text-xs font-semibold transition-all border-0 ${
+                viewMode === mode
+                  ? "bg-[#1e293b] text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 bg-transparent"
+              }`}
+            >
+              {mode === "semanal" ? "Semana" : mode === "mensual" ? "Mes" : "Año"}
+            </button>
+          ))}
+        </div>
 
-      {/* ── Navegador Compacto para Vista Mensual ── */}
-      {viewMode === "mensual" && (
-        <div className="flex items-center justify-between px-1 py-0.5">
-          <button
-            type="button"
-            onClick={handlePrevMonth}
-            className="size-8 rounded-full border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-700 cursor-pointer shadow-2xs"
-            title="Mes anterior"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-          </button>
+        {/* Period Navigator */}
+        {viewMode === "semanal" && (
+          <div className="flex items-center justify-between md:justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => handleShiftWeek(-7)}
+              className="size-8 rounded-full border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-700 cursor-pointer shadow-2xs"
+              title="Semana anterior"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
 
-          <div className="text-center">
-            <span className="font-extrabold text-[#0f172a] text-[15px]">
+            <span className="font-extrabold text-[#0f172a] text-sm">
+              {dataSemanal?.rangoTexto || "Semana actual"}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => handleShiftWeek(7)}
+              className="size-8 rounded-full border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-700 cursor-pointer shadow-2xs"
+              title="Semana siguiente"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </button>
+
+            {!isCurrentWeek && (
+              <button
+                type="button"
+                onClick={() => setMondayDate(getMondayOfCurrentWeek())}
+                className="px-2.5 py-1 rounded-full bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 text-[11px] font-semibold cursor-pointer transition-colors"
+              >
+                Semana actual
+              </button>
+            )}
+          </div>
+        )}
+
+        {viewMode === "mensual" && (
+          <div className="flex items-center justify-between md:justify-end gap-2.5">
+            <button
+              type="button"
+              onClick={handlePrevMonth}
+              className="size-8 rounded-full border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-700 cursor-pointer shadow-2xs"
+              title="Mes anterior"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+
+            <span className="font-extrabold text-[#0f172a] text-sm">
               {MESES_NOMBRES[currentMonth]} {currentYear}
             </span>
+
+            <button
+              type="button"
+              onClick={handleNextMonth}
+              className="size-8 rounded-full border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-700 cursor-pointer shadow-2xs"
+              title="Mes siguiente"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </button>
+
+            {!isCurrentMonth && (
+              <button
+                type="button"
+                onClick={handleResetCurrentMonth}
+                className="px-2.5 py-1 rounded-full bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 text-[11px] font-semibold cursor-pointer transition-colors"
+              >
+                Mes actual
+              </button>
+            )}
           </div>
+        )}
 
-          <button
-            type="button"
-            onClick={handleNextMonth}
-            className="size-8 rounded-full border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-700 cursor-pointer shadow-2xs"
-            title="Mes siguiente"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M9 18l6-6-6-6" />
-            </svg>
-          </button>
-        </div>
-      )}
+        {viewMode === "anual" && (
+          <div className="flex items-center justify-between md:justify-end gap-3">
+            <button
+              type="button"
+              onClick={handlePrevYear}
+              className="size-8 rounded-full border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-700 cursor-pointer shadow-2xs"
+              title="Año anterior"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
 
-      {/* ── Navegador Compacto para Vista Anual ── */}
-      {viewMode === "anual" && (
-        <div className="flex items-center justify-between px-1 py-0.5">
-          <button
-            type="button"
-            onClick={handlePrevYear}
-            className="size-8 rounded-full border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-700 cursor-pointer shadow-2xs"
-            title="Año anterior"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-          </button>
-
-          <div className="text-center">
-            <span className="font-extrabold text-[#0f172a] text-[15px]">
+            <span className="font-extrabold text-[#0f172a] text-sm">
               Año {currentYear}
             </span>
-          </div>
 
-          <button
-            type="button"
-            onClick={handleNextYear}
-            className="size-8 rounded-full border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-700 cursor-pointer shadow-2xs"
-            title="Año siguiente"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M9 18l6-6-6-6" />
-            </svg>
-          </button>
-        </div>
-      )}
+            <button
+              type="button"
+              onClick={handleNextYear}
+              className="size-8 rounded-full border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-700 cursor-pointer shadow-2xs"
+              title="Año siguiente"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </button>
+          </div>
+        )}
+      </div>
 
       {loading && !dataSemanal && !dataMensual && !dataAnual ? (
         <div className="py-20 flex flex-col items-center justify-center gap-2 text-slate-400">
@@ -243,346 +399,236 @@ export function MetricasTab() {
         </div>
       ) : viewMode === "semanal" ? (
         <>
-          {/* ── 2 Tarjetas de Rendimiento Semanal ── */}
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-2xs">
-              <div className="text-[11px] font-semibold text-slate-500 tracking-wide mb-1">
-                Facturación
-              </div>
-              <div className="font-bold text-slate-900 text-xl">
-                {formatCurrency(dataSemanal?.ingresosTotales || 0)}
-              </div>
-            </div>
+          <KpiResumenGrid
+            finanzas={dataSemanal}
+            totalPedidos={dataSemanal?.totalPedidos || 0}
+            kilosTotales={dataSemanal?.kilosTotales || 0}
+          />
 
-            <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-2xs">
-              <div className="text-[11px] font-semibold text-slate-500 tracking-wide mb-1">
-                Señas Cobradas
-              </div>
-              <div className="font-bold text-emerald-600 text-xl">
-                {formatCurrency(dataSemanal?.senasCobradas || 0)}
-              </div>
-            </div>
-          </div>
-
-          {/* ── Gráfico Semanal Diario: L M M J V S D ── */}
-          <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-xs p-[16px]">
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <div className="font-bold text-[#0f172a] text-[14px]">Ocupación Semanal</div>
-                <div className="font-normal text-[#64748b] text-[11px]">
-                  Capacidad de horneado en obrador
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+            {/* Ocupación Semanal */}
+            <div className="lg:col-span-7 bg-white rounded-[14px] border border-[#e2e8f0] shadow-xs p-5">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <div className="font-bold text-[#0f172a] text-[15px]">Ocupación Semanal</div>
+                  <div className="font-normal text-[#64748b] text-[11px]">
+                    Capacidad de horneado en obrador
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 bg-[#f0fdf4] px-2.5 py-1 rounded-full border border-[#bbf7d0]">
+                  <div className="bg-[#10B981] rounded-full size-2" />
+                  <span className="font-bold text-[#10B981] text-[11px]">
+                    {dataSemanal?.porcentajeOcupacion || 0}% prom.
+                  </span>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 bg-[#f0fdf4] px-2.5 py-1 rounded-full border border-[#bbf7d0]">
-                <div className="bg-[#10B981] rounded-full size-2" />
-                <span className="font-bold text-[#10B981] text-[11px]">
-                  {dataSemanal?.porcentajeOcupacion || 0}% prom.
-                </span>
+
+              <div className="font-black text-[#0f172a] text-[24px] leading-tight mb-5">
+                {dataSemanal?.totalCuposOcupados || 0} / {dataSemanal?.totalCapacidadSemana || 21}{" "}
+                <span className="font-normal text-slate-500 text-sm">cupos ocupados</span>
               </div>
-            </div>
 
-            <div className="font-black text-[#0f172a] text-[24px] leading-tight mb-4">
-              {dataSemanal?.totalCuposOcupados || 0} / {dataSemanal?.totalCapacidadSemana || 21}{" "}
-              <span className="font-normal text-slate-500 text-sm">tortas producidas</span>
-            </div>
+              <div className="flex items-end gap-2.5 h-[110px] pt-2">
+                {(dataSemanal?.diasSemana || []).map((dia, i) => {
+                  const isWeekend = i === 5 || i === 6;
+                  const isEmpty = dia.ocupados === 0;
+                  const heightPct = isEmpty ? 10 : Math.max(16, (dia.ocupados / Math.max(dia.max, 1)) * 100);
 
-            <div className="flex items-end gap-2 h-[84px] pt-2">
-              {(dataSemanal?.diasSemana || []).map((dia, i) => {
-                const isWeekend = i === 5 || i === 6;
-                const isEmpty = dia.ocupados === 0;
-                const heightPct = isEmpty ? 10 : Math.max(16, (dia.ocupados / Math.max(dia.max, 1)) * 100);
-
-                return (
-                  <div key={i} className="flex flex-col items-center gap-1 flex-1">
-                    <div className="w-full flex items-end justify-center" style={{ height: "60px" }}>
-                      <div
-                        className="w-full rounded-md transition-all duration-300"
-                        style={{
-                          height: `${heightPct}%`,
-                          backgroundColor: isEmpty
-                            ? "#e2e8f0"
-                            : isWeekend
-                            ? "#10B981"
-                            : "#334155",
-                          minHeight: "6px",
-                        }}
-                        title={`${dia.fecha}: ${dia.ocupados} de ${dia.max} cupos`}
-                      />
+                  return (
+                    <div key={i} className="flex flex-col items-center gap-1 flex-1">
+                      <div className="w-full flex items-end justify-center" style={{ height: "72px" }}>
+                        <div
+                          className="w-full rounded-md transition-all duration-300"
+                          style={{
+                            height: `${heightPct}%`,
+                            backgroundColor: isEmpty
+                              ? "#e2e8f0"
+                              : isWeekend
+                              ? "#10B981"
+                              : "#334155",
+                            minHeight: "6px",
+                          }}
+                          title={`${dia.fecha}: ${dia.ocupados} de ${dia.max} cupos`}
+                        />
+                      </div>
+                      <span className="font-semibold text-slate-600 text-[10px]">
+                        {dia.dia} {dia.numeroDia}
+                      </span>
+                      <span
+                        className={`text-[10px] ${
+                          isWeekend && dia.ocupados > 0
+                            ? "text-[#10B981] font-bold"
+                            : dia.ocupados > 0
+                            ? "text-slate-700 font-bold"
+                            : "text-slate-400 font-normal"
+                        }`}
+                      >
+                        {dia.ocupados}
+                      </span>
                     </div>
-                    <span className="font-semibold text-slate-600 text-[10px]">{dia.dia}</span>
-                    <span
-                      className={`text-[9px] ${
-                        isWeekend && dia.ocupados > 0
-                          ? "text-[#10B981] font-bold"
-                          : dia.ocupados > 0
-                          ? "text-slate-700 font-bold"
-                          : "text-slate-400 font-normal"
-                      }`}
-                    >
-                      {dia.ocupados}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ── Insumos y Sabores Más Pedidos de la Semana ── */}
-          <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-xs p-[16px]">
-            <div className="flex items-center justify-between mb-3">
-              <span className="font-bold text-[#0f172a] text-[14px]">
-                Sabores e Insumos Más Pedidos
-              </span>
-            </div>
-
-            {(!dataSemanal?.saboresTop || dataSemanal.saboresTop.length === 0) ? (
-              <div className="py-6 text-center text-xs text-slate-400">
-                Aún no hay comandas registradas en esta semana.
+                  );
+                })}
               </div>
-            ) : (
-              dataSemanal.saboresTop.map((item, idx) => (
-                <div key={item.id} className="mb-3 last:mb-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium text-slate-800 text-[12px]">
-                      {idx + 1}. {item.nombre}{" "}
-                      <span className="text-slate-400 text-[10px]">({item.tipo})</span> •{" "}
-                      <strong className="text-slate-700 font-semibold">{item.cantidad} tortas</strong>
-                    </span>
-                    <span className="font-bold text-pink-600 text-[12px]">{item.porcentaje}%</span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-slate-800 rounded-full transition-all duration-300"
-                      style={{ width: `${item.porcentaje}%` }}
-                    />
-                  </div>
-                </div>
-              ))
-            )}
+            </div>
+
+            <div className="lg:col-span-5">
+              <RankingsPanel
+                modelosTop={dataSemanal?.modelosTop || []}
+                saboresTop={dataSemanal?.saboresTop || []}
+                emptyLabel="Aún no hay comandas registradas en esta semana."
+              />
+            </div>
           </div>
         </>
       ) : viewMode === "mensual" ? (
-        /* ══════════════════════════════════════════════════════════
-           VISTA MENSUAL
-           ══════════════════════════════════════════════════════════ */
         <>
-          {/* ── 2 Tarjetas de Rendimiento Mensual ── */}
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-2xs">
-              <div className="text-[11px] font-semibold text-slate-500 tracking-wide mb-1">
-                Facturación
-              </div>
-              <div className="font-bold text-slate-900 text-xl">
-                {formatCurrency(dataMensual?.ingresosTotales || 0)}
-              </div>
-            </div>
+          <KpiResumenGrid
+            finanzas={dataMensual}
+            totalPedidos={dataMensual?.totalPedidos || 0}
+            kilosTotales={dataMensual?.kilosTotales || 0}
+          />
 
-            <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-2xs">
-              <div className="text-[11px] font-semibold text-slate-500 tracking-wide mb-1">
-                Señas Cobradas
-              </div>
-              <div className="font-bold text-emerald-600 text-xl">
-                {formatCurrency(dataMensual?.senasCobradas || 0)}
-              </div>
-            </div>
-          </div>
-
-          {/* ── Ocupación del Obrador por Semanas del Mes ── */}
-          <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-xs p-[16px]">
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <div className="font-bold text-[#0f172a] text-[14px]">Ocupación del Mes</div>
-                <div className="font-normal text-[#64748b] text-[11px]">
-                  Capacidad de horneado semana a semana
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+            <div className="lg:col-span-7 flex flex-col gap-4">
+              {/* Estado de Comandas del Mes */}
+              <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-xs p-4">
+                <div className="font-bold text-[#0f172a] text-[14px] mb-3">
+                  Estado de Comandas del Mes
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                  <div className="bg-amber-50 rounded-xl p-2.5 border border-amber-100">
+                    <span className="text-[10px] text-amber-800 font-semibold block">Pendientes</span>
+                    <span className="font-bold text-amber-900 text-lg">
+                      {dataMensual?.estadosCount.pendiente || 0}
+                    </span>
+                  </div>
+                  <div className="bg-blue-50 rounded-xl p-2.5 border border-blue-100">
+                    <span className="text-[10px] text-blue-800 font-semibold block">Para Elaborar</span>
+                    <span className="font-bold text-blue-900 text-lg">
+                      {(dataMensual?.estadosCount.senado || 0) + (dataMensual?.estadosCount.enProduccion || 0)}
+                    </span>
+                  </div>
+                  <div className="bg-emerald-50 rounded-xl p-2.5 border border-emerald-100">
+                    <span className="text-[10px] text-emerald-800 font-semibold block">Listos</span>
+                    <span className="font-bold text-emerald-900 text-lg">
+                      {dataMensual?.estadosCount.listo || 0}
+                    </span>
+                  </div>
+                  <div className="bg-rose-50 rounded-xl p-2.5 border border-rose-100">
+                    <span className="text-[10px] text-rose-800 font-semibold block">Expirados</span>
+                    <span className="font-bold text-rose-900 text-lg">
+                      {dataMensual?.estadosCount.expirado || 0}
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 bg-[#f0fdf4] px-2.5 py-1 rounded-full border border-[#bbf7d0]">
-                <div className="bg-[#10B981] rounded-full size-2" />
-                <span className="font-bold text-[#10B981] text-[11px]">
-                  {dataMensual?.porcentajeOcupacion || 0}% mensual
-                </span>
-              </div>
-            </div>
 
-            <div className="font-black text-[#0f172a] text-[24px] leading-tight mb-4">
-              {dataMensual?.totalCuposOcupados || 0} / {dataMensual?.totalCapacidadMes || 0}{" "}
-              <span className="font-normal text-slate-500 text-sm">cupos reservados</span>
-            </div>
-
-            <div className="flex items-end gap-2.5 h-[90px] pt-2">
-              {(dataMensual?.semanasMes || []).map((sem, i) => {
-                const isEmpty = sem.ocupados === 0;
-                const heightPct = isEmpty ? 8 : Math.max(15, (sem.ocupados / Math.max(sem.max, 1)) * 100);
-                return (
-                  <div key={i} className="flex flex-col items-center gap-1.5 flex-1">
-                    <div className="w-full flex items-end justify-center" style={{ height: "64px" }}>
-                      <div
-                        className="w-full max-w-[36px] rounded-lg transition-all duration-300"
-                        style={{
-                          height: `${heightPct}%`,
-                          backgroundColor: isEmpty
-                            ? "#e2e8f0"
-                            : sem.pct >= 80
-                            ? "#10B981"
-                            : "#334155",
-                          minHeight: "8px",
-                        }}
-                        title={`${sem.etiqueta} (${sem.rango}): ${sem.ocupados} de ${sem.max} cupos (${sem.pct}%)`}
-                      />
+              {/* Ocupación Mensual por Semanas */}
+              <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-xs p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <div className="font-bold text-[#0f172a] text-[14px]">Ocupación Mensual</div>
+                    <div className="font-normal text-[#64748b] text-[11px]">
+                      Desglose por bloques semanales
                     </div>
-                    <span className="font-semibold text-slate-600 text-[10px] whitespace-nowrap">{sem.etiqueta}</span>
-                    <span className="text-[9px] text-slate-400 font-medium">
-                      {sem.ocupados}/{sem.max}
-                    </span>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ── Insumos Más Elegidos del Mes ── */}
-          <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-xs p-[16px]">
-            <div className="flex items-center justify-between mb-3">
-              <span className="font-bold text-[#0f172a] text-[14px]">
-                Insumos Más Elegidos en {MESES_NOMBRES[currentMonth]}
-              </span>
-            </div>
-
-            {(!dataMensual?.saboresTop || dataMensual.saboresTop.length === 0) ? (
-              <div className="py-8 text-center text-xs text-slate-400">
-                Aún no hay comandas registradas en {MESES_NOMBRES[currentMonth]} {currentYear}.
-              </div>
-            ) : (
-              dataMensual.saboresTop.map((item, idx) => (
-                <div key={item.id} className="mb-3 last:mb-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium text-slate-800 text-[12px]">
-                      {idx + 1}. {item.nombre}{" "}
-                      <span className="text-slate-400 text-[10px]">({item.tipo})</span> •{" "}
-                      <strong className="text-slate-700 font-semibold">{item.cantidad} tortas</strong>
+                  <div className="flex items-center gap-1.5 bg-[#f0fdf4] px-2.5 py-1 rounded-full border border-[#bbf7d0]">
+                    <div className="bg-[#10B981] rounded-full size-2" />
+                    <span className="font-bold text-[#10B981] text-[11px]">
+                      {dataMensual?.porcentajeOcupacion || 0}% prom.
                     </span>
-                    <span className="font-bold text-pink-600 text-[12px]">{item.porcentaje}%</span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-slate-800 rounded-full transition-all duration-300"
-                      style={{ width: `${item.porcentaje}%` }}
-                    />
                   </div>
                 </div>
-              ))
-            )}
+
+                <div className="font-black text-[#0f172a] text-[22px] leading-tight mb-4">
+                  {dataMensual?.totalCuposOcupados || 0} / {dataMensual?.totalCapacidadMes || 90}{" "}
+                  <span className="font-normal text-slate-500 text-xs">cupos ocupados</span>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  {(dataMensual?.semanasMes || []).map((sem) => (
+                    <div key={sem.etiqueta}>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="font-semibold text-slate-700">
+                          {sem.etiqueta}{" "}
+                          <span className="text-[10px] text-slate-400 font-normal">({sem.rango})</span>
+                        </span>
+                        <span className="font-bold text-slate-800">
+                          {sem.ocupados}/{sem.max} ({sem.pct}%)
+                        </span>
+                      </div>
+                      <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-[#1e293b] rounded-full transition-all duration-300"
+                          style={{ width: `${sem.pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-5">
+              <RankingsPanel
+                modelosTop={dataMensual?.modelosTop || []}
+                saboresTop={dataMensual?.saboresTop || []}
+                emptyLabel="Aún no hay comandas registradas en este mes."
+              />
+            </div>
           </div>
         </>
       ) : (
-        /* ══════════════════════════════════════════════════════════
-           VISTA ANUAL
-           ══════════════════════════════════════════════════════════ */
         <>
-          {/* ── 2 Tarjetas de Rendimiento Anual ── */}
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-2xs">
-              <div className="text-[11px] font-semibold text-slate-500 tracking-wide mb-1">
-                Facturación Anual
-              </div>
-              <div className="font-bold text-slate-900 text-xl">
-                {formatCurrency(dataAnual?.ingresosTotales || 0)}
-              </div>
-            </div>
+          <KpiResumenGrid
+            finanzas={dataAnual}
+            totalPedidos={dataAnual?.totalPedidos || 0}
+            kilosTotales={dataAnual?.kilosTotales || 0}
+          />
 
-            <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-2xs">
-              <div className="text-[11px] font-semibold text-slate-500 tracking-wide mb-1">
-                Señas Cobradas
-              </div>
-              <div className="font-bold text-emerald-600 text-xl">
-                {formatCurrency(dataAnual?.senasCobradas || 0)}
-              </div>
-            </div>
-          </div>
-
-          {/* ── Gráfico de 12 Meses (Ene a Dic) ── */}
-          <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-xs p-[16px]">
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <div className="font-bold text-[#0f172a] text-[14px]">Producción Anual</div>
-                <div className="font-normal text-[#64748b] text-[11px]">
-                  Tortas horneadas mes a mes ({currentYear})
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+            <div className="lg:col-span-7 bg-white rounded-[14px] border border-[#e2e8f0] shadow-xs p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="font-bold text-[#0f172a] text-[15px]">
+                    Rendimiento Anual {currentYear}
+                  </div>
+                  <div className="text-[11px] text-slate-500">
+                    Tortas producidas por mes
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 bg-[#f0fdf4] px-2.5 py-1 rounded-full border border-[#bbf7d0]">
-                <div className="bg-[#10B981] rounded-full size-2" />
-                <span className="font-bold text-[#10B981] text-[11px]">
-                  {dataAnual?.totalPedidos || 0} tortas en el año
-                </span>
-              </div>
-            </div>
 
-            <div className="flex items-end gap-1.5 h-[90px] pt-3">
-              {(dataAnual?.meses || []).map((m) => {
-                const isEmpty = m.tortas === 0;
-                const heightPct = isEmpty ? 8 : Math.max(16, m.pct);
-
-                return (
-                  <div key={m.mes} className="flex flex-col items-center gap-1 flex-1">
-                    <div className="w-full flex items-end justify-center" style={{ height: "60px" }}>
+              <div className="flex items-end gap-2 h-[140px] pt-2">
+                {(dataAnual?.meses || []).map((m) => (
+                  <div key={m.mes} className="flex flex-col items-center gap-1 flex-1 min-w-0">
+                    <div className="w-full flex items-end justify-center" style={{ height: "96px" }}>
                       <div
                         className="w-full rounded-md transition-all duration-300"
                         style={{
-                          height: `${heightPct}%`,
-                          backgroundColor: isEmpty
-                            ? "#e2e8f0"
-                            : "#334155",
+                          height: `${m.tortas === 0 ? 8 : Math.max(14, m.pct)}%`,
+                          backgroundColor: m.tortas === 0 ? "#e2e8f0" : "#db2777",
                           minHeight: "6px",
                         }}
-                        title={`${m.nombreCorto}: ${m.tortas} tortas (${formatCurrency(m.ingresos)})`}
+                        title={`${m.nombreCorto}: ${m.tortas} pedidos (${formatCurrency(m.ingresos)})`}
                       />
                     </div>
-                    <span className="font-semibold text-slate-600 text-[9px]">{m.nombreCorto}</span>
-                    <span
-                      className={`text-[8px] ${
-                        m.tortas > 0 ? "text-slate-800 font-bold" : "text-slate-400 font-normal"
-                      }`}
-                    >
-                      {m.tortas}
+                    <span className="font-semibold text-slate-600 text-[10px] truncate w-full text-center">
+                      {m.nombreCorto}
                     </span>
+                    <span className="text-[10px] font-bold text-slate-700">{m.tortas}</span>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ── Insumos Más Elegidos del Año ── */}
-          <div className="bg-white rounded-[14px] border border-[#e2e8f0] shadow-xs p-[16px]">
-            <div className="flex items-center justify-between mb-3">
-              <span className="font-bold text-[#0f172a] text-[14px]">
-                Insumos Más Elegidos en {currentYear}
-              </span>
-            </div>
-
-            {(!dataAnual?.saboresTop || dataAnual.saboresTop.length === 0) ? (
-              <div className="py-8 text-center text-xs text-slate-400">
-                Aún no hay comandas registradas en {currentYear}.
+                ))}
               </div>
-            ) : (
-              dataAnual.saboresTop.map((item, idx) => (
-                <div key={item.id} className="mb-3 last:mb-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium text-slate-800 text-[12px]">
-                      {idx + 1}. {item.nombre}{" "}
-                      <span className="text-slate-400 text-[10px]">({item.tipo})</span> •{" "}
-                      <strong className="text-slate-700 font-semibold">{item.cantidad} tortas</strong>
-                    </span>
-                    <span className="font-bold text-pink-600 text-[12px]">{item.porcentaje}%</span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-slate-800 rounded-full transition-all duration-300"
-                      style={{ width: `${item.porcentaje}%` }}
-                    />
-                  </div>
-                </div>
-              ))
-            )}
+            </div>
+
+            <div className="lg:col-span-5">
+              <RankingsPanel
+                modelosTop={dataAnual?.modelosTop || []}
+                saboresTop={dataAnual?.saboresTop || []}
+                emptyLabel="Aún no hay comandas registradas en este año."
+              />
+            </div>
           </div>
         </>
       )}

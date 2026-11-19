@@ -1,9 +1,16 @@
 import { createClient } from "@/lib/supabase/client";
+import { getCapacidadEstandar } from "@/lib/services/cupos";
 
 export interface TopInsumo {
   id: string;
   nombre: string;
   tipo: string;
+  cantidad: number;
+  porcentaje: number;
+}
+
+export interface TopModelo {
+  nombre: string;
   cantidad: number;
   porcentaje: number;
 }
@@ -17,19 +24,24 @@ export interface DiaSemanaOcupacion {
   pct: number;
 }
 
-export interface MetricasSemanales {
+export interface MetricasFinancieras {
+  ingresosTotales: number;
+  ingresosConfirmados: number;
+  ingresosPorValidar: number;
+  pedidosConfirmados: number;
+}
+
+export interface MetricasSemanales extends MetricasFinancieras {
   lunesFecha: string;
   domingoFecha: string;
   rangoTexto: string;
-  ingresosTotales: number;
-  senasCobradas: number;
-  saldoPendiente: number;
   kilosTotales: number;
   totalPedidos: number;
   totalCuposOcupados: number;
   totalCapacidadSemana: number;
   porcentajeOcupacion: number;
   diasSemana: DiaSemanaOcupacion[];
+  modelosTop: TopModelo[];
   saboresTop: TopInsumo[];
 }
 
@@ -41,13 +53,10 @@ export interface SemanaMes {
   pct: number;
 }
 
-export interface MetricasMensuales {
+export interface MetricasMensuales extends MetricasFinancieras {
   mes: number; // 0-11
   año: number;
   nombreMes: string;
-  ingresosTotales: number;
-  senasCobradas: number;
-  saldoPendiente: number;
   kilosTotales: number;
   totalPedidos: number;
   estadosCount: {
@@ -61,6 +70,7 @@ export interface MetricasMensuales {
   totalCapacidadMes: number;
   porcentajeOcupacion: number;
   semanasMes: SemanaMes[];
+  modelosTop: TopModelo[];
   saboresTop: TopInsumo[];
 }
 
@@ -72,37 +82,143 @@ export interface MesAnual {
   pct: number;
 }
 
-export interface MetricasAnuales {
+export interface MetricasAnuales extends MetricasFinancieras {
   año: number;
-  ingresosTotales: number;
-  senasCobradas: number;
+  kilosTotales: number;
   totalPedidos: number;
   meses: MesAnual[];
+  modelosTop: TopModelo[];
   saboresTop: TopInsumo[];
+}
+
+interface PedidoMetricaRow {
+  id: string;
+  fecha_entrega: string;
+  peso_kg: number;
+  total_estimado: number;
+  estado: string;
+  notas?: string | null;
+  detalles_pedido?: {
+    id: string;
+    insumo: {
+      id: string;
+      nombre: string;
+      tipo: string;
+    } | null;
+  }[];
 }
 
 const MESES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
 const MESES_CORTOS = [
   "Ene", "Feb", "Mar", "Abr", "May", "Jun",
-  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
+  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
 ];
 
 const DIAS_LETRAS = ["L", "M", "M", "J", "V", "S", "D"];
+
+const ESTADOS_CONFIRMADOS = new Set(["Señado", "En producción", "Listo"]);
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
 }
 
 function formatDate(d: Date): string {
-  const year = d.getFullYear();
-  const month = pad(d.getMonth() + 1);
-  const day = pad(d.getDate());
-  return `${year}-${month}-${day}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
+
+function calcularFinanzas(pedidosValidos: PedidoMetricaRow[]): MetricasFinancieras {
+  const ingresosTotales = pedidosValidos.reduce(
+    (acc, p) => acc + Number(p.total_estimado || 0),
+    0
+  );
+  const confirmados = pedidosValidos.filter((p) => ESTADOS_CONFIRMADOS.has(p.estado));
+  const ingresosConfirmados = confirmados.reduce(
+    (acc, p) => acc + Number(p.total_estimado || 0),
+    0
+  );
+  const ingresosPorValidar = Math.max(0, ingresosTotales - ingresosConfirmados);
+  const pedidosConfirmados = confirmados.length;
+
+  return {
+    ingresosTotales,
+    ingresosConfirmados,
+    ingresosPorValidar,
+    pedidosConfirmados,
+  };
+}
+
+function calcularTopInsumos(pedidosValidos: PedidoMetricaRow[]): TopInsumo[] {
+  const counts: Record<string, { id: string; nombre: string; tipo: string; cantidad: number }> = {};
+
+  pedidosValidos.forEach((p) => {
+    (p.detalles_pedido || []).forEach((dp) => {
+      const insumo = dp.insumo;
+      if (insumo && insumo.id) {
+        if (!counts[insumo.id]) {
+          counts[insumo.id] = {
+            id: insumo.id,
+            nombre: insumo.nombre,
+            tipo: insumo.tipo,
+            cantidad: 0,
+          };
+        }
+        counts[insumo.id].cantidad += 1;
+      }
+    });
+  });
+
+  const sorted = Object.values(counts).sort((a, b) => b.cantidad - a.cantidad);
+  const total = sorted.reduce((acc, s) => acc + s.cantidad, 0);
+
+  return sorted.slice(0, 5).map((s) => ({
+    ...s,
+    porcentaje: total > 0 ? Math.round((s.cantidad / total) * 100) : 0,
+  }));
+}
+
+function calcularTopModelos(pedidosValidos: PedidoMetricaRow[]): TopModelo[] {
+  const counts: Record<string, number> = {};
+
+  pedidosValidos.forEach((p) => {
+    const raw = p.notas || "";
+    const match = raw.match(/\[Modelo:\s*([^\]\-]+?)(?:\s*-\s*[^\]]+)?\]/);
+    const nombre = match ? match[1].trim() : "Torta Personalizada";
+    counts[nombre] = (counts[nombre] || 0) + 1;
+  });
+
+  const sorted = Object.entries(counts)
+    .map(([nombre, cantidad]) => ({ nombre, cantidad }))
+    .sort((a, b) => b.cantidad - a.cantidad);
+
+  const total = sorted.reduce((acc, m) => acc + m.cantidad, 0);
+
+  return sorted.slice(0, 5).map((m) => ({
+    nombre: m.nombre,
+    cantidad: m.cantidad,
+    porcentaje: total > 0 ? Math.round((m.cantidad / total) * 100) : 0,
+  }));
+}
+
+const PEDIDOS_METRICAS_SELECT = `
+  id,
+  fecha_entrega,
+  peso_kg,
+  total_estimado,
+  estado,
+  notas,
+  detalles_pedido (
+    id,
+    insumo:insumos (
+      id,
+      nombre,
+      tipo
+    )
+  )
+`;
 
 export async function getMetricasSemanales(monday: Date): Promise<MetricasSemanales> {
   const supabase = createClient();
@@ -112,96 +228,37 @@ export async function getMetricasSemanales(monday: Date): Promise<MetricasSemana
 
   const mondayStr = formatDate(monday);
   const sundayStr = formatDate(sunday);
-
   const rangoTexto = `${monday.getDate()} ${MESES[monday.getMonth()].slice(0, 3)} - ${sunday.getDate()} ${MESES[sunday.getMonth()].slice(0, 3)} ${sunday.getFullYear()}`;
 
-  // 1. Consultar pedidos de la semana
-  const { data: pedidosData, error: errorPedidos } = await supabase
-    .from("pedidos")
-    .select(`
-      id,
-      fecha_entrega,
-      peso_kg,
-      total_estimado,
-      sena_requerida,
-      estado,
-      created_at,
-      detalles_pedido (
-        id,
-        insumo:insumos (
-          id,
-          nombre,
-          tipo
-        )
-      )
-    `)
-    .gte("fecha_entrega", mondayStr)
-    .lte("fecha_entrega", sundayStr);
+  const [{ data: pedidosData, error: errorPedidos }, { data: cuposData }, capEstandar] =
+    await Promise.all([
+      supabase
+        .from("pedidos")
+        .select(PEDIDOS_METRICAS_SELECT)
+        .gte("fecha_entrega", mondayStr)
+        .lte("fecha_entrega", sundayStr),
+      supabase
+        .from("cupos_diarios")
+        .select("fecha, capacidad_maxima, cupos_ocupados")
+        .gte("fecha", mondayStr)
+        .lte("fecha", sundayStr),
+      getCapacidadEstandar(),
+    ]);
 
   if (errorPedidos) {
     console.error("Error al obtener pedidos semanales:", errorPedidos);
   }
 
-  const pedidos = pedidosData || [];
-  const pedidosValidos = pedidos.filter((p: any) => p.estado !== "Expirado");
-
-  const ingresosTotales = pedidosValidos.reduce(
-    (acc: number, p: any) => acc + Number(p.total_estimado || 0),
-    0
-  );
-
-  const senasCobradas = pedidosValidos
-    .filter((p: any) => ["Señado", "En producción", "Listo"].includes(p.estado))
-    .reduce((acc: number, p: any) => acc + Number(p.sena_requerida || 0), 0);
-
-  const saldoPendiente = Math.max(0, ingresosTotales - senasCobradas);
-
-  const kilosTotales = pedidosValidos.reduce(
-    (acc: number, p: any) => acc + Number(p.peso_kg || 0),
-    0
-  );
-
-  const totalPedidos = pedidosValidos.length;
-
-  // Conteo de insumos
-  const insumoCounts: Record<string, { id: string; nombre: string; tipo: string; cantidad: number }> = {};
-  pedidosValidos.forEach((p: any) => {
-    (p.detalles_pedido || []).forEach((dp: any) => {
-      const insumo = dp.insumo;
-      if (insumo && insumo.id) {
-        if (!insumoCounts[insumo.id]) {
-          insumoCounts[insumo.id] = {
-            id: insumo.id,
-            nombre: insumo.nombre,
-            tipo: insumo.tipo,
-            cantidad: 0,
-          };
-        }
-        insumoCounts[insumo.id].cantidad += 1;
-      }
-    });
-  });
-
-  const insumosArray = Object.values(insumoCounts).sort((a, b) => b.cantidad - a.cantidad);
-  const totalInsumosUsados = insumosArray.reduce((acc, s) => acc + s.cantidad, 0);
-
-  const saboresTop: TopInsumo[] = insumosArray.slice(0, 5).map((s) => ({
-    ...s,
-    porcentaje: totalInsumosUsados > 0 ? Math.round((s.cantidad / totalInsumosUsados) * 100) : 0,
-  }));
-
-  // 2. Consultar cupos de los 7 días
-  const { data: cuposData } = await supabase
-    .from("cupos_diarios")
-    .select("fecha, capacidad_maxima, cupos_ocupados")
-    .gte("fecha", mondayStr)
-    .lte("fecha", sundayStr);
+  const pedidos = (pedidosData || []) as unknown as PedidoMetricaRow[];
+  const pedidosValidos = pedidos.filter((p) => p.estado !== "Expirado");
+  const finanzas = calcularFinanzas(pedidosValidos);
+  const kilosTotales = pedidosValidos.reduce((acc, p) => acc + Number(p.peso_kg || 0), 0);
 
   const cuposMap = new Map<string, { ocupados: number; max: number }>();
-  (cuposData || []).forEach((c: any) => {
+  (cuposData || []).forEach((c: { fecha: string; cupos_ocupados: number; capacidad_maxima: number }) => {
     cuposMap.set(c.fecha, {
       ocupados: c.cupos_ocupados || 0,
-      max: c.capacidad_maxima || 3,
+      max: c.capacidad_maxima || capEstandar,
     });
   });
 
@@ -213,12 +270,10 @@ export async function getMetricasSemanales(monday: Date): Promise<MetricasSemana
     const curDate = new Date(monday);
     curDate.setDate(monday.getDate() + i);
     const dateStr = formatDate(curDate);
-    const cupo = cuposMap.get(dateStr) || { ocupados: 0, max: 3 };
+    const cupo = cuposMap.get(dateStr) || { ocupados: 0, max: capEstandar };
 
     totalCuposOcupados += cupo.ocupados;
     totalCapacidadSemana += cupo.max;
-
-    const pct = cupo.max > 0 ? Math.min(100, Math.round((cupo.ocupados / cupo.max) * 100)) : 0;
 
     diasSemana.push({
       dia: DIAS_LETRAS[i],
@@ -226,137 +281,73 @@ export async function getMetricasSemanales(monday: Date): Promise<MetricasSemana
       numeroDia: curDate.getDate(),
       ocupados: cupo.ocupados,
       max: cupo.max,
-      pct,
+      pct: cupo.max > 0 ? Math.min(100, Math.round((cupo.ocupados / cupo.max) * 100)) : 0,
     });
   }
-
-  const porcentajeOcupacion =
-    totalCapacidadSemana > 0 ? Math.round((totalCuposOcupados / totalCapacidadSemana) * 100) : 0;
 
   return {
     lunesFecha: mondayStr,
     domingoFecha: sundayStr,
     rangoTexto,
-    ingresosTotales,
-    senasCobradas,
-    saldoPendiente,
+    ...finanzas,
     kilosTotales,
-    totalPedidos,
+    totalPedidos: pedidosValidos.length,
     totalCuposOcupados,
     totalCapacidadSemana,
-    porcentajeOcupacion,
+    porcentajeOcupacion:
+      totalCapacidadSemana > 0 ? Math.round((totalCuposOcupados / totalCapacidadSemana) * 100) : 0,
     diasSemana,
-    saboresTop,
+    modelosTop: calcularTopModelos(pedidosValidos),
+    saboresTop: calcularTopInsumos(pedidosValidos),
   };
 }
 
 export async function getMetricasMensuales(year: number, month: number): Promise<MetricasMensuales> {
   const supabase = createClient();
 
-  const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const totalDiasMes = lastDay.getDate();
 
   const startDateStr = `${year}-${pad(month + 1)}-01`;
   const endDateStr = `${year}-${pad(month + 1)}-${pad(totalDiasMes)}`;
 
-  // 1. Consultar pedidos del mes
-  const { data: pedidosData, error: errorPedidos } = await supabase
-    .from("pedidos")
-    .select(`
-      id,
-      fecha_entrega,
-      peso_kg,
-      total_estimado,
-      sena_requerida,
-      estado,
-      created_at,
-      detalles_pedido (
-        id,
-        insumo:insumos (
-          id,
-          nombre,
-          tipo
-        )
-      )
-    `)
-    .gte("fecha_entrega", startDateStr)
-    .lte("fecha_entrega", endDateStr);
+  const [{ data: pedidosData, error: errorPedidos }, { data: cuposData }, capEstandar] =
+    await Promise.all([
+      supabase
+        .from("pedidos")
+        .select(PEDIDOS_METRICAS_SELECT)
+        .gte("fecha_entrega", startDateStr)
+        .lte("fecha_entrega", endDateStr),
+      supabase
+        .from("cupos_diarios")
+        .select("fecha, capacidad_maxima, cupos_ocupados")
+        .gte("fecha", startDateStr)
+        .lte("fecha", endDateStr),
+      getCapacidadEstandar(),
+    ]);
 
   if (errorPedidos) {
     console.error("Error al obtener pedidos para métricas:", errorPedidos);
   }
 
-  const pedidos = pedidosData || [];
-  const pedidosValidos = pedidos.filter((p: any) => p.estado !== "Expirado");
+  const pedidos = (pedidosData || []) as unknown as PedidoMetricaRow[];
+  const pedidosValidos = pedidos.filter((p) => p.estado !== "Expirado");
+  const finanzas = calcularFinanzas(pedidosValidos);
+  const kilosTotales = pedidosValidos.reduce((acc, p) => acc + Number(p.peso_kg || 0), 0);
 
-  // Totales financieros y de volumen
-  const ingresosTotales = pedidosValidos.reduce(
-    (acc: number, p: any) => acc + Number(p.total_estimado || 0),
-    0
-  );
-
-  const senasCobradas = pedidosValidos
-    .filter((p: any) => ["Señado", "En producción", "Listo"].includes(p.estado))
-    .reduce((acc: number, p: any) => acc + Number(p.sena_requerida || 0), 0);
-
-  const saldoPendiente = Math.max(0, ingresosTotales - senasCobradas);
-
-  const kilosTotales = pedidosValidos.reduce(
-    (acc: number, p: any) => acc + Number(p.peso_kg || 0),
-    0
-  );
-
-  const totalPedidos = pedidosValidos.length;
-
-  // Conteo de estados
   const estadosCount = {
-    pendiente: pedidos.filter((p: any) => p.estado === "Pendiente").length,
-    senado: pedidos.filter((p: any) => p.estado === "Señado").length,
-    enProduccion: pedidos.filter((p: any) => p.estado === "En producción").length,
-    listo: pedidos.filter((p: any) => p.estado === "Listo").length,
-    expirado: pedidos.filter((p: any) => p.estado === "Expirado").length,
+    pendiente: pedidos.filter((p) => p.estado === "Pendiente").length,
+    senado: pedidos.filter((p) => p.estado === "Señado").length,
+    enProduccion: pedidos.filter((p) => p.estado === "En producción").length,
+    listo: pedidos.filter((p) => p.estado === "Listo").length,
+    expirado: pedidos.filter((p) => p.estado === "Expirado").length,
   };
 
-  // 2. Conteo de insumos y sabores más pedidos
-  const insumoCounts: Record<string, { id: string; nombre: string; tipo: string; cantidad: number }> = {};
-  pedidosValidos.forEach((p: any) => {
-    (p.detalles_pedido || []).forEach((dp: any) => {
-      const insumo = dp.insumo;
-      if (insumo && insumo.id) {
-        if (!insumoCounts[insumo.id]) {
-          insumoCounts[insumo.id] = {
-            id: insumo.id,
-            nombre: insumo.nombre,
-            tipo: insumo.tipo,
-            cantidad: 0,
-          };
-        }
-        insumoCounts[insumo.id].cantidad += 1;
-      }
-    });
-  });
-
-  const insumosArray = Object.values(insumoCounts).sort((a, b) => b.cantidad - a.cantidad);
-  const totalInsumosUsados = insumosArray.reduce((acc, s) => acc + s.cantidad, 0);
-
-  const saboresTop: TopInsumo[] = insumosArray.slice(0, 5).map((s) => ({
-    ...s,
-    porcentaje: totalInsumosUsados > 0 ? Math.round((s.cantidad / totalInsumosUsados) * 100) : 0,
-  }));
-
-  // 3. Consultar cupos diarios de todo el mes
-  const { data: cuposData } = await supabase
-    .from("cupos_diarios")
-    .select("fecha, capacidad_maxima, cupos_ocupados")
-    .gte("fecha", startDateStr)
-    .lte("fecha", endDateStr);
-
   const cuposMap = new Map<string, { ocupados: number; max: number }>();
-  (cuposData || []).forEach((c: any) => {
+  (cuposData || []).forEach((c: { fecha: string; cupos_ocupados: number; capacidad_maxima: number }) => {
     cuposMap.set(c.fecha, {
       ocupados: c.cupos_ocupados || 0,
-      max: c.capacidad_maxima || 3,
+      max: c.capacidad_maxima || capEstandar,
     });
   });
 
@@ -377,7 +368,7 @@ export async function getMetricasMensuales(year: number, month: number): Promise
 
     for (let d = bloque.inicio; d <= Math.min(bloque.fin, totalDiasMes); d++) {
       const dateStr = `${year}-${pad(month + 1)}-${pad(d)}`;
-      const cupo = cuposMap.get(dateStr) || { ocupados: 0, max: 3 };
+      const cupo = cuposMap.get(dateStr) || { ocupados: 0, max: capEstandar };
       ocupadosSemana += cupo.ocupados;
       maxSemana += cupo.max;
     }
@@ -385,35 +376,30 @@ export async function getMetricasMensuales(year: number, month: number): Promise
     totalCuposOcupados += ocupadosSemana;
     totalCapacidadMes += maxSemana;
 
-    const pct = maxSemana > 0 ? Math.min(100, Math.round((ocupadosSemana / maxSemana) * 100)) : 0;
-
     return {
       etiqueta: `Semana ${bloque.num}`,
       rango: `${bloque.inicio} - ${Math.min(bloque.fin, totalDiasMes)} ${MESES[month].slice(0, 3)}`,
       ocupados: ocupadosSemana,
       max: maxSemana,
-      pct,
+      pct: maxSemana > 0 ? Math.min(100, Math.round((ocupadosSemana / maxSemana) * 100)) : 0,
     };
   });
-
-  const porcentajeOcupacion =
-    totalCapacidadMes > 0 ? Math.round((totalCuposOcupados / totalCapacidadMes) * 100) : 0;
 
   return {
     mes: month,
     año: year,
     nombreMes: `${MESES[month]} ${year}`,
-    ingresosTotales,
-    senasCobradas,
-    saldoPendiente,
+    ...finanzas,
     kilosTotales,
-    totalPedidos,
+    totalPedidos: pedidosValidos.length,
     estadosCount,
     totalCuposOcupados,
     totalCapacidadMes,
-    porcentajeOcupacion,
+    porcentajeOcupacion:
+      totalCapacidadMes > 0 ? Math.round((totalCuposOcupados / totalCapacidadMes) * 100) : 0,
     semanasMes,
-    saboresTop,
+    modelosTop: calcularTopModelos(pedidosValidos),
+    saboresTop: calcularTopInsumos(pedidosValidos),
   };
 }
 
@@ -423,26 +409,9 @@ export async function getMetricasAnuales(year: number): Promise<MetricasAnuales>
   const startDateStr = `${year}-01-01`;
   const endDateStr = `${year}-12-31`;
 
-  // 1. Consultar pedidos del año
   const { data: pedidosData, error: errorPedidos } = await supabase
     .from("pedidos")
-    .select(`
-      id,
-      fecha_entrega,
-      peso_kg,
-      total_estimado,
-      sena_requerida,
-      estado,
-      created_at,
-      detalles_pedido (
-        id,
-        insumo:insumos (
-          id,
-          nombre,
-          tipo
-        )
-      )
-    `)
+    .select(PEDIDOS_METRICAS_SELECT)
     .gte("fecha_entrega", startDateStr)
     .lte("fecha_entrega", endDateStr);
 
@@ -450,27 +419,14 @@ export async function getMetricasAnuales(year: number): Promise<MetricasAnuales>
     console.error("Error al obtener pedidos anuales:", errorPedidos);
   }
 
-  const pedidos = pedidosData || [];
-  const pedidosValidos = pedidos.filter((p: any) => p.estado !== "Expirado");
+  const pedidos = (pedidosData || []) as unknown as PedidoMetricaRow[];
+  const pedidosValidos = pedidos.filter((p) => p.estado !== "Expirado");
+  const finanzas = calcularFinanzas(pedidosValidos);
+  const kilosTotales = pedidosValidos.reduce((acc, p) => acc + Number(p.peso_kg || 0), 0);
 
-  const ingresosTotales = pedidosValidos.reduce(
-    (acc: number, p: any) => acc + Number(p.total_estimado || 0),
-    0
-  );
+  const mesesStats = Array.from({ length: 12 }, () => ({ ingresos: 0, tortas: 0 }));
 
-  const senasCobradas = pedidosValidos
-    .filter((p: any) => ["Señado", "En producción", "Listo"].includes(p.estado))
-    .reduce((acc: number, p: any) => acc + Number(p.sena_requerida || 0), 0);
-
-  const totalPedidos = pedidosValidos.length;
-
-  // 2. Agrupación por mes (0 a 11)
-  const mesesStats: { ingresos: number; tortas: number }[] = Array.from({ length: 12 }, () => ({
-    ingresos: 0,
-    tortas: 0,
-  }));
-
-  pedidosValidos.forEach((p: any) => {
+  pedidosValidos.forEach((p) => {
     if (p.fecha_entrega) {
       const monthIdx = parseInt(p.fecha_entrega.split("-")[1], 10) - 1;
       if (monthIdx >= 0 && monthIdx < 12) {
@@ -490,39 +446,13 @@ export async function getMetricasAnuales(year: number): Promise<MetricasAnuales>
     pct: Math.round((stat.tortas / maxTortasMes) * 100),
   }));
 
-  // 3. Sabores más pedidos del año
-  const insumoCounts: Record<string, { id: string; nombre: string; tipo: string; cantidad: number }> = {};
-  pedidosValidos.forEach((p: any) => {
-    (p.detalles_pedido || []).forEach((dp: any) => {
-      const insumo = dp.insumo;
-      if (insumo && insumo.id) {
-        if (!insumoCounts[insumo.id]) {
-          insumoCounts[insumo.id] = {
-            id: insumo.id,
-            nombre: insumo.nombre,
-            tipo: insumo.tipo,
-            cantidad: 0,
-          };
-        }
-        insumoCounts[insumo.id].cantidad += 1;
-      }
-    });
-  });
-
-  const insumosArray = Object.values(insumoCounts).sort((a, b) => b.cantidad - a.cantidad);
-  const totalInsumosUsados = insumosArray.reduce((acc, s) => acc + s.cantidad, 0);
-
-  const saboresTop: TopInsumo[] = insumosArray.slice(0, 5).map((s) => ({
-    ...s,
-    porcentaje: totalInsumosUsados > 0 ? Math.round((s.cantidad / totalInsumosUsados) * 100) : 0,
-  }));
-
   return {
     año: year,
-    ingresosTotales,
-    senasCobradas,
-    totalPedidos,
+    ...finanzas,
+    kilosTotales,
+    totalPedidos: pedidosValidos.length,
     meses,
-    saboresTop,
+    modelosTop: calcularTopModelos(pedidosValidos),
+    saboresTop: calcularTopInsumos(pedidosValidos),
   };
 }
