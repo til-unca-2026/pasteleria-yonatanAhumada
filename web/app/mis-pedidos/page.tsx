@@ -14,7 +14,6 @@ import {
   getPedidoById,
   getPedidosPorIds,
   getPedidosPorUsuario,
-  buscarPedidos,
   adjuntarComprobanteAPedido,
   PedidoConDetalles,
 } from "@/lib/services/pedidos";
@@ -59,88 +58,72 @@ function MisPedidosContent() {
     });
   }, []);
 
-  // 1. Cargar sesión de usuario y aislar sus últimos 20 pedidos
+  // 1. Exigir sesión iniciada y cargar únicamente los pedidos de esta cuenta
   useEffect(() => {
     async function loadUserAndOrders() {
       setLoading(true);
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        let userPhone = "";
-        let userName = "";
+        if (!user) {
+          const nextUrl = queryId ? `/mis-pedidos?id=${queryId}` : "/mis-pedidos";
+          router.replace(`/login?next=${encodeURIComponent(nextUrl)}`);
+          return;
+        }
+
+        const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "";
+        let userPhone = user.user_metadata?.phone_number || "";
         let userOrderIds: string[] = [];
 
-        if (user) {
-          userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "";
-          userPhone = user.user_metadata?.phone_number || "";
-          
-          if (typeof window !== "undefined") {
-            if (!userPhone) {
-              userPhone = localStorage.getItem(`user_phone_${user.id}`) || "";
-            }
-            const storedIds = localStorage.getItem(`user_orders_${user.id}`);
-            if (storedIds) {
-              try {
-                userOrderIds = JSON.parse(storedIds);
-              } catch (e) {
-                console.error("Error parsing user orders from storage:", e);
-              }
-            }
+        if (typeof window !== "undefined") {
+          if (!userPhone) {
+            userPhone = localStorage.getItem(`user_phone_${user.id}`) || "";
           }
-
-          setCurrentUser({
-            id: user.id,
-            email: user.email,
-            name: userName,
-            phone: userPhone,
-          });
-
-          const { data: adminRecord } = await supabase
-            .from("admins")
-            .select("id")
-            .eq("id", user.id)
-            .maybeSingle();
-          if (adminRecord) {
-            setIsAdminUser(true);
-          }
-        } else if (typeof window !== "undefined") {
-          const guestStoredIds = localStorage.getItem("guest_orders");
-          if (guestStoredIds) {
+          const storedIds = localStorage.getItem(`user_orders_${user.id}`);
+          if (storedIds) {
             try {
-              userOrderIds = JSON.parse(guestStoredIds);
+              userOrderIds = JSON.parse(storedIds);
             } catch (e) {
-              console.error("Error parsing guest orders from storage:", e);
+              console.error("Error parsing user orders from storage:", e);
             }
           }
+        }
+
+        setCurrentUser({
+          id: user.id,
+          email: user.email,
+          name: userName,
+          phone: userPhone,
+        });
+
+        const { data: adminRecord } = await supabase
+          .from("admins")
+          .select("id")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (adminRecord) {
+          setIsAdminUser(true);
         }
 
         const ordersMap = new Map<string, PedidoConDetalles>();
 
-        // Si viene queryId específico
-        if (queryId) {
-          const single = await getPedidoById(queryId);
-          if (single) {
-            ordersMap.set(single.id, single);
-          }
-        }
+        // Cargar estrictamente los pedidos de la cuenta autenticada
+        const fetchedByUser = await getPedidosPorUsuario(user.id);
+        fetchedByUser.forEach((o) => ordersMap.set(o.id, o));
 
-        // Si hay usuario autenticado, cargar estrictamente sus pedidos de la cuenta (aislamiento por user_id)
-        if (user) {
-          const fetchedByUser = await getPedidosPorUsuario(user.id);
-          fetchedByUser.forEach((o) => ordersMap.set(o.id, o));
-
-          // Compatibilidad con pedidos propios creados antes de migrar user_id (sin mezclar pedidos de otras cuentas)
-          if (userOrderIds.length > 0) {
-            const fetchedByIds = await getPedidosPorIds(userOrderIds.slice(0, 20));
-            fetchedByIds
-              .filter((o) => !o.user_id || o.user_id === user.id)
-              .forEach((o) => ordersMap.set(o.id, o));
-          }
-        } else if (userOrderIds.length > 0) {
-          // Usuario anónimo: solo sus pedidos guardados localmente en este navegador (sin user_id ajeno)
+        // Compatibilidad con pedidos propios creados antes de migrar user_id
+        if (userOrderIds.length > 0) {
           const fetchedByIds = await getPedidosPorIds(userOrderIds.slice(0, 20));
           fetchedByIds
-            .filter((o) => !o.user_id)
+            .filter((o) => !o.user_id || o.user_id === user.id)
             .forEach((o) => ordersMap.set(o.id, o));
+        }
+
+        // Si viene queryId específico perteneciente al usuario
+        if (queryId && !ordersMap.has(queryId)) {
+          const single = await getPedidoById(queryId);
+          if (single && (!single.user_id || single.user_id === user.id)) {
+            ordersMap.set(single.id, single);
+          }
         }
 
         // Convertir y ordenar del más reciente al más antiguo (hasta 20)
@@ -241,36 +224,32 @@ function MisPedidosContent() {
   const countdownFormatted = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
   const isCountdownExpired = secondsLeft <= 0;
 
-  // 3. Buscar pedidos por código o teléfono sin sobrescribir los datos de la cuenta logueada
-  const handleBuscarPorTelefono = async (e: React.FormEvent) => {
+  // 3. Filtrar en tiempo real dentro de los pedidos propios de la cuenta
+  const handleBuscarPorTelefono = (e: React.FormEvent) => {
     e.preventDefault();
-    const termino = telefonoInput.trim();
-    if (!termino) return;
-
-    setBuscando(true);
     setErrorMessage(null);
-    try {
-      const orders = await buscarPedidos(termino);
-      if (orders.length > 0) {
-        setPedidosList(orders.slice(0, 20));
-        setEstadoFiltro("Todos");
-        if (orders.length === 1) {
-          setSelectedPedidoId(orders[0].id);
-          setConfirmed(Boolean(orders[0].comprobante_url));
-          router.push(`/mis-pedidos?id=${orders[0].id}`, { scroll: false });
-        } else {
-          setSelectedPedidoId(null);
-          setConfirmed(false);
-          if (queryId) router.push("/mis-pedidos", { scroll: false });
-        }
-      } else {
-        setErrorMessage("No se encontraron pedidos con ese código o número de teléfono.");
-      }
-    } catch (err) {
-      console.error("Error al buscar pedidos:", err);
-      setErrorMessage("Error al buscar pedidos. Por favor intenta de nuevo.");
-    } finally {
-      setBuscando(false);
+    const termino = telefonoInput.trim().toLowerCase().replace(/^#/, "");
+    if (!termino) {
+      setSelectedPedidoId(null);
+      return;
+    }
+
+    const matches = pedidosList.filter((p) => {
+      const codeMatch = p.id.toLowerCase().startsWith(termino);
+      const fechaMatch = p.fecha_entrega.toLowerCase().includes(termino);
+      const notasMatch = (p.notas || "").toLowerCase().includes(termino);
+      return codeMatch || fechaMatch || notasMatch;
+    });
+
+    if (matches.length === 0) {
+      setErrorMessage("No encontramos pedidos en tu cuenta con ese código o descripción.");
+    } else if (matches.length === 1) {
+      setSelectedPedidoId(matches[0].id);
+      setConfirmed(Boolean(matches[0].comprobante_url));
+      router.push(`/mis-pedidos?id=${matches[0].id}`, { scroll: false });
+    } else {
+      setSelectedPedidoId(null);
+      if (queryId) router.push("/mis-pedidos", { scroll: false });
     }
   };
 
@@ -421,22 +400,24 @@ function MisPedidosContent() {
 
         {/* ── Main Container ── */}
         <main className="flex-1 w-full max-w-md md:max-w-4xl lg:max-w-5xl mx-auto pt-[56px] md:pt-6 pb-[100px] md:pb-16 px-4 md:px-8">
-          {/* Barra de búsqueda por teléfono / sincronización */}
+          {/* Barra de búsqueda en los pedidos propios de la cuenta */}
           <div className="pt-2 md:pt-0 pb-4 max-w-xl">
             <form onSubmit={handleBuscarPorTelefono} className="flex gap-2">
               <input
                 type="text"
-                placeholder="Buscar por código (#F9B5F24B) o WhatsApp..."
+                placeholder="Filtrar mis pedidos por código (#F9B5F24B), torta o fecha..."
                 value={telefonoInput}
-                onChange={(e) => setTelefonoInput(e.target.value)}
+                onChange={(e) => {
+                  setTelefonoInput(e.target.value);
+                  setErrorMessage(null);
+                }}
                 className="flex-1 border border-[#cbd5e1] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:border-pink-500 bg-white shadow-2xs"
               />
               <button
                 type="submit"
-                disabled={buscando}
-                className="bg-[#1e293b] hover:bg-pink-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl border-0 cursor-pointer disabled:opacity-50 transition-colors shadow-2xs"
+                className="bg-[#1e293b] hover:bg-pink-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl border-0 cursor-pointer transition-colors shadow-2xs"
               >
-                {buscando ? "Buscando..." : "Buscar"}
+                Buscar
               </button>
             </form>
             {errorMessage && (
@@ -564,6 +545,14 @@ function MisPedidosContent() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {pedidosList
                   .filter((p) => {
+                    const term = telefonoInput.trim().toLowerCase().replace(/^#/, "");
+                    if (term) {
+                      const matchesTerm =
+                        p.id.toLowerCase().startsWith(term) ||
+                        p.fecha_entrega.toLowerCase().includes(term) ||
+                        (p.notas || "").toLowerCase().includes(term);
+                      if (!matchesTerm) return false;
+                    }
                     if (estadoFiltro === "Todos") return true;
                     if (estadoFiltro === "Pendientes") return p.estado === "Pendiente";
                     if (estadoFiltro === "Confirmados") return p.estado === "Señado" || p.estado === "En producción" || p.estado === "Listo";
