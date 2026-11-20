@@ -27,6 +27,7 @@ interface Paso1Props {
   tortaNombre?: string;
   tortaImagen?: string;
   basePricePerKg?: number;
+  availableWeights?: number[];
   onAvailabilityChange?: (isAvailable: boolean) => void;
 }
 
@@ -90,6 +91,7 @@ export function Paso1FechaPeso({
   tortaNombre,
   tortaImagen,
   basePricePerKg,
+  availableWeights,
   onAvailabilityChange,
 }: Paso1Props) {
   const today = new Date();
@@ -97,34 +99,24 @@ export function Paso1FechaPeso({
   const [currentMonth, setCurrentMonth] = useState<number>(today.getMonth() + 1);
   const [showCalendar, setShowCalendar] = useState<boolean>(false);
 
-  const effectiveSizes: SizeOption[] = basePricePerKg
-    ? [
-        {
-          kg: "1 kg",
-          weight: 1,
-          porciones: "8-10 porc.",
-          portions: "8-10 porc.",
-          precio: `$${basePricePerKg.toLocaleString("es-AR")}`,
-          rawPrice: basePricePerKg,
-        },
-        {
-          kg: "1.5 kg",
-          weight: 1.5,
-          porciones: "12-15 porc.",
-          portions: "12-15 porc.",
-          precio: `$${Math.round(basePricePerKg * 1.5).toLocaleString("es-AR")}`,
-          rawPrice: Math.round(basePricePerKg * 1.5),
-        },
-        {
-          kg: "2 kg",
-          weight: 2,
-          porciones: "18-20 porc.",
-          portions: "18-20 porc.",
-          precio: `$${Math.round(basePricePerKg * 2).toLocaleString("es-AR")}`,
-          rawPrice: Math.round(basePricePerKg * 2),
-        },
-      ]
-    : SIZES;
+  const weightsToRender =
+    availableWeights && availableWeights.length > 0 ? availableWeights : [1, 1.5, 2];
+
+  const effectiveSizes: SizeOption[] = weightsToRender.map((w) => {
+    const unitPrice = basePricePerKg || 18500;
+    const rawPrice = Math.round(unitPrice * w);
+    const minPorc = Math.round(w * 8);
+    const maxPorc = Math.round(w * 10);
+    const porcLabel = w >= 3 ? `${minPorc}-${maxPorc} porc. · Doble piso` : `${minPorc}-${maxPorc} porc.`;
+    return {
+      kg: `${w} kg`,
+      weight: w,
+      porciones: porcLabel,
+      portions: porcLabel,
+      precio: `$${rawPrice.toLocaleString("es-AR")}`,
+      rawPrice,
+    };
+  });
 
   const [estandarCap, setEstandarCap] = useState<number>(3);
   const [cuposMes, setCuposMes] = useState<CupoDiarioDB[]>([]);

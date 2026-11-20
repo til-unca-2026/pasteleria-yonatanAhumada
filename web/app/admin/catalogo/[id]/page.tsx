@@ -19,6 +19,8 @@ import {
   updateInsumoActivo,
   updateInsumo,
   deleteInsumo,
+  DEFAULT_PESOS_TORTA,
+  normalizePesosTorta,
   TortaDB,
   InsumoDB,
   TipoInsumo,
@@ -51,6 +53,8 @@ export default function ConfigurarTortaPage() {
   const [imagenUrl, setImagenUrl] = useState<string>("");
   const [imagenFile, setImagenFile] = useState<File | null>(null);
   const [imagenPreview, setImagenPreview] = useState<string | null>(null);
+  const [pesosDisponibles, setPesosDisponibles] = useState<number[]>(DEFAULT_PESOS_TORTA);
+  const [nuevoPesoInput, setNuevoPesoInput] = useState<string>("");
   const [saving, setSaving] = useState<boolean>(false);
 
   // Insumos, Compatibilidades y Defaults (Mockup 2.4)
@@ -151,6 +155,7 @@ export default function ConfigurarTortaPage() {
             setDescripcion(t.descripcion || "");
             setImagenUrl(t.imagen_url || "");
             setImagenPreview(t.imagen_url || null);
+            setPesosDisponibles(normalizePesosTorta(t.pesos_disponibles));
 
             const rels = await getInsumosRelPorTorta(t.id);
             setCompatibleIds(new Set(rels.map((r) => r.insumo_id)));
@@ -337,6 +342,7 @@ export default function ConfigurarTortaPage() {
           precio_base_kg: precio,
           tipo: finalTipo,
           imagen_url: finalImageUrl,
+          pesos_disponibles: pesosDisponibles,
           activo: true,
         });
 
@@ -353,6 +359,7 @@ export default function ConfigurarTortaPage() {
           precio_base_kg: precio,
           tipo: finalTipo,
           imagen_url: finalImageUrl,
+          pesos_disponibles: pesosDisponibles,
         });
       }
 
@@ -704,6 +711,75 @@ export default function ConfigurarTortaPage() {
                     placeholder="Descripción o detalles especiales para los clientes..."
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-pink-500 bg-white resize-none shadow-2xs"
                   />
+                </div>
+
+                {/* Campo: Pesos disponibles */}
+                <div className="pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-[11px] font-semibold text-slate-600">
+                      Pesos Disponibles (kg)
+                    </label>
+                    <span className="text-[10px] text-slate-400">
+                      3+ kg apto doble piso
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 mb-2.5">
+                    {Array.from(new Set([1, 1.5, 2, 2.5, 3, 3.5, 4, 5, ...pesosDisponibles]))
+                      .sort((a, b) => a - b)
+                      .map((peso) => {
+                        const selected = pesosDisponibles.includes(peso);
+                        return (
+                          <button
+                            key={peso}
+                            type="button"
+                            onClick={() => {
+                              if (selected) {
+                                if (pesosDisponibles.length <= 1) return;
+                                setPesosDisponibles(pesosDisponibles.filter((p) => p !== peso));
+                              } else {
+                                setPesosDisponibles([...pesosDisponibles, peso].sort((a, b) => a - b));
+                              }
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold border cursor-pointer transition-colors ${
+                              selected
+                                ? "bg-[#1e293b] text-white border-[#1e293b] shadow-2xs"
+                                : "bg-slate-50 text-slate-600 border-slate-200 hover:border-pink-300"
+                            }`}
+                          >
+                            {peso} kg
+                          </button>
+                        );
+                      })}
+                  </div>
+
+                  <div className="flex gap-1.5">
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0.5"
+                      max="20"
+                      value={nuevoPesoInput}
+                      onChange={(e) => setNuevoPesoInput(e.target.value)}
+                      placeholder="Otro peso (ej: 6)"
+                      className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-700 bg-white focus:outline-none focus:border-pink-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const val = Number(nuevoPesoInput);
+                        if (!isNaN(val) && val > 0 && val <= 20) {
+                          if (!pesosDisponibles.includes(val)) {
+                            setPesosDisponibles([...pesosDisponibles, val].sort((a, b) => a - b));
+                          }
+                          setNuevoPesoInput("");
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 text-xs font-semibold cursor-pointer"
+                    >
+                      + Agregar
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

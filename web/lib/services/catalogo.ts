@@ -51,6 +51,21 @@ export interface TortaDB {
   imagen_url: string;
   cta_text: string;
   activo: boolean;
+  pesos_disponibles?: number[] | null;
+}
+
+export const DEFAULT_PESOS_TORTA: number[] = [1, 1.5, 2];
+
+export function normalizePesosTorta(pesos?: unknown): number[] {
+  if (!Array.isArray(pesos)) return DEFAULT_PESOS_TORTA;
+  const valid = Array.from(
+    new Set(
+      pesos
+        .map((n) => Number(n))
+        .filter((n) => !isNaN(n) && n > 0)
+    )
+  ).sort((a, b) => a - b);
+  return valid.length > 0 ? valid : DEFAULT_PESOS_TORTA;
 }
 
 export async function getTortasActivas(): Promise<TortaDB[]> {
@@ -104,11 +119,19 @@ export async function updateTortaActivo(id: string, activo: boolean): Promise<To
 
 export async function updateTorta(id: string, cambios: Partial<TortaDB>): Promise<TortaDB> {
   const supabase = createClient();
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("tortas")
     .update(cambios)
     .eq("id", id)
     .select();
+
+  // Compatibilidad si aún no se ejecutó 06_tortas_pesos_disponibles.sql
+  if (error && (error.code === "PGRST204" || error.code === "42703") && "pesos_disponibles" in cambios) {
+    const { pesos_disponibles: _, ...rest } = cambios;
+    const retry = await supabase.from("tortas").update(rest).eq("id", id).select();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) {
     console.warn("Aviso al actualizar torta (posible RLS):", error);
@@ -141,7 +164,7 @@ export async function createTorta(torta: Partial<TortaDB>): Promise<TortaDB> {
       .replace(/(^-|-$)/g, "") ||
     `torta-${Date.now()}`;
 
-  const payload = {
+  const payload: Record<string, unknown> = {
     slug,
     nombre: torta.nombre,
     descripcion: torta.descripcion || "",
@@ -151,11 +174,21 @@ export async function createTorta(torta: Partial<TortaDB>): Promise<TortaDB> {
     cta_text: torta.tipo === "receta_fija" ? "Pedir" : "Personalizar",
     activo: torta.activo ?? true,
   };
+  if (torta.pesos_disponibles && torta.pesos_disponibles.length > 0) {
+    payload.pesos_disponibles = torta.pesos_disponibles;
+  }
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("tortas")
     .insert([payload])
     .select();
+
+  if (error && (error.code === "PGRST204" || error.code === "42703") && "pesos_disponibles" in payload) {
+    delete payload.pesos_disponibles;
+    const retry = await supabase.from("tortas").insert([payload]).select();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) {
     console.error("Error al crear torta en Supabase:", error);
