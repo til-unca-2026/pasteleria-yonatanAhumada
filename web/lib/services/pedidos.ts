@@ -456,6 +456,9 @@ export async function createNuevoPedido(params: {
 
   // 2. Transacción atómica en Supabase (bloqueo de fila FOR UPDATE + TTL de 60 minutos)
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    throw new Error("Debes iniciar sesión para realizar un pedido.");
+  }
   const baseRpcParams = {
     p_cliente_nombre: params.cliente_nombre,
     p_cliente_telefono: params.cliente_telefono,

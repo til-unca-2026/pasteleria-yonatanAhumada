@@ -262,49 +262,54 @@ function PedidoWizardContent() {
 
   const [currentUser, setCurrentUser] = useState<{ id: string; email?: string; name?: string } | null>(null);
   const [isAdminUser, setIsAdminUser] = useState<boolean>(false);
+  const [checkingAuth, setCheckingAuth] = useState<boolean>(true);
 
-  // Cargar datos de usuario para autocompletar contacto y header
+  // Exigir sesión iniciada y cargar datos de usuario para autocompletar contacto
   useEffect(() => {
     async function loadUserData() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const defaultName = user.user_metadata?.full_name || user.user_metadata?.name || "";
-          const defaultPhone =
-            user.user_metadata?.phone_number ||
-            (typeof window !== "undefined"
-              ? localStorage.getItem(`user_phone_${user.id}`) || localStorage.getItem("ultimo_pedido_telefono")
-              : "") ||
-            "";
-
-          setCurrentUser({
-            id: user.id,
-            email: user.email,
-            name: defaultName,
-          });
-
-          // Chequear admin
-          const { data: adminRecord } = await supabase
-            .from("admins")
-            .select("id")
-            .eq("id", user.id)
-            .maybeSingle();
-          if (adminRecord) {
-            setIsAdminUser(true);
-          }
-
-          if (defaultName) setNombre(defaultName);
-          if (defaultPhone) setTelefono(defaultPhone);
-        } else if (typeof window !== "undefined") {
-          const tel = localStorage.getItem("ultimo_pedido_telefono");
-          if (tel) setTelefono(tel);
+        if (!user) {
+          const currentPath =
+            typeof window !== "undefined" ? `/pedido${window.location.search}` : "/pedido";
+          router.replace(`/login?next=${encodeURIComponent(currentPath)}`);
+          return;
         }
+
+        const defaultName = user.user_metadata?.full_name || user.user_metadata?.name || "";
+        const defaultPhone =
+          user.user_metadata?.phone_number ||
+          (typeof window !== "undefined"
+            ? localStorage.getItem(`user_phone_${user.id}`) || localStorage.getItem("ultimo_pedido_telefono")
+            : "") ||
+          "";
+
+        setCurrentUser({
+          id: user.id,
+          email: user.email,
+          name: defaultName,
+        });
+
+        // Chequear admin
+        const { data: adminRecord } = await supabase
+          .from("admins")
+          .select("id")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (adminRecord) {
+          setIsAdminUser(true);
+        }
+
+        if (defaultName) setNombre(defaultName);
+        if (defaultPhone) setTelefono(defaultPhone);
+        setCheckingAuth(false);
       } catch (e) {
         console.error("Error cargando datos del usuario:", e);
+        router.replace("/login?next=/pedido");
       }
     }
     loadUserData();
-  }, [supabase]);
+  }, [router, supabase]);
 
   // Objetos seleccionados y cálculo dinámico de precio con recargos
   const selectedBaseObj = insumos.find((i) => i.id === selectedBase);
@@ -534,21 +539,13 @@ function PedidoWizardContent() {
 
         setCreatedPedidoId(pedido.id);
         const { data: { user } } = await supabase.auth.getUser();
-        if (typeof window !== "undefined") {
-          if (user) {
-            const userOrdersKey = `user_orders_${user.id}`;
-            const existingUserOrders: string[] = JSON.parse(localStorage.getItem(userOrdersKey) || "[]");
-            if (!existingUserOrders.includes(pedido.id)) {
-              localStorage.setItem(userOrdersKey, JSON.stringify([pedido.id, ...existingUserOrders].slice(0, 50)));
-            }
-            localStorage.setItem(`user_phone_${user.id}`, telefono.trim());
-          } else {
-            const guestOrdersKey = "guest_orders";
-            const existingGuestOrders: string[] = JSON.parse(localStorage.getItem(guestOrdersKey) || "[]");
-            if (!existingGuestOrders.includes(pedido.id)) {
-              localStorage.setItem(guestOrdersKey, JSON.stringify([pedido.id, ...existingGuestOrders].slice(0, 50)));
-            }
+        if (typeof window !== "undefined" && user) {
+          const userOrdersKey = `user_orders_${user.id}`;
+          const existingUserOrders: string[] = JSON.parse(localStorage.getItem(userOrdersKey) || "[]");
+          if (!existingUserOrders.includes(pedido.id)) {
+            localStorage.setItem(userOrdersKey, JSON.stringify([pedido.id, ...existingUserOrders].slice(0, 50)));
           }
+          localStorage.setItem(`user_phone_${user.id}`, telefono.trim());
         }
 
         if (user) {
@@ -600,6 +597,14 @@ function PedidoWizardContent() {
     if (currentStep === 3) return "Confirmar y Reservar Cupo";
     return "Siguiente Paso";
   };
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]">
+        <div className="size-8 border-2 border-pink-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-[#f8fafc] font-body-md text-[#0f172a] flex flex-col min-h-screen">
