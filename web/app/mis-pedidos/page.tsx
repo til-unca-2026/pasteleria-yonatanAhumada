@@ -37,6 +37,7 @@ function MisPedidosContent() {
   const [currentUser, setCurrentUser] = useState<{ id: string; email?: string; name?: string; phone?: string } | null>(null);
   const [isAdminUser, setIsAdminUser] = useState<boolean>(false);
   const [telegramChatId, setTelegramChatId] = useState<string | null>(null);
+  const [unlinkingTg, setUnlinkingTg] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [pedidosList, setPedidosList] = useState<PedidoConDetalles[]>([]);
   const [selectedPedidoId, setSelectedPedidoId] = useState<string | null>(queryId);
@@ -264,6 +265,24 @@ function MisPedidosContent() {
     }
   };
 
+  const handleDesvincularTelegram = async () => {
+    if (!currentUser) return;
+    setUnlinkingTg(true);
+    try {
+      await supabase.from("usuarios_telegram").delete().eq("user_id", currentUser.id);
+      await supabase
+        .from("pedidos")
+        .update({ telegram_chat_id: null })
+        .eq("user_id", currentUser.id);
+      setTelegramChatId(null);
+      setPedidosList((prev) => prev.map((p) => ({ ...p, telegram_chat_id: null })));
+    } catch (err) {
+      console.error("Error al desvincular Telegram:", err);
+    } finally {
+      setUnlinkingTg(false);
+    }
+  };
+
   // 4. Confirmar y subir comprobante
   const handleConfirmUpload = async () => {
     if (!file || !activePedido) return;
@@ -456,14 +475,25 @@ function MisPedidosContent() {
                       </div>
                     </div>
                   </div>
-                  <a
-                    href={`https://t.me/PasteleriaAhumadaBot?start=u_${currentUser.id}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[11px] font-semibold text-emerald-700 hover:underline shrink-0"
-                  >
-                    Re-vincular ↗
-                  </a>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <a
+                      href={`https://t.me/PasteleriaAhumadaBot?start=u_${currentUser.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[11px] font-semibold text-emerald-700 hover:underline"
+                    >
+                      Cambiar ↗
+                    </a>
+                    <span className="text-emerald-300">|</span>
+                    <button
+                      type="button"
+                      onClick={handleDesvincularTelegram}
+                      disabled={unlinkingTg}
+                      className="text-[11px] font-semibold text-rose-600 hover:underline bg-transparent border-0 cursor-pointer p-0 disabled:opacity-50"
+                    >
+                      {unlinkingTg ? "..." : "Desvincular"}
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <a

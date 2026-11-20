@@ -18,6 +18,12 @@ CREATE POLICY "Usuarios ven su propio telegram"
   FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Usuarios eliminan su propio telegram" ON public.usuarios_telegram;
+CREATE POLICY "Usuarios eliminan su propio telegram"
+  ON public.usuarios_telegram
+  FOR DELETE
+  USING (auth.uid() = user_id);
+
 DROP POLICY IF EXISTS "Webhook gestiona usuarios_telegram" ON public.usuarios_telegram;
 CREATE POLICY "Webhook gestiona usuarios_telegram"
   ON public.usuarios_telegram
