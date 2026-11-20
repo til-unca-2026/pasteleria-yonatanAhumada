@@ -36,6 +36,8 @@ function MisPedidosContent() {
 
   const [currentUser, setCurrentUser] = useState<{ id: string; email?: string; name?: string; phone?: string } | null>(null);
   const [isAdminUser, setIsAdminUser] = useState<boolean>(false);
+  const [telegramChatId, setTelegramChatId] = useState<string | null>(null);
+  const [unlinkingTg, setUnlinkingTg] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [pedidosList, setPedidosList] = useState<PedidoConDetalles[]>([]);
   const [selectedPedidoId, setSelectedPedidoId] = useState<string | null>(queryId);
@@ -104,6 +106,13 @@ function MisPedidosContent() {
           setIsAdminUser(true);
         }
 
+        // Verificar vinculación de Telegram a nivel de cuenta
+        const { data: tgRecord } = await supabase
+          .from("usuarios_telegram")
+          .select("telegram_chat_id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
         const ordersMap = new Map<string, PedidoConDetalles>();
 
         // Cargar estrictamente los pedidos de la cuenta autenticada
@@ -125,6 +134,9 @@ function MisPedidosContent() {
             ordersMap.set(single.id, single);
           }
         }
+
+        const linkedOrder = Array.from(ordersMap.values()).find((o) => Boolean(o.telegram_chat_id));
+        setTelegramChatId(tgRecord?.telegram_chat_id || linkedOrder?.telegram_chat_id || null);
 
         // Convertir y ordenar del más reciente al más antiguo (hasta 20)
         const combined = Array.from(ordersMap.values()).sort(
@@ -250,6 +262,24 @@ function MisPedidosContent() {
     } else {
       setSelectedPedidoId(null);
       if (queryId) router.push("/mis-pedidos", { scroll: false });
+    }
+  };
+
+  const handleDesvincularTelegram = async () => {
+    if (!currentUser) return;
+    setUnlinkingTg(true);
+    try {
+      await supabase.from("usuarios_telegram").delete().eq("user_id", currentUser.id);
+      await supabase
+        .from("pedidos")
+        .update({ telegram_chat_id: null })
+        .eq("user_id", currentUser.id);
+      setTelegramChatId(null);
+      setPedidosList((prev) => prev.map((p) => ({ ...p, telegram_chat_id: null })));
+    } catch (err) {
+      console.error("Error al desvincular Telegram:", err);
+    } finally {
+      setUnlinkingTg(false);
     }
   };
 
@@ -427,6 +457,70 @@ function MisPedidosContent() {
             )}
           </div>
 
+          {/* ── Estado de vinculación de Telegram por cuenta (una sola vez) ── */}
+          {currentUser && !loading && (
+            <div className="mb-4 max-w-xl">
+              {telegramChatId ? (
+                <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900">
+                  <div className="flex items-center gap-2.5">
+                    <div className="size-7 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                      ✓
+                    </div>
+                    <div>
+                      <div className="font-bold text-xs text-emerald-900">
+                        Telegram vinculado a tu cuenta
+                      </div>
+                      <div className="text-[11px] text-emerald-700">
+                        Recibirás avisos automáticos de todos tus pedidos actuales y futuros.
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <a
+                      href={`https://t.me/PasteleriaAhumadaBot?start=u_${currentUser.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[11px] font-semibold text-emerald-700 hover:underline"
+                    >
+                      Cambiar ↗
+                    </a>
+                    <span className="text-emerald-300">|</span>
+                    <button
+                      type="button"
+                      onClick={handleDesvincularTelegram}
+                      disabled={unlinkingTg}
+                      className="text-[11px] font-semibold text-rose-600 hover:underline bg-transparent border-0 cursor-pointer p-0 disabled:opacity-50"
+                    >
+                      {unlinkingTg ? "..." : "Desvincular"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <a
+                  href={`https://t.me/PasteleriaAhumadaBot?start=u_${currentUser.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-between p-3.5 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-sm transition-all active:scale-[0.98] text-decoration-none"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="size-8 rounded-full bg-white/20 flex items-center justify-center text-base shrink-0">
+                      ✈️
+                    </div>
+                    <div className="text-left">
+                      <div className="font-bold text-xs">Vincular Telegram (una sola vez)</div>
+                      <div className="text-[10px] text-sky-100 font-normal">
+                        Activá las alertas automáticas para toda tu cuenta y recibí aviso cuando tu torta esté lista
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-[11px] bg-white text-blue-700 px-2.5 py-1 rounded-lg font-bold shrink-0">
+                    Vincular ↗
+                  </span>
+                </a>
+              )}
+            </div>
+          )}
+
           {loading ? (
             <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-2">
               <div className="size-7 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
@@ -463,32 +557,6 @@ function MisPedidosContent() {
                 onFileChange={setFile}
                 confirmed={confirmed}
               />
-
-              {activePedido && (
-                <a
-                  href={`https://t.me/PasteleriaAhumadaBot?start=${activePedido.id}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-between p-3.5 mt-3 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-sm transition-all active:scale-[0.98] text-decoration-none"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="size-8 rounded-full bg-white/20 flex items-center justify-center text-base shrink-0">
-                      ✈️
-                    </div>
-                    <div className="text-left">
-                      <div className="font-bold text-xs">Recibir avisos por Telegram</div>
-                      <div className="text-[10px] text-sky-100 font-normal">
-                        {activePedido.telegram_chat_id
-                          ? "✓ Pedido vinculado para notificaciones automáticas"
-                          : "Te avisamos al celular cuando el pago se apruebe y la torta esté lista"}
-                      </div>
-                    </div>
-                  </div>
-                  <span className="text-[11px] bg-white text-blue-700 px-2.5 py-1 rounded-lg font-bold shrink-0">
-                    {activePedido.telegram_chat_id ? "Vinculado ✓" : "Vincular ↗"}
-                  </span>
-                </a>
-              )}
 
               <div className="flex items-start gap-2 mt-3 px-1 text-slate-500">
                 <svg width="15" height="15" viewBox="0 0 14 14" fill="none" className="shrink-0 mt-0.5">

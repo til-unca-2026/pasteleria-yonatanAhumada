@@ -26,6 +26,8 @@ function AdminContent() {
   useEffect(() => {
     if (tabParam && ["pedidos", "cupos", "catalogo", "metricas"].includes(tabParam)) {
       setActiveTab(tabParam);
+    } else if (!tabParam) {
+      setActiveTab("pedidos");
     }
   }, [tabParam]);
 
@@ -96,7 +98,10 @@ function AdminContent() {
   return (
     <AdminLayout
       activeTab={activeTab}
-      onTabChange={setActiveTab}
+      onTabChange={(tab) => {
+        setActiveTab(tab);
+        router.push(`/admin?tab=${tab}`, { scroll: false });
+      }}
       onBack={() => router.push("/")}
       title={getTitle(activeTab)}
       isReceptionOpen={isReceptionOpen}

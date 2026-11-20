@@ -38,11 +38,9 @@ export function AdminLayout({
     setLoggingOut(true);
     try {
       await supabase.auth.signOut();
-      router.replace("/");
-      router.refresh();
+      window.location.href = "/";
     } catch (err) {
       console.error("Error al cerrar sesión:", err);
-    } finally {
       setLoggingOut(false);
       setShowLogoutModal(false);
     }

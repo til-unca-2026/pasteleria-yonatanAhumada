@@ -7,6 +7,8 @@ interface SuccessModalProps {
   selectedWeight: number;
   selectedPrice: number;
   pedidoId?: string | null;
+  userId?: string | null;
+  isTelegramLinked?: boolean;
   onClose: () => void;
 }
 
@@ -16,6 +18,8 @@ export function SuccessModal({
   selectedWeight,
   selectedPrice,
   pedidoId,
+  userId,
+  isTelegramLinked = false,
   onClose,
 }: SuccessModalProps) {
   const router = useRouter();
@@ -62,16 +66,20 @@ export function SuccessModal({
         </div>
 
         <div className="w-full flex flex-col gap-2">
-          {pedidoId && (
+          {isTelegramLinked ? (
+            <div className="w-full py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 font-semibold text-xs flex items-center justify-center gap-1.5">
+              <span>✓ Telegram vinculado: recibirás avisos automáticos</span>
+            </div>
+          ) : (userId || pedidoId) ? (
             <a
-              href={`https://t.me/PasteleriaAhumadaBot?start=${pedidoId}`}
+              href={`https://t.me/PasteleriaAhumadaBot?start=${userId ? `u_${userId}` : pedidoId}`}
               target="_blank"
               rel="noreferrer"
               className="w-full py-2.5 px-3 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs transition-colors shadow-xs text-decoration-none flex items-center justify-center gap-1.5"
             >
-              <span>✈️ Recibir avisos en Telegram</span>
+              <span>✈️ Vincular Telegram (una sola vez)</span>
             </a>
-          )}
+          ) : null}
           <button
             onClick={() => router.push(pedidoId ? `/mis-pedidos?id=${pedidoId}` : "/mis-pedidos")}
             className="w-full h-11 rounded-xl bg-[#1e293b] text-white font-semibold text-[13px] hover:bg-[#334155] transition-all cursor-pointer border-0 shadow-md"

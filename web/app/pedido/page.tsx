@@ -156,15 +156,31 @@ function PedidoWizardContent() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const showToast = (msg: string) => setToastMessage(msg);
 
-  // Wizard flow state
-  const [currentStep, setCurrentStep] = useState<StepNumber>(1);
+  // Wizard flow state synced con ?paso= para soportar botón Atrás
+  const pasoParam = Number(searchParams.get("paso"));
+  const [currentStep, setCurrentStep] = useState<StepNumber>(
+    pasoParam === 2 || pasoParam === 3 ? pasoParam : 1
+  );
   const [activeAccordion, setActiveAccordion] = useState<AccordionStep>(1);
   const [doneAccordions, setDoneAccordions] = useState<Set<AccordionStep>>(new Set());
+
+  const goToStep = (step: StepNumber) => {
+    setCurrentStep(step);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("paso", String(step));
+    router.push(`/pedido?${params.toString()}`, { scroll: false });
+  };
 
   // Insumos desde Supabase
   const [insumos, setInsumos] = useState<InsumoDB[]>([]);
   const [loadingInsumos, setLoadingInsumos] = useState<boolean>(true);
   const isFixedRecipe = isQueryFixed || (!loadingInsumos && insumos.length === 0);
+
+  useEffect(() => {
+    const target: StepNumber =
+      pasoParam === 2 || pasoParam === 3 ? (isFixedRecipe && pasoParam === 2 ? 3 : pasoParam) : 1;
+    setCurrentStep(target);
+  }, [pasoParam, isFixedRecipe]);
 
   // Step 1 state
   const [deliveryDateStr, setDeliveryDateStr] = useState<string>("");
@@ -262,6 +278,7 @@ function PedidoWizardContent() {
 
   const [currentUser, setCurrentUser] = useState<{ id: string; email?: string; name?: string } | null>(null);
   const [isAdminUser, setIsAdminUser] = useState<boolean>(false);
+  const [isTelegramLinked, setIsTelegramLinked] = useState<boolean>(false);
   const [checkingAuth, setCheckingAuth] = useState<boolean>(true);
 
   // Exigir sesión iniciada y cargar datos de usuario para autocompletar contacto
@@ -298,6 +315,16 @@ function PedidoWizardContent() {
           .maybeSingle();
         if (adminRecord) {
           setIsAdminUser(true);
+        }
+
+        // Chequear si la cuenta ya vinculó Telegram
+        const { data: tgRecord } = await supabase
+          .from("usuarios_telegram")
+          .select("telegram_chat_id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (tgRecord?.telegram_chat_id) {
+          setIsTelegramLinked(true);
         }
 
         if (defaultName) setNombre(defaultName);
@@ -376,9 +403,9 @@ function PedidoWizardContent() {
   const handleBack = () => {
     if (currentStep === 3) {
       if (isFixedRecipe) {
-        setCurrentStep(1);
+        goToStep(1);
       } else {
-        setCurrentStep(2);
+        goToStep(2);
         const count = customizableKeys.length;
         setActiveAccordion((count > 0 ? count : 1) as AccordionStep);
       }
@@ -386,7 +413,7 @@ function PedidoWizardContent() {
       if (activeAccordion > 1) {
         setActiveAccordion((prev) => (prev - 1) as AccordionStep);
       } else {
-        setCurrentStep(1);
+        goToStep(1);
       }
     } else {
       router.push("/");
@@ -395,7 +422,7 @@ function PedidoWizardContent() {
 
   const handleSelectStep = (step: StepNumber) => {
     if (step === 1) {
-      setCurrentStep(1);
+      goToStep(1);
       return;
     }
     if (!deliveryDateStr) {
@@ -408,11 +435,11 @@ function PedidoWizardContent() {
     }
     if (isFixedRecipe) {
       // En receta fija el stepper de 2 pasos mapea el paso 2 a confirmación (step 3)
-      setCurrentStep(3);
+      goToStep(3);
       return;
     }
     if (step === 2) {
-      setCurrentStep(2);
+      goToStep(2);
       setActiveAccordion(1);
       return;
     }
@@ -439,7 +466,7 @@ function PedidoWizardContent() {
           return;
         }
       }
-      setCurrentStep(3);
+      goToStep(3);
     }
   };
 
@@ -455,16 +482,16 @@ function PedidoWizardContent() {
       }
       if (isFixedRecipe) {
         // En recetas fijas salteamos el paso 2 directamente al paso 3
-        setCurrentStep(3);
+        goToStep(3);
         window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
-      setCurrentStep(2);
+      goToStep(2);
       setActiveAccordion(1);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else if (currentStep === 2) {
       if (isFixedRecipe || customizableKeys.length === 0) {
-        setCurrentStep(3);
+        goToStep(3);
         window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
@@ -493,13 +520,13 @@ function PedidoWizardContent() {
         setActiveAccordion((prev) => (prev + 1) as AccordionStep);
         window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
-        setCurrentStep(3);
+        goToStep(3);
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
     } else if (currentStep === 3) {
       if (!isDeliveryDateAvailable) {
         showToast("La fecha de entrega seleccionada ya no tiene cupos disponibles. Por favor seleccioná otra fecha.");
-        setCurrentStep(1);
+        goToStep(1);
         return;
       }
       if (!nombre.trim()) {
@@ -832,6 +859,8 @@ function PedidoWizardContent() {
         selectedWeight={selectedWeight}
         selectedPrice={selectedPrice}
         pedidoId={createdPedidoId}
+        userId={currentUser?.id}
+        isTelegramLinked={isTelegramLinked}
         onClose={() => setIsSuccessModalOpen(false)}
       />
     </div>
