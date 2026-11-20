@@ -171,16 +171,16 @@ function PedidoWizardContent() {
     router.push(`/pedido?${params.toString()}`, { scroll: false });
   };
 
+  // Insumos desde Supabase
+  const [insumos, setInsumos] = useState<InsumoDB[]>([]);
+  const [loadingInsumos, setLoadingInsumos] = useState<boolean>(true);
+  const isFixedRecipe = isQueryFixed || (!loadingInsumos && insumos.length === 0);
+
   useEffect(() => {
     const target: StepNumber =
       pasoParam === 2 || pasoParam === 3 ? (isFixedRecipe && pasoParam === 2 ? 3 : pasoParam) : 1;
     setCurrentStep(target);
   }, [pasoParam, isFixedRecipe]);
-
-  // Insumos desde Supabase
-  const [insumos, setInsumos] = useState<InsumoDB[]>([]);
-  const [loadingInsumos, setLoadingInsumos] = useState<boolean>(true);
-  const isFixedRecipe = isQueryFixed || (!loadingInsumos && insumos.length === 0);
 
   // Step 1 state
   const [deliveryDateStr, setDeliveryDateStr] = useState<string>("");
@@ -278,6 +278,7 @@ function PedidoWizardContent() {
 
   const [currentUser, setCurrentUser] = useState<{ id: string; email?: string; name?: string } | null>(null);
   const [isAdminUser, setIsAdminUser] = useState<boolean>(false);
+  const [isTelegramLinked, setIsTelegramLinked] = useState<boolean>(false);
   const [checkingAuth, setCheckingAuth] = useState<boolean>(true);
 
   // Exigir sesión iniciada y cargar datos de usuario para autocompletar contacto
@@ -314,6 +315,16 @@ function PedidoWizardContent() {
           .maybeSingle();
         if (adminRecord) {
           setIsAdminUser(true);
+        }
+
+        // Chequear si la cuenta ya vinculó Telegram
+        const { data: tgRecord } = await supabase
+          .from("usuarios_telegram")
+          .select("telegram_chat_id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (tgRecord?.telegram_chat_id) {
+          setIsTelegramLinked(true);
         }
 
         if (defaultName) setNombre(defaultName);
@@ -848,6 +859,8 @@ function PedidoWizardContent() {
         selectedWeight={selectedWeight}
         selectedPrice={selectedPrice}
         pedidoId={createdPedidoId}
+        userId={currentUser?.id}
+        isTelegramLinked={isTelegramLinked}
         onClose={() => setIsSuccessModalOpen(false)}
       />
     </div>

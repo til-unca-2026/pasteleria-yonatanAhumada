@@ -103,10 +103,55 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, ignored: true });
     }
 
-    // Caso 1: Comando /start con parámetro de pedido
+    // Caso 1: Comando /start con parámetro de cuenta (u_<user_id>) o de pedido
     if (text.startsWith("/start")) {
       const parts = text.split(" ");
       const pedidoParam = parts[1]?.trim();
+
+      if (pedidoParam && pedidoParam.startsWith("u_")) {
+        const userId = pedidoParam.slice(2).trim();
+        const supabase = getSupabaseAdmin();
+
+        const { error: upsertErr } = await supabase
+          .from("usuarios_telegram")
+          .upsert(
+            {
+              user_id: userId,
+              telegram_chat_id: String(chatId),
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "user_id" }
+          );
+
+        if (upsertErr) {
+          console.error("[Telegram Webhook] Error guardando usuarios_telegram:", upsertErr);
+        }
+
+        // Propagar chat_id a pedidos activos de esa cuenta
+        await supabase
+          .from("pedidos")
+          .update({ telegram_chat_id: String(chatId) })
+          .eq("user_id", userId)
+          .neq("estado", "Expirado");
+
+        await sendTelegramDirect(
+          chatId,
+          `✅ *Cuenta vinculada con éxito*\n\n` +
+            `Hola ${userName}, tu Telegram quedó conectado a tu cuenta.\n` +
+            `Todos tus pedidos actuales y futuros recibirán avisos automáticos por acá cuando validemos el pago y cuando tu torta esté lista.\n\n` +
+            `_Gracias por elegir Pastelería Artesanal._`
+        );
+
+        const tallerChatId = process.env.TELEGRAM_CHAT_ID;
+        if (tallerChatId && String(tallerChatId) !== String(chatId)) {
+          await sendTelegramDirect(
+            tallerChatId,
+            `🔔 *Cuenta vinculada:* ${userName} activó las alertas automáticas en su cuenta.`
+          );
+        }
+
+        return NextResponse.json({ ok: true, linkedAccount: true, userId });
+      }
 
       if (pedidoParam) {
         const supabase = getSupabaseAdmin();
@@ -114,14 +159,14 @@ export async function POST(req: NextRequest) {
         // Buscar pedido por ID exacto o por prefijo (ej: 8 caracteres)
         let { data: pedido } = await supabase
           .from("pedidos")
-          .select("id, cliente_nombre, fecha_entrega, total_estimado, estado")
+          .select("id, user_id, cliente_nombre, fecha_entrega, total_estimado, estado")
           .eq("id", pedidoParam)
           .maybeSingle();
 
         if (!pedido && pedidoParam.length >= 6) {
           const { data: searchList } = await supabase
             .from("pedidos")
-            .select("id, cliente_nombre, fecha_entrega, total_estimado, estado")
+            .select("id, user_id, cliente_nombre, fecha_entrega, total_estimado, estado")
             .ilike("id", `${pedidoParam}%`)
             .limit(1);
 
@@ -141,6 +186,20 @@ export async function POST(req: NextRequest) {
 
           if (upErr) {
             console.error("[Telegram Webhook] Error guardando telegram_chat_id:", upErr);
+          }
+
+          // Si el pedido pertenece a una cuenta, vincular también la cuenta completa
+          if (pedido.user_id) {
+            await supabase
+              .from("usuarios_telegram")
+              .upsert(
+                {
+                  user_id: pedido.user_id,
+                  telegram_chat_id: String(chatId),
+                  updated_at: new Date().toISOString(),
+                },
+                { onConflict: "user_id" }
+              );
           }
 
           // Respuesta al cliente
