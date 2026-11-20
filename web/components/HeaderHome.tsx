@@ -43,10 +43,9 @@ export function HeaderHome({ user, isAdmin }: HeaderHomeProps) {
     try {
       await supabase.auth.signOut();
       setMenuOpen(false);
-      router.refresh();
+      window.location.href = "/";
     } catch (err) {
       console.error("Error al cerrar sesión:", err);
-    } finally {
       setLoggingOut(false);
     }
   };
