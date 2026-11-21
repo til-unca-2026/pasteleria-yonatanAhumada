@@ -331,26 +331,14 @@ export default function ConfigurarTortaPage() {
       }
     });
 
-    let precio = Number(precioKg);
-    if ((!precioKg.trim() || isNaN(precio) || precio <= 0) && pesosDisponibles.length > 0) {
-      const firstW = pesosDisponibles[0];
-      const firstP = preciosNumericos[String(firstW)];
-      if (firstP && firstP > 0) {
-        precio = Math.round(firstP / firstW);
-      }
-    }
-
-    if (isNaN(precio) || precio <= 0) {
-      alert("Ingresá al menos un precio directo por peso o el precio por kg.");
+    if (Object.keys(preciosNumericos).length < pesosDisponibles.length) {
+      alert("Por favor ingresá un precio válido (mayor a 0) para cada tamaño seleccionado.");
       return;
     }
 
-    // Completar precios faltantes con precio * peso
-    pesosDisponibles.forEach((w) => {
-      if (!preciosNumericos[String(w)]) {
-        preciosNumericos[String(w)] = Math.round(precio * w);
-      }
-    });
+    const firstW = pesosDisponibles[0];
+    const firstP = preciosNumericos[String(firstW)];
+    const precio = Math.round(firstP / firstW);
     setSaving(true);
 
     try {
@@ -702,8 +690,8 @@ export default function ConfigurarTortaPage() {
                     </div>
                   )}
 
-                  {/* Campos: Nombre y Precio por Kg */}
-                  <div className="flex-1 min-w-0 w-full flex flex-col gap-3">
+                  {/* Campo: Nombre */}
+                  <div className="flex-1 min-w-0 w-full flex flex-col justify-center">
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                         Nombre de la Torta
@@ -715,23 +703,6 @@ export default function ConfigurarTortaPage() {
                         placeholder="Ej: Torta Selva Negra"
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:border-pink-500 bg-white shadow-2xs"
                       />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                        Precio por Kg
-                      </label>
-                      <div className="relative flex items-center">
-                        <span className="absolute left-3 text-xs font-bold text-slate-500">$</span>
-                        <input
-                          type="number"
-                          value={precioKg}
-                          onChange={(e) => setPrecioKg(e.target.value)}
-                          placeholder="Ej: 18000"
-                          className="w-full pl-6 pr-12 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:border-pink-500 bg-white shadow-2xs"
-                        />
-                        <span className="absolute right-3 text-xs text-slate-400 font-medium">/ kg</span>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -814,17 +785,20 @@ export default function ConfigurarTortaPage() {
                             <span className="absolute left-2 text-[11px] font-bold text-slate-500">$</span>
                             <input
                               type="number"
+                              min="1"
                               value={
                                 preciosPorPeso[String(p)] ??
                                 (Number(precioKg) > 0 ? String(Math.round(Number(precioKg) * p)) : "")
                               }
-                              onChange={(e) =>
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val.startsWith("-")) return;
                                 setPreciosPorPeso((prev) => ({
                                   ...prev,
-                                  [String(p)]: e.target.value,
-                                }))
-                              }
-                              placeholder="0"
+                                  [String(p)]: val,
+                                }));
+                              }}
+                              placeholder="Ej: 25000"
                               className="w-full pl-5 pr-2 py-1 border border-slate-200 rounded-md text-xs font-bold text-slate-900 bg-white focus:outline-none focus:border-pink-500 text-right"
                             />
                           </div>
