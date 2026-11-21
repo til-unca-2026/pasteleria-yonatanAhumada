@@ -13,7 +13,7 @@ import { BottomBar } from "@/components/pedido/BottomBar";
 import { SuccessModal } from "@/components/pedido/SuccessModal";
 import { ToastNotification } from "@/components/pedido/ToastNotification";
 import { createNuevoPedido } from "@/lib/services/pedidos";
-import { getInsumosPorTorta, getTortaPorSlug, getPrecioBaseKg, DEFAULT_PESOS_TORTA, normalizePesosTorta, InsumoDB, TipoInsumo } from "@/lib/services/catalogo";
+import { getInsumosPorTorta, getTortaPorSlug, getPrecioBaseKg, DEFAULT_PESOS_TORTA, normalizePesosTorta, getPrecioParaPeso, InsumoDB, TipoInsumo } from "@/lib/services/catalogo";
 import { notifyNuevoPedido } from "@/lib/services/telegram";
 import { createClient } from "@/lib/supabase/client";
 import { extractLocalPhone } from "@/lib/phone";
@@ -128,6 +128,7 @@ function PedidoWizardContent() {
   const queryImagen = searchParams.get("imagen") || "";
   const [tortaImagen, setTortaImagen] = useState<string>(queryImagen);
   const [availableWeights, setAvailableWeights] = useState<number[]>(DEFAULT_PESOS_TORTA);
+  const [customPrices, setCustomPrices] = useState<Record<string, number> | null>(null);
 
   useEffect(() => {
     if (tortaSlug) {
@@ -139,14 +140,17 @@ function PedidoWizardContent() {
         if (!queryPrecio && t?.precio_base_kg && t.precio_base_kg > 0) {
           setBasePricePerKg(t.precio_base_kg);
         }
+        if (t?.precios_por_peso) {
+          setCustomPrices(t.precios_por_peso);
+        }
         if (t?.pesos_disponibles) {
           const pesos = normalizePesosTorta(t.pesos_disponibles);
           setAvailableWeights(pesos);
           const defaultW = pesos.includes(1.5) ? 1.5 : pesos[0];
           setSelectedWeight(defaultW);
-          setBaseWeightPrice(Math.round(unitPrice * defaultW));
+          setBaseWeightPrice(getPrecioParaPeso(defaultW, unitPrice, t?.precios_por_peso));
         } else if (!queryPrecio && t?.precio_base_kg && t.precio_base_kg > 0) {
-          setBaseWeightPrice(Math.round(t.precio_base_kg * 1.5));
+          setBaseWeightPrice(getPrecioParaPeso(1.5, t.precio_base_kg, t?.precios_por_peso));
         }
       });
     }
@@ -686,6 +690,7 @@ function PedidoWizardContent() {
                   tortaImagen={tortaImagen}
                   basePricePerKg={basePricePerKg}
                   availableWeights={availableWeights}
+                  customPrices={customPrices}
                   onAvailabilityChange={setIsDeliveryDateAvailable}
                 />
               )}

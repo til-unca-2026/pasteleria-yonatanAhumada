@@ -54,6 +54,7 @@ export default function ConfigurarTortaPage() {
   const [imagenFile, setImagenFile] = useState<File | null>(null);
   const [imagenPreview, setImagenPreview] = useState<string | null>(null);
   const [pesosDisponibles, setPesosDisponibles] = useState<number[]>(DEFAULT_PESOS_TORTA);
+  const [preciosPorPeso, setPreciosPorPeso] = useState<Record<string, string>>({});
   const [nuevoPesoInput, setNuevoPesoInput] = useState<string>("");
   const [saving, setSaving] = useState<boolean>(false);
 
@@ -155,7 +156,16 @@ export default function ConfigurarTortaPage() {
             setDescripcion(t.descripcion || "");
             setImagenUrl(t.imagen_url || "");
             setImagenPreview(t.imagen_url || null);
-            setPesosDisponibles(normalizePesosTorta(t.pesos_disponibles));
+            const pesos = normalizePesosTorta(t.pesos_disponibles);
+            setPesosDisponibles(pesos);
+            const initialMap: Record<string, string> = {};
+            pesos.forEach((w) => {
+              const direct = t.precios_por_peso?.[String(w)];
+              initialMap[String(w)] = direct
+                ? String(direct)
+                : String(Math.round(t.precio_base_kg * w));
+            });
+            setPreciosPorPeso(initialMap);
 
             const rels = await getInsumosRelPorTorta(t.id);
             setCompatibleIds(new Set(rels.map((r) => r.insumo_id)));
@@ -313,11 +323,34 @@ export default function ConfigurarTortaPage() {
       return;
     }
 
-    const precio = Number(precioKg);
-    if (!precioKg.trim() || isNaN(precio) || precio <= 0) {
-      alert("Por favor ingresa un precio por kg válido (mayor a 0).");
+    const preciosNumericos: Record<string, number> = {};
+    pesosDisponibles.forEach((w) => {
+      const val = Number(preciosPorPeso[String(w)]);
+      if (!isNaN(val) && val > 0) {
+        preciosNumericos[String(w)] = Math.round(val);
+      }
+    });
+
+    let precio = Number(precioKg);
+    if ((!precioKg.trim() || isNaN(precio) || precio <= 0) && pesosDisponibles.length > 0) {
+      const firstW = pesosDisponibles[0];
+      const firstP = preciosNumericos[String(firstW)];
+      if (firstP && firstP > 0) {
+        precio = Math.round(firstP / firstW);
+      }
+    }
+
+    if (isNaN(precio) || precio <= 0) {
+      alert("Ingresá al menos un precio directo por peso o el precio por kg.");
       return;
     }
+
+    // Completar precios faltantes con precio * peso
+    pesosDisponibles.forEach((w) => {
+      if (!preciosNumericos[String(w)]) {
+        preciosNumericos[String(w)] = Math.round(precio * w);
+      }
+    });
     setSaving(true);
 
     try {
@@ -343,6 +376,7 @@ export default function ConfigurarTortaPage() {
           tipo: finalTipo,
           imagen_url: finalImageUrl,
           pesos_disponibles: pesosDisponibles,
+          precios_por_peso: preciosNumericos,
           activo: true,
         });
 
@@ -360,6 +394,7 @@ export default function ConfigurarTortaPage() {
           tipo: finalTipo,
           imagen_url: finalImageUrl,
           pesos_disponibles: pesosDisponibles,
+          precios_por_peso: preciosNumericos,
         });
       }
 
@@ -741,6 +776,12 @@ export default function ConfigurarTortaPage() {
                                 setPesosDisponibles(pesosDisponibles.filter((p) => p !== peso));
                               } else {
                                 setPesosDisponibles([...pesosDisponibles, peso].sort((a, b) => a - b));
+                                if (!preciosPorPeso[String(peso)] && Number(precioKg) > 0) {
+                                  setPreciosPorPeso((prev) => ({
+                                    ...prev,
+                                    [String(peso)]: String(Math.round(Number(precioKg) * peso)),
+                                  }));
+                                }
                               }
                             }}
                             className={`px-2 sm:px-2.5 py-1.5 sm:py-1 rounded-lg text-xs font-semibold border cursor-pointer transition-colors focus:outline-none text-center ${
@@ -755,16 +796,42 @@ export default function ConfigurarTortaPage() {
                       })}
                   </div>
 
-                  {Number(precioKg) > 0 && (
-                    <div className="mb-2.5 px-2.5 py-2 rounded-lg bg-pink-50/70 border border-pink-100 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-700">
-                      <span className="font-semibold text-pink-700">Precios al público:</span>
+                  {/* Precio directo editable por cada peso seleccionado */}
+                  <div className="mb-2.5 space-y-1.5">
+                    <span className="block text-[10px] font-semibold text-slate-500">
+                      Precio final por tamaño (editable directo)
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {pesosDisponibles.map((p) => (
-                        <span key={p}>
-                          <strong>{p} kg:</strong> ${Math.round(Number(precioKg) * p).toLocaleString("es-AR")}
-                        </span>
+                        <div
+                          key={p}
+                          className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200"
+                        >
+                          <span className="text-xs font-bold text-slate-700 shrink-0">
+                            {p} kg {p >= 3 ? "(2 pisos)" : ""}
+                          </span>
+                          <div className="relative flex items-center flex-1 max-w-[120px]">
+                            <span className="absolute left-2 text-[11px] font-bold text-slate-500">$</span>
+                            <input
+                              type="number"
+                              value={
+                                preciosPorPeso[String(p)] ??
+                                (Number(precioKg) > 0 ? String(Math.round(Number(precioKg) * p)) : "")
+                              }
+                              onChange={(e) =>
+                                setPreciosPorPeso((prev) => ({
+                                  ...prev,
+                                  [String(p)]: e.target.value,
+                                }))
+                              }
+                              placeholder="0"
+                              className="w-full pl-5 pr-2 py-1 border border-slate-200 rounded-md text-xs font-bold text-slate-900 bg-white focus:outline-none focus:border-pink-500 text-right"
+                            />
+                          </div>
+                        </div>
                       ))}
                     </div>
-                  )}
+                  </div>
 
                   <div className="flex gap-1.5">
                     <input

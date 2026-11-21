@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { SizeOption } from "./types";
 import { getCapacidadEstandar, getCuposMes, CupoDiarioDB } from "@/lib/services/cupos";
+import { getPrecioParaPeso } from "@/lib/services/catalogo";
 
 export const SIZES: SizeOption[] = [
   { kg: "1 kg", weight: 1, porciones: "8-10 porc.", portions: "8-10 porc.", precio: "$18.500", rawPrice: 18500 },
@@ -28,6 +29,7 @@ interface Paso1Props {
   tortaImagen?: string;
   basePricePerKg?: number;
   availableWeights?: number[];
+  customPrices?: Record<string, number> | null;
   onAvailabilityChange?: (isAvailable: boolean) => void;
 }
 
@@ -92,6 +94,7 @@ export function Paso1FechaPeso({
   tortaImagen,
   basePricePerKg,
   availableWeights,
+  customPrices,
   onAvailabilityChange,
 }: Paso1Props) {
   const today = new Date();
@@ -104,7 +107,7 @@ export function Paso1FechaPeso({
 
   const effectiveSizes: SizeOption[] = weightsToRender.map((w) => {
     const unitPrice = basePricePerKg || 18500;
-    const rawPrice = Math.round(unitPrice * w);
+    const rawPrice = getPrecioParaPeso(w, unitPrice, customPrices);
     const minPorc = Math.round(w * 8);
     const maxPorc = Math.round(w * 10);
     const porcLabel = w >= 3 ? `${minPorc}-${maxPorc} porc. · Doble piso` : `${minPorc}-${maxPorc} porc.`;

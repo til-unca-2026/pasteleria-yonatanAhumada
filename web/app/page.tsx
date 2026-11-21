@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { HeaderHome, HeaderUser } from "@/components/HeaderHome";
-import { normalizePesosTorta } from "@/lib/services/catalogo";
+import { normalizePesosTorta, getPrecioParaPeso } from "@/lib/services/catalogo";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +52,7 @@ export default async function Home() {
           image: t.imagen_url || "",
           pricePerKg,
           minWeight,
-          minPrice: Math.round(pricePerKg * minWeight),
+          minPrice: getPrecioParaPeso(minWeight, pricePerKg, t.precios_por_peso),
           hasSingleWeight: pesos.length === 1,
           type: t.tipo as "personalizable" | "receta_fija",
           description: t.descripcion || "",

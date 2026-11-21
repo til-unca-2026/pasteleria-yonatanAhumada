@@ -52,6 +52,7 @@ export interface TortaDB {
   cta_text: string;
   activo: boolean;
   pesos_disponibles?: number[] | null;
+  precios_por_peso?: Record<string, number> | null;
 }
 
 export const DEFAULT_PESOS_TORTA: number[] = [1, 1.5, 2];
@@ -66,6 +67,18 @@ export function normalizePesosTorta(pesos?: unknown): number[] {
     )
   ).sort((a, b) => a - b);
   return valid.length > 0 ? valid : DEFAULT_PESOS_TORTA;
+}
+
+export function getPrecioParaPeso(
+  peso: number,
+  precioBaseKg: number,
+  preciosPorPeso?: Record<string, number> | null
+): number {
+  const custom = preciosPorPeso?.[String(peso)];
+  if (typeof custom === "number" && !isNaN(custom) && custom > 0) {
+    return Math.round(custom);
+  }
+  return Math.round(precioBaseKg * peso);
 }
 
 export async function getTortasActivas(): Promise<TortaDB[]> {
@@ -126,8 +139,12 @@ export async function updateTorta(id: string, cambios: Partial<TortaDB>): Promis
     .select();
 
   // Compatibilidad si aún no se ejecutó 06_tortas_pesos_disponibles.sql
-  if (error && (error.code === "PGRST204" || error.code === "42703") && "pesos_disponibles" in cambios) {
-    const { pesos_disponibles: _, ...rest } = cambios;
+  if (
+    error &&
+    (error.code === "PGRST204" || error.code === "42703") &&
+    ("pesos_disponibles" in cambios || "precios_por_peso" in cambios)
+  ) {
+    const { pesos_disponibles: _, precios_por_peso: __, ...rest } = cambios;
     const retry = await supabase.from("tortas").update(rest).eq("id", id).select();
     data = retry.data;
     error = retry.error;
@@ -177,14 +194,22 @@ export async function createTorta(torta: Partial<TortaDB>): Promise<TortaDB> {
   if (torta.pesos_disponibles && torta.pesos_disponibles.length > 0) {
     payload.pesos_disponibles = torta.pesos_disponibles;
   }
+  if (torta.precios_por_peso) {
+    payload.precios_por_peso = torta.precios_por_peso;
+  }
 
   let { data, error } = await supabase
     .from("tortas")
     .insert([payload])
     .select();
 
-  if (error && (error.code === "PGRST204" || error.code === "42703") && "pesos_disponibles" in payload) {
+  if (
+    error &&
+    (error.code === "PGRST204" || error.code === "42703") &&
+    ("pesos_disponibles" in payload || "precios_por_peso" in payload)
+  ) {
     delete payload.pesos_disponibles;
+    delete payload.precios_por_peso;
     const retry = await supabase.from("tortas").insert([payload]).select();
     data = retry.data;
     error = retry.error;
