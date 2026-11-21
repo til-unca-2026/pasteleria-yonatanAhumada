@@ -504,7 +504,15 @@ export function Paso1FechaPeso({
           </span>
         </div>
 
-        <div className="grid grid-cols-3 gap-[8px]">
+        <div
+          className={`grid gap-[8px] ${
+            effectiveSizes.length === 1
+              ? "grid-cols-1"
+              : effectiveSizes.length === 2
+              ? "grid-cols-2"
+              : "grid-cols-2 sm:grid-cols-3"
+          }`}
+        >
           {effectiveSizes.map((s) => {
             const isSelected = selectedWeight === s.weight;
             return (

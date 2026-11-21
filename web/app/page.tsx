@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { HeaderHome, HeaderUser } from "@/components/HeaderHome";
+import { normalizePesosTorta } from "@/lib/services/catalogo";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,9 @@ interface CakeCard {
   slug: string;
   image: string;
   pricePerKg: number;
+  minWeight: number;
+  minPrice: number;
+  hasSingleWeight: boolean;
   type: "personalizable" | "receta_fija";
   badge?: string;
   description: string;
@@ -37,16 +41,24 @@ export default async function Home() {
       console.error("Error cargando catálogo de tortas desde Supabase:", tortasError);
       hasCatalogError = true;
     } else if (tortasFromDb) {
-      cakesCatalog = tortasFromDb.map((t) => ({
-        id: t.slug,
-        name: t.nombre,
-        slug: t.slug,
-        image: t.imagen_url || "",
-        pricePerKg: Number(t.precio_base_kg),
-        type: t.tipo as "personalizable" | "receta_fija",
-        description: t.descripcion || "",
-        ctaText: t.cta_text || (t.tipo === "personalizable" ? "Personalizar" : "Pedir"),
-      }));
+      cakesCatalog = tortasFromDb.map((t) => {
+        const pesos = normalizePesosTorta(t.pesos_disponibles);
+        const minWeight = pesos[0];
+        const pricePerKg = Number(t.precio_base_kg);
+        return {
+          id: t.slug,
+          name: t.nombre,
+          slug: t.slug,
+          image: t.imagen_url || "",
+          pricePerKg,
+          minWeight,
+          minPrice: Math.round(pricePerKg * minWeight),
+          hasSingleWeight: pesos.length === 1,
+          type: t.tipo as "personalizable" | "receta_fija",
+          description: t.descripcion || "",
+          ctaText: t.cta_text || (t.tipo === "personalizable" ? "Personalizar" : "Pedir"),
+        };
+      });
     }
 
     const { data } = await supabase
@@ -239,11 +251,14 @@ export default async function Home() {
                       </div>
 
                       <div className="mt-3 md:mt-4 pt-2.5 border-t border-slate-100">
-                        <div className="flex items-baseline justify-between mb-2.5">
-                          <span className="text-[10px] md:text-xs text-slate-400 font-medium">Desde</span>
+                        <div className="flex items-baseline justify-between mb-2.5 gap-1">
+                          <span className="text-[10px] md:text-xs text-slate-400 font-medium">
+                            {cake.hasSingleWeight
+                              ? `Precio (${cake.minWeight} kg)`
+                              : `Desde (${cake.minWeight} kg)`}
+                          </span>
                           <span className="text-[13px] md:text-[15px] font-bold text-pink-700">
-                            ${cake.pricePerKg.toLocaleString("es-AR")}{" "}
-                            <span className="text-[10px] md:text-xs font-normal text-slate-500">/kg</span>
+                            ${cake.minPrice.toLocaleString("es-AR")}
                           </span>
                         </div>
 
