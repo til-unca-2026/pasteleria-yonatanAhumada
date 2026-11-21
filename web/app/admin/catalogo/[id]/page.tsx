@@ -55,6 +55,7 @@ export default function ConfigurarTortaPage() {
   const [imagenPreview, setImagenPreview] = useState<string | null>(null);
   const [pesosDisponibles, setPesosDisponibles] = useState<number[]>(DEFAULT_PESOS_TORTA);
   const [preciosPorPeso, setPreciosPorPeso] = useState<Record<string, string>>({});
+  const [editedWeights, setEditedWeights] = useState<Set<number>>(new Set());
   const [nuevoPesoInput, setNuevoPesoInput] = useState<string>("");
   const [saving, setSaving] = useState<boolean>(false);
 
@@ -166,6 +167,7 @@ export default function ConfigurarTortaPage() {
                 : String(Math.round(t.precio_base_kg * w));
             });
             setPreciosPorPeso(initialMap);
+            setEditedWeights(new Set(pesos));
 
             const rels = await getInsumosRelPorTorta(t.id);
             setCompatibleIds(new Set(rels.map((r) => r.insumo_id)));
@@ -799,10 +801,28 @@ export default function ConfigurarTortaPage() {
                               onChange={(e) => {
                                 const val = e.target.value;
                                 if (val.startsWith("-")) return;
-                                setPreciosPorPeso((prev) => ({
-                                  ...prev,
-                                  [String(p)]: val,
-                                }));
+                                const numVal = Number(val);
+                                const nextEdited = new Set(editedWeights);
+                                nextEdited.add(p);
+                                setEditedWeights(nextEdited);
+
+                                setPreciosPorPeso((prev) => {
+                                  const next: Record<string, string> = { ...prev, [String(p)]: val };
+                                  // Si es el primer tamaño o el primero que se edita, autocompletar los no editados manualmente
+                                  if (
+                                    (p === pesosDisponibles[0] || editedWeights.size === 0) &&
+                                    !isNaN(numVal) &&
+                                    numVal > 0
+                                  ) {
+                                    const ratePerKg = numVal / p;
+                                    pesosDisponibles.forEach((otherW) => {
+                                      if (otherW !== p && !nextEdited.has(otherW)) {
+                                        next[String(otherW)] = String(Math.round(ratePerKg * otherW));
+                                      }
+                                    });
+                                  }
+                                  return next;
+                                });
                               }}
                               placeholder="Ej: 25000"
                               className="w-full pl-5 pr-2 py-1 border border-slate-200 rounded-md text-xs font-bold text-slate-900 bg-white focus:outline-none focus:border-pink-500 text-right"
