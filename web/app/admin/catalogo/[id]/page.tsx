@@ -542,17 +542,18 @@ export default function ConfigurarTortaPage() {
             <button
               type="button"
               onClick={() => router.push("/admin?tab=catalogo")}
-              className="flex items-center gap-1.5 text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 px-3 py-1.5 rounded-xl border border-slate-700 text-xs font-semibold transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 px-2.5 sm:px-3 py-1.5 rounded-xl border border-slate-700 text-xs font-semibold transition-colors cursor-pointer shrink-0"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="15 18 9 12 15 6" />
               </svg>
-              <span>Volver a Catálogo</span>
+              <span className="hidden sm:inline">Volver a Catálogo</span>
+              <span className="sm:hidden">Volver</span>
             </button>
 
             <span className="hidden sm:inline text-slate-600 text-xs">/</span>
 
-            <span className="font-bold text-white text-sm md:text-base truncate max-w-[200px] md:max-w-xs">
+            <span className="font-bold text-white text-xs sm:text-sm md:text-base truncate max-w-[130px] sm:max-w-[220px] md:max-w-xs">
               {isNueva ? "Nueva Torta" : nombre || "Configuración de Torta"}
             </span>
           </div>
@@ -587,7 +588,8 @@ export default function ConfigurarTortaPage() {
               ) : (
                 <>
                   <span>💾</span>
-                  <span>Guardar Cambios</span>
+                  <span className="hidden sm:inline">Guardar Cambios</span>
+                  <span className="sm:hidden">Guardar</span>
                 </>
               )}
             </button>
@@ -724,7 +726,7 @@ export default function ConfigurarTortaPage() {
                     </span>
                   </div>
 
-                  <div className="flex flex-wrap gap-1.5 mb-2.5">
+                  <div className="grid grid-cols-4 sm:flex sm:flex-wrap gap-1.5 mb-2.5">
                     {Array.from(new Set([1, 1.5, 2, 2.5, 3, 3.5, 4, 5, ...pesosDisponibles]))
                       .sort((a, b) => a - b)
                       .map((peso) => {
@@ -741,7 +743,7 @@ export default function ConfigurarTortaPage() {
                                 setPesosDisponibles([...pesosDisponibles, peso].sort((a, b) => a - b));
                               }
                             }}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold border cursor-pointer transition-colors ${
+                            className={`px-2 sm:px-2.5 py-1.5 sm:py-1 rounded-lg text-xs font-semibold border cursor-pointer transition-colors focus:outline-none text-center ${
                               selected
                                 ? "bg-[#1e293b] text-white border-[#1e293b] shadow-2xs"
                                 : "bg-slate-50 text-slate-600 border-slate-200 hover:border-pink-300"
@@ -752,6 +754,17 @@ export default function ConfigurarTortaPage() {
                         );
                       })}
                   </div>
+
+                  {Number(precioKg) > 0 && (
+                    <div className="mb-2.5 px-2.5 py-2 rounded-lg bg-pink-50/70 border border-pink-100 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-700">
+                      <span className="font-semibold text-pink-700">Precios al público:</span>
+                      {pesosDisponibles.map((p) => (
+                        <span key={p}>
+                          <strong>{p} kg:</strong> ${Math.round(Number(precioKg) * p).toLocaleString("es-AR")}
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
                   <div className="flex gap-1.5">
                     <input
