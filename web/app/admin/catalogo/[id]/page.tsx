@@ -325,7 +325,13 @@ export default function ConfigurarTortaPage() {
 
     const preciosNumericos: Record<string, number> = {};
     pesosDisponibles.forEach((w) => {
-      const val = Number(preciosPorPeso[String(w)]);
+      const rawVal = preciosPorPeso[String(w)];
+      const val =
+        rawVal !== undefined && rawVal !== ""
+          ? Number(rawVal)
+          : Number(precioKg) > 0
+          ? Math.round(Number(precioKg) * w)
+          : 0;
       if (!isNaN(val) && val > 0) {
         preciosNumericos[String(w)] = Math.round(val);
       }
@@ -825,6 +831,12 @@ export default function ConfigurarTortaPage() {
                         if (!isNaN(val) && val > 0 && val <= 20) {
                           if (!pesosDisponibles.includes(val)) {
                             setPesosDisponibles([...pesosDisponibles, val].sort((a, b) => a - b));
+                            if (!preciosPorPeso[String(val)] && Number(precioKg) > 0) {
+                              setPreciosPorPeso((prev) => ({
+                                ...prev,
+                                [String(val)]: String(Math.round(Number(precioKg) * val)),
+                              }));
+                            }
                           }
                           setNuevoPesoInput("");
                         }
