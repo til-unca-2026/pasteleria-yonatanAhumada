@@ -9,6 +9,7 @@ import {
   EstadoPedido,
 } from "@/lib/services/pedidos";
 import { getTodasLasTortas, TortaDB } from "@/lib/services/catalogo";
+import { getTallerConfig } from "@/lib/services/configuracion";
 import { toWhatsAppPhone } from "@/lib/phone";
 import {
   notifyPagoAprobado,
@@ -154,18 +155,24 @@ export function PedidosTab() {
             console.warn("Aviso no bloqueante al notificar pago a Telegram:", err)
           );
         } else if (nuevoEstado === "Listo") {
-          notifyPedidoListo({
-            id: pedidoActual.id,
-            cliente_nombre: pedidoActual.cliente_nombre,
-            cliente_telefono: pedidoActual.cliente_telefono,
-            fecha_entrega: pedidoActual.fecha_entrega,
-            peso_kg: pedidoActual.peso_kg,
-            total_estimado: pedidoActual.total_estimado,
-            modeloNombre,
-            telegram_chat_id: pedidoActual.telegram_chat_id,
-          }).catch((err) =>
-            console.warn("Aviso no bloqueante al notificar comanda lista a Telegram:", err)
-          );
+          getTallerConfig()
+            .then((cfg) =>
+              notifyPedidoListo({
+                id: pedidoActual.id,
+                cliente_nombre: pedidoActual.cliente_nombre,
+                cliente_telefono: pedidoActual.cliente_telefono,
+                fecha_entrega: pedidoActual.fecha_entrega,
+                peso_kg: pedidoActual.peso_kg,
+                total_estimado: pedidoActual.total_estimado,
+                modeloNombre,
+                telegram_chat_id: pedidoActual.telegram_chat_id,
+                direccion_retiro: cfg.direccion_retiro || null,
+                horario_retiro: cfg.horario_retiro || null,
+              })
+            )
+            .catch((err) =>
+              console.warn("Aviso no bloqueante al notificar comanda lista a Telegram:", err)
+            );
         }
       }
     } catch (err) {

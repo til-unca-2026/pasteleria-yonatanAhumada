@@ -18,6 +18,7 @@ import {
   PedidoConDetalles,
 } from "@/lib/services/pedidos";
 import { getTortasActivas, TortaDB } from "@/lib/services/catalogo";
+import { DEFAULT_TALLER_CONFIG, getTallerConfig, TallerConfig } from "@/lib/services/configuracion";
 import { notifyComprobanteAdjuntado } from "@/lib/services/telegram";
 import { createClient } from "@/lib/supabase/client";
 
@@ -53,11 +54,13 @@ function MisPedidosContent() {
   // Countdown state
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
   const [tortasCatalog, setTortasCatalog] = useState<TortaDB[]>([]);
+  const [tallerConfig, setTallerConfig] = useState<TallerConfig>(DEFAULT_TALLER_CONFIG);
 
   useEffect(() => {
     getTortasActivas().then((data) => {
       if (data && data.length > 0) setTortasCatalog(data);
     });
+    getTallerConfig().then(setTallerConfig).catch(() => {});
   }, []);
 
   // 1. Exigir sesión iniciada y cargar únicamente los pedidos de esta cuenta
@@ -390,9 +393,9 @@ function MisPedidosContent() {
       isCountdownExpired,
       total: p.total_estimado,
       seña: p.total_estimado,
-      cbu: "0000003100012345678901",
-      alias: "pasteleria.taller",
-      titular: "Yonatan Ahumada",
+      cbu: tallerConfig.cbu,
+      alias: tallerConfig.alias,
+      titular: tallerConfig.titular,
       comprobanteUrl: p.comprobante_url,
       baseNombre,
       rellenosNombres,

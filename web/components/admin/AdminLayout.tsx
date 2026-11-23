@@ -4,7 +4,7 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export type Tab = "pedidos" | "cupos" | "catalogo" | "metricas";
+export type Tab = "pedidos" | "cupos" | "catalogo" | "metricas" | "configuracion";
 
 interface AdminLayoutProps {
   activeTab: Tab;
@@ -51,6 +51,7 @@ export function AdminLayout({
     { key: "cupos", label: "Cupos" },
     { key: "catalogo", label: "Catálogo" },
     { key: "metricas", label: "Métricas" },
+    { key: "configuracion", label: "Configuración" },
   ];
 
   return (
@@ -249,20 +250,21 @@ export function AdminLayout({
           </div>
 
           {/* Bottom Tabs Nav */}
-          <nav className="flex items-center justify-around px-[8px] py-[6px] pb-safe">
-            {(["pedidos", "cupos", "catalogo", "metricas"] as Tab[]).map((tab) => {
+          <nav className="flex items-center justify-around px-[4px] py-[6px] pb-safe">
+            {(["pedidos", "cupos", "catalogo", "metricas", "configuracion"] as Tab[]).map((tab) => {
               const active = activeTab === tab;
               const labels: Record<Tab, string> = {
                 pedidos: "Pedidos",
                 cupos: "Cupos",
                 catalogo: "Catálogo",
                 metricas: "Métricas",
+                configuracion: "Ajustes",
               };
               return (
                 <button
                   key={tab}
                   onClick={() => onTabChange(tab)}
-                  className={`flex flex-col items-center gap-[3px] px-[12px] py-[4px] rounded-[8px] border-0 cursor-pointer bg-transparent transition-colors ${
+                  className={`flex flex-col items-center gap-[3px] px-[8px] py-[4px] rounded-[8px] border-0 cursor-pointer bg-transparent transition-colors ${
                     active ? "text-[#0f172a]" : "text-[#94a3b8] hover:text-[#64748b]"
                   }`}
                 >
@@ -316,9 +318,18 @@ function TabIcon({ tab, active }: { tab: Tab; active: boolean }) {
     );
   }
 
+  if (tab === "metricas") {
+    return (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M4 14V10M8 14V7M12 14V9M16 14V5" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <path d="M4 14V10M8 14V7M12 14V9M16 14V5" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
     </svg>
   );
 }

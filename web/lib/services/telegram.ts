@@ -59,6 +59,8 @@ export interface NotifPedidoParams {
   comprobante_url?: string | null;
   foto_referencia_url?: string | null;
   telegram_chat_id?: string | null;
+  direccion_retiro?: string | null;
+  horario_retiro?: string | null;
 }
 
 const getBaseAppUrl = () => {
@@ -221,13 +223,22 @@ export async function notifyPedidoListo(params: NotifPedidoParams): Promise<bool
 
   // 2. Alerta directa al Telegram del cliente
   if (params.telegram_chat_id) {
+    const retiroLines = [
+      params.direccion_retiro ? `• *Dirección:* ${params.direccion_retiro}` : "",
+      params.horario_retiro ? `• *Horarios:* ${params.horario_retiro}` : "",
+    ].filter(Boolean);
+
     const clienteMsg = [
       `🎉 *Tu torta está lista (${codigo})*`,
       "",
       `Hola ${params.cliente_nombre}, tu pedido (${params.modeloNombre || "Torta Artesanal"}) ya está terminado y listo para retirar.`,
       "",
+      ...retiroLines,
+      retiroLines.length > 0 ? "" : "",
       "Podés pasar a retirarlo por el taller. ¡Te esperamos!",
-    ].join("\n");
+    ]
+      .filter((l, idx, arr) => !(l === "" && arr[idx - 1] === ""))
+      .join("\n");
     await sendTelegramNotification(clienteMsg, params.telegram_chat_id);
   }
 

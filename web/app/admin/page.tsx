@@ -9,6 +9,9 @@ import { PedidosTab } from "@/components/admin/PedidosTab";
 import { CuposTab } from "@/components/admin/CuposTab";
 import { CatalogoTab } from "@/components/admin/CatalogoTab";
 import { MetricasTab } from "@/components/admin/MetricasTab";
+import { ConfiguracionTab } from "@/components/admin/ConfiguracionTab";
+
+const VALID_TABS: Tab[] = ["pedidos", "cupos", "catalogo", "metricas", "configuracion"];
 
 function AdminContent() {
   const router = useRouter();
@@ -17,14 +20,14 @@ function AdminContent() {
   const supabase = createClient();
   const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<Tab>(
-    tabParam && ["pedidos", "cupos", "catalogo", "metricas"].includes(tabParam)
+    tabParam && VALID_TABS.includes(tabParam)
       ? tabParam
       : "pedidos"
   );
   const [isReceptionOpen, setIsReceptionOpen] = useState<boolean>(true);
 
   useEffect(() => {
-    if (tabParam && ["pedidos", "cupos", "catalogo", "metricas"].includes(tabParam)) {
+    if (tabParam && VALID_TABS.includes(tabParam)) {
       setActiveTab(tabParam);
     } else if (!tabParam) {
       setActiveTab("pedidos");
@@ -81,6 +84,8 @@ function AdminContent() {
         return "Catálogo y Precios";
       case "metricas":
         return "Métricas y Rendimiento";
+      case "configuracion":
+        return "Configuración del Taller";
       default:
         return "Panel de Control";
     }
@@ -114,6 +119,8 @@ function AdminContent() {
       {activeTab === "catalogo" && <CatalogoTab />}
 
       {activeTab === "metricas" && <MetricasTab />}
+
+      {activeTab === "configuracion" && <ConfiguracionTab />}
     </AdminLayout>
   );
 }
