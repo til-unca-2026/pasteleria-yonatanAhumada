@@ -19,6 +19,8 @@ import {
   updateInsumoActivo,
   updateInsumo,
   deleteInsumo,
+  DEFAULT_PESOS_TORTA,
+  normalizePesosTorta,
   TortaDB,
   InsumoDB,
   TipoInsumo,
@@ -51,6 +53,10 @@ export default function ConfigurarTortaPage() {
   const [imagenUrl, setImagenUrl] = useState<string>("");
   const [imagenFile, setImagenFile] = useState<File | null>(null);
   const [imagenPreview, setImagenPreview] = useState<string | null>(null);
+  const [pesosDisponibles, setPesosDisponibles] = useState<number[]>(DEFAULT_PESOS_TORTA);
+  const [preciosPorPeso, setPreciosPorPeso] = useState<Record<string, string>>({});
+  const [editedWeights, setEditedWeights] = useState<Set<number>>(new Set());
+  const [nuevoPesoInput, setNuevoPesoInput] = useState<string>("");
   const [saving, setSaving] = useState<boolean>(false);
 
   // Insumos, Compatibilidades y Defaults (Mockup 2.4)
@@ -151,6 +157,17 @@ export default function ConfigurarTortaPage() {
             setDescripcion(t.descripcion || "");
             setImagenUrl(t.imagen_url || "");
             setImagenPreview(t.imagen_url || null);
+            const pesos = normalizePesosTorta(t.pesos_disponibles);
+            setPesosDisponibles(pesos);
+            const initialMap: Record<string, string> = {};
+            pesos.forEach((w) => {
+              const direct = t.precios_por_peso?.[String(w)];
+              initialMap[String(w)] = direct
+                ? String(direct)
+                : String(Math.round(t.precio_base_kg * w));
+            });
+            setPreciosPorPeso(initialMap);
+            setEditedWeights(new Set(pesos));
 
             const rels = await getInsumosRelPorTorta(t.id);
             setCompatibleIds(new Set(rels.map((r) => r.insumo_id)));
@@ -308,11 +325,28 @@ export default function ConfigurarTortaPage() {
       return;
     }
 
-    const precio = Number(precioKg);
-    if (!precioKg.trim() || isNaN(precio) || precio <= 0) {
-      alert("Por favor ingresa un precio por kg válido (mayor a 0).");
+    const preciosNumericos: Record<string, number> = {};
+    pesosDisponibles.forEach((w) => {
+      const rawVal = preciosPorPeso[String(w)];
+      const val =
+        rawVal !== undefined && rawVal !== ""
+          ? Number(rawVal)
+          : Number(precioKg) > 0
+          ? Math.round(Number(precioKg) * w)
+          : 0;
+      if (!isNaN(val) && val > 0) {
+        preciosNumericos[String(w)] = Math.round(val);
+      }
+    });
+
+    if (Object.keys(preciosNumericos).length < pesosDisponibles.length) {
+      alert("Por favor ingresá un precio válido (mayor a 0) para cada tamaño seleccionado.");
       return;
     }
+
+    const firstW = pesosDisponibles[0];
+    const firstP = preciosNumericos[String(firstW)];
+    const precio = Math.round(firstP / firstW);
     setSaving(true);
 
     try {
@@ -337,6 +371,8 @@ export default function ConfigurarTortaPage() {
           precio_base_kg: precio,
           tipo: finalTipo,
           imagen_url: finalImageUrl,
+          pesos_disponibles: pesosDisponibles,
+          precios_por_peso: preciosNumericos,
           activo: true,
         });
 
@@ -353,6 +389,8 @@ export default function ConfigurarTortaPage() {
           precio_base_kg: precio,
           tipo: finalTipo,
           imagen_url: finalImageUrl,
+          pesos_disponibles: pesosDisponibles,
+          precios_por_peso: preciosNumericos,
         });
       }
 
@@ -535,17 +573,18 @@ export default function ConfigurarTortaPage() {
             <button
               type="button"
               onClick={() => router.push("/admin?tab=catalogo")}
-              className="flex items-center gap-1.5 text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 px-3 py-1.5 rounded-xl border border-slate-700 text-xs font-semibold transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 px-2.5 sm:px-3 py-1.5 rounded-xl border border-slate-700 text-xs font-semibold transition-colors cursor-pointer shrink-0"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="15 18 9 12 15 6" />
               </svg>
-              <span>Volver a Catálogo</span>
+              <span className="hidden sm:inline">Volver a Catálogo</span>
+              <span className="sm:hidden">Volver</span>
             </button>
 
             <span className="hidden sm:inline text-slate-600 text-xs">/</span>
 
-            <span className="font-bold text-white text-sm md:text-base truncate max-w-[200px] md:max-w-xs">
+            <span className="font-bold text-white text-xs sm:text-sm md:text-base truncate max-w-[130px] sm:max-w-[220px] md:max-w-xs">
               {isNueva ? "Nueva Torta" : nombre || "Configuración de Torta"}
             </span>
           </div>
@@ -580,7 +619,8 @@ export default function ConfigurarTortaPage() {
               ) : (
                 <>
                   <span>💾</span>
-                  <span>Guardar Cambios</span>
+                  <span className="hidden sm:inline">Guardar Cambios</span>
+                  <span className="sm:hidden">Guardar</span>
                 </>
               )}
             </button>
@@ -658,8 +698,8 @@ export default function ConfigurarTortaPage() {
                     </div>
                   )}
 
-                  {/* Campos: Nombre y Precio por Kg */}
-                  <div className="flex-1 min-w-0 w-full flex flex-col gap-3">
+                  {/* Campo: Nombre */}
+                  <div className="flex-1 min-w-0 w-full flex flex-col justify-center">
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                         Nombre de la Torta
@@ -671,23 +711,6 @@ export default function ConfigurarTortaPage() {
                         placeholder="Ej: Torta Selva Negra"
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:border-pink-500 bg-white shadow-2xs"
                       />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                        Precio por Kg
-                      </label>
-                      <div className="relative flex items-center">
-                        <span className="absolute left-3 text-xs font-bold text-slate-500">$</span>
-                        <input
-                          type="number"
-                          value={precioKg}
-                          onChange={(e) => setPrecioKg(e.target.value)}
-                          placeholder="Ej: 18000"
-                          className="w-full pl-6 pr-12 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:border-pink-500 bg-white shadow-2xs"
-                        />
-                        <span className="absolute right-3 text-xs text-slate-400 font-medium">/ kg</span>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -704,6 +727,145 @@ export default function ConfigurarTortaPage() {
                     placeholder="Descripción o detalles especiales para los clientes..."
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-pink-500 bg-white resize-none shadow-2xs"
                   />
+                </div>
+
+                {/* Campo: Pesos disponibles */}
+                <div className="pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-[11px] font-semibold text-slate-600">
+                      Pesos Disponibles (kg)
+                    </label>
+                    <span className="text-[10px] text-slate-400">
+                      3+ kg apto doble piso
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-4 sm:flex sm:flex-wrap gap-1.5 mb-2.5">
+                    {Array.from(new Set([1, 1.5, 2, 2.5, 3, 3.5, 4, 5, ...pesosDisponibles]))
+                      .sort((a, b) => a - b)
+                      .map((peso) => {
+                        const selected = pesosDisponibles.includes(peso);
+                        return (
+                          <button
+                            key={peso}
+                            type="button"
+                            onClick={() => {
+                              if (selected) {
+                                if (pesosDisponibles.length <= 1) return;
+                                setPesosDisponibles(pesosDisponibles.filter((p) => p !== peso));
+                              } else {
+                                setPesosDisponibles([...pesosDisponibles, peso].sort((a, b) => a - b));
+                                if (!preciosPorPeso[String(peso)] && Number(precioKg) > 0) {
+                                  setPreciosPorPeso((prev) => ({
+                                    ...prev,
+                                    [String(peso)]: String(Math.round(Number(precioKg) * peso)),
+                                  }));
+                                }
+                              }
+                            }}
+                            className={`px-2 sm:px-2.5 py-1.5 sm:py-1 rounded-lg text-xs font-semibold border cursor-pointer transition-colors focus:outline-none text-center ${
+                              selected
+                                ? "bg-[#1e293b] text-white border-[#1e293b] shadow-2xs"
+                                : "bg-slate-50 text-slate-600 border-slate-200 hover:border-pink-300"
+                            }`}
+                          >
+                            {peso} kg
+                          </button>
+                        );
+                      })}
+                  </div>
+
+                  {/* Precio directo editable por cada peso seleccionado */}
+                  <div className="mb-2.5 space-y-1.5">
+                    <span className="block text-[10px] font-semibold text-slate-500">
+                      Precio final por tamaño (editable directo)
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {pesosDisponibles.map((p) => (
+                        <div
+                          key={p}
+                          className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200"
+                        >
+                          <span className="text-xs font-bold text-slate-700 shrink-0">
+                            {p} kg {p >= 3 ? "(2 pisos)" : ""}
+                          </span>
+                          <div className="relative flex items-center flex-1 max-w-[120px]">
+                            <span className="absolute left-2 text-[11px] font-bold text-slate-500">$</span>
+                            <input
+                              type="number"
+                              min="1"
+                              value={
+                                preciosPorPeso[String(p)] ??
+                                (Number(precioKg) > 0 ? String(Math.round(Number(precioKg) * p)) : "")
+                              }
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val.startsWith("-")) return;
+                                const numVal = Number(val);
+                                const nextEdited = new Set(editedWeights);
+                                nextEdited.add(p);
+                                setEditedWeights(nextEdited);
+
+                                setPreciosPorPeso((prev) => {
+                                  const next: Record<string, string> = { ...prev, [String(p)]: val };
+                                  // Si es el primer tamaño o el primero que se edita, autocompletar los no editados manualmente
+                                  if (
+                                    (p === pesosDisponibles[0] || editedWeights.size === 0) &&
+                                    !isNaN(numVal) &&
+                                    numVal > 0
+                                  ) {
+                                    const ratePerKg = numVal / p;
+                                    pesosDisponibles.forEach((otherW) => {
+                                      if (otherW !== p && !nextEdited.has(otherW)) {
+                                        next[String(otherW)] = String(Math.round(ratePerKg * otherW));
+                                      }
+                                    });
+                                  }
+                                  return next;
+                                });
+                              }}
+                              placeholder="Ej: 25000"
+                              className="w-full pl-5 pr-2 py-1 border border-slate-200 rounded-md text-xs font-bold text-slate-900 bg-white focus:outline-none focus:border-pink-500 text-right"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-1.5">
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0.5"
+                      max="20"
+                      value={nuevoPesoInput}
+                      onChange={(e) => setNuevoPesoInput(e.target.value)}
+                      placeholder="Otro peso (ej: 6)"
+                      className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-700 bg-white focus:outline-none focus:border-pink-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const val = Number(nuevoPesoInput);
+                        if (!isNaN(val) && val > 0 && val <= 20) {
+                          if (!pesosDisponibles.includes(val)) {
+                            setPesosDisponibles([...pesosDisponibles, val].sort((a, b) => a - b));
+                            if (!preciosPorPeso[String(val)] && Number(precioKg) > 0) {
+                              setPreciosPorPeso((prev) => ({
+                                ...prev,
+                                [String(val)]: String(Math.round(Number(precioKg) * val)),
+                              }));
+                            }
+                          }
+                          setNuevoPesoInput("");
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 text-xs font-semibold cursor-pointer"
+                    >
+                      + Agregar
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
