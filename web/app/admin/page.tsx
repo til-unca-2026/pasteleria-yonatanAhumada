@@ -10,6 +10,8 @@ import { CuposTab } from "@/components/admin/CuposTab";
 import { CatalogoTab } from "@/components/admin/CatalogoTab";
 import { MetricasTab } from "@/components/admin/MetricasTab";
 
+const VALID_TABS: Tab[] = ["pedidos", "cupos", "catalogo", "metricas"];
+
 function AdminContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -17,14 +19,14 @@ function AdminContent() {
   const supabase = createClient();
   const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<Tab>(
-    tabParam && ["pedidos", "cupos", "catalogo", "metricas"].includes(tabParam)
+    tabParam && VALID_TABS.includes(tabParam)
       ? tabParam
       : "pedidos"
   );
   const [isReceptionOpen, setIsReceptionOpen] = useState<boolean>(true);
 
   useEffect(() => {
-    if (tabParam && ["pedidos", "cupos", "catalogo", "metricas"].includes(tabParam)) {
+    if (tabParam && VALID_TABS.includes(tabParam)) {
       setActiveTab(tabParam);
     } else if (!tabParam) {
       setActiveTab("pedidos");
