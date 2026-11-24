@@ -581,9 +581,9 @@ export function PedidosTab() {
         {/* ── Columna Derecha: Panel Lateral de Detalle en PC (Sticky) ── */}
         <div className="hidden lg:block flex-1 min-w-0 sticky top-[76px] self-start">
           {activeSelected ? (
-            <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden flex flex-col max-h-[calc(100vh-96px)] divide-y divide-slate-100 animate-in fade-in duration-150">
+            <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden flex flex-col max-h-[calc(100vh-210px)] divide-y divide-slate-100 animate-in fade-in duration-150">
               {/* Header de Detalle */}
-              <div className="shrink-0 p-5 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex items-center justify-between">
+              <div className="shrink-0 px-5 py-3.5 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-mono text-xs text-slate-300 bg-slate-800/90 px-2 py-0.5 rounded border border-slate-700">
@@ -615,7 +615,7 @@ export function PedidosTab() {
               </div>
 
               {/* Ficha Técnica: Foto + Ingredientes */}
-              <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
                 <div className="flex gap-4 items-start">
                   <div className="size-20 rounded-xl overflow-hidden bg-pink-50 border border-slate-200 shrink-0 shadow-2xs relative">
                     {parseModeloYNotas(activeSelected.notas).tortaImagen ? (
@@ -801,7 +801,7 @@ export function PedidosTab() {
               </div>
 
               {/* Barra de Acciones del Panel de Detalle */}
-              <div className="shrink-0 p-4 bg-slate-50 flex items-center gap-2.5">
+              <div className="shrink-0 px-4 py-3 bg-slate-50 flex items-center gap-2.5">
                 {activeSelected.estado === "Pendiente" && (
                   <>
                     <button
