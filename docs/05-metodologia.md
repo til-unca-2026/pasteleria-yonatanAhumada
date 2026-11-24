@@ -65,7 +65,7 @@ flowchart TD
 * **Capa de Persistencia y BaaS (Supabase):** 
   * *PostgreSQL:* Gestiona el estado transaccional (ACID) del negocio (pedidos, registro de pagos por transferencia, bloqueo de cupos de producción).
   * *Storage:* Bucket dedicado para el resguardo de imágenes de referencia y comprobantes de pago.
-  * *Auth:* Mecanismo de autenticación basado en JWT para restringir el acceso al portal de administración.
+  * *Auth:* Mecanismo de autenticación basado en JWT (Google OAuth / correo) que protege la realización y seguimiento de pedidos (`/pedido`, `/mis-pedidos`, `/configuracion`) y restringe el acceso al portal de administración (`/admin`).
 * **Servicios Externos (Telegram Bot API):** Canal de mensajería asíncrono desacoplado del ciclo de renderizado web. Actúa como sistema de eventos *push* para alertar al taller en tiempo real y, a su vez, despacha avisos automatizados al chat personal del cliente (vinculado mediante *deep linking* y un *webhook* que registra su `chat_id`).
 
 ---
@@ -79,9 +79,9 @@ flowchart TB
     subgraph UI["1. Capa de Presentación (UI / Next.js)"]
         subgraph Customer["📦 customer_flow"]
             C1["Home (/)"]
-            C2["Paso 1: Fecha y Peso"]
-            C3["Paso 2: Sabores y Rellenos"]
-            C4["Paso 3: Reserva y Comprobante"]
+            C2["Configurador (/pedido: Paso 1, 2, 3)"]
+            C3["Mis Pedidos (/mis-pedidos)"]
+            C4["Configuración (/configuracion)"]
         end
 
         subgraph Admin["📦 admin_portal"]
@@ -156,6 +156,8 @@ erDiagram
         string descripcion
         string tipo "personalizable | receta_fija"
         decimal precio_base_kg
+        numeric_array pesos_disponibles
+        jsonb precios_por_peso
         string imagen_url
         boolean activo
     }
@@ -163,6 +165,7 @@ erDiagram
     PEDIDOS {
         uuid id PK
         uuid torta_id FK
+        uuid user_id FK "auth.users"
         string cliente_nombre
         string cliente_telefono
         string telegram_chat_id "chat_id para alertas al cliente"
@@ -170,7 +173,7 @@ erDiagram
         float peso_kg
         decimal total_estimado
         decimal sena_requerida "monto total a transferir"
-        string estado "Pendiente | Expirado | Señado | En producción | Listo | Rechazado"
+        string estado "Pendiente | Expirado | Señado | En producción | Listo"
         string comprobante_url
         string foto_referencia_url
         timestamp expiracion_reserva
@@ -179,7 +182,7 @@ erDiagram
 
     INSUMOS {
         uuid id PK
-        string tipo "bizcochuelo | relleno | cobertura"
+        string tipo "bizcochuelo | relleno | cobertura | topping"
         string nombre
         string imagen_url
         decimal recargo_extra
@@ -195,6 +198,19 @@ erDiagram
     TORTAS_INSUMOS {
         uuid torta_id PK,FK
         uuid insumo_id PK,FK
+        boolean es_default
+    }
+
+    USUARIOS_TELEGRAM {
+        uuid user_id PK
+        string telegram_chat_id
+        timestamp updated_at
+    }
+
+    CONFIGURACION {
+        string clave PK
+        jsonb valor
+        timestamp updated_at
     }
 
     CUPOS_DIARIOS ||--o{ PEDIDOS : "regula disponibilidad"

@@ -7,10 +7,11 @@ Define los módulos desarrollados y las exclusiones explícitas adoptadas para e
 ## 1. Alcance Incluido
 
 ### Módulo de Catálogo y Experiencia de Cliente
-* **Vitrina de productos (`/`):** Catálogo interactivo de tortas modelo, diferenciando tortas personalizables (receta abierta) de tradicionales (receta fija).
-* **Cotizador dinámico:** Selección de peso (1 a 2 kg) con porciones sugeridas y personalización adaptativa según producto (bizcochuelo, rellenos clásicos/premium y coberturas en tortas abiertas; toppings y dedicatoria en tortas fijas).
-* **Cálculo reactivo:** Actualización en tiempo real del presupuesto total según peso e insumos seleccionados.
-* **Confirmación y comprobante:** Formulario de contacto, visualización de datos bancarios (Alias/CBU) y adjunto de comprobante de transferencia con foto de referencia decorativa opcional.
+* **Vitrina de productos (`/`):** Catálogo interactivo de tortas modelo, diferenciando tortas personalizables (receta abierta) de tradicionales (receta fija), con precios directos según su peso mínimo o único.
+* **Cotizador dinámico (`/pedido`):** Acceso mediante cuenta autenticada; selección de peso configurable por modelo (incluyendo tamaños grandes / doble piso desde 3 kg) con porciones sugeridas y personalización adaptativa según producto (bizcochuelo, rellenos, coberturas, toppings y dedicatoria).
+* **Cálculo reactivo:** Actualización en tiempo real del presupuesto total según el tamaño elegido y los recargos de insumos seleccionados.
+* **Confirmación y comprobante (`/mis-pedidos`):** Gestión privada por cuenta, visualización de datos bancarios dinámicos (Alias/CBU/Titular), adjunto de comprobante de transferencia y seguimiento de estados.
+* **Perfil y preferencias (`/configuracion`):** Gestión de datos personales de contacto y vinculación única de Telegram a nivel de cuenta para recibir alertas automáticas.
 
 ### Módulo de Gestión de Cupos y Concurrencia (ACID)
 * **Calendario con semáforo:** Disponibilidad diaria en tiempo real (disponible, cupos críticos, agotado o bloqueado).
@@ -21,7 +22,8 @@ Define los módulos desarrollados y las exclusiones explícitas adoptadas para e
 * **Tablero de comandas:** Control del ciclo de vida del pedido (*Pendiente*, *Confirmado*, *En producción*, *Listo para retiro*).
 * **Validación de pagos:** Visor de comprobantes de transferencia para confirmación o rechazo manual del pago.
 * **Gestión de calendario:** Calibración de cupos máximos diarios y bloqueo manual de fechas.
-* **Administración de catálogo:** Ajuste de precio base por kilo, alta/baja de insumos con recargos y switches (*flags*) para definir qué opciones admite cada torta modelo.
+* **Administración de catálogo:** Configuración de pesos habilitados y precios directos por tamaño, alta/baja de insumos con recargos, opción predeterminada y reglas por torta modelo.
+* **Configuración del taller (`/configuracion`):** Administración centralizada de datos bancarios (CBU, Alias, Titular), WhatsApp, dirección y horarios de retiro.
 
 ### Canal de Alertas Operativas (Telegram)
 * **Alertas al pastelero:** Notificación push inmediata por Telegram Bot API ante nuevos pedidos con comprobante adjunto.
