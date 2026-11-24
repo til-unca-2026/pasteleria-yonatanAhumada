@@ -29,10 +29,10 @@ import { getRecepcionAbierta, updateRecepcionAbierta } from "@/lib/services/cupo
 import { ConfirmModal } from "@/components/admin/ConfirmModal";
 
 const INSUMO_CATEGORIES: { label: string; key: TipoInsumo; emoji: string }[] = [
-  { label: "Bizcochuelos", key: "bizcochuelo", emoji: "🍰" },
-  { label: "Rellenos", key: "relleno", emoji: "🍯" },
-  { label: "Coberturas", key: "cobertura", emoji: "🧁" },
-  { label: "Toppings", key: "topping", emoji: "🍓" },
+  { label: "Bizcochuelo", key: "bizcochuelo", emoji: "🍰" },
+  { label: "Relleno", key: "relleno", emoji: "🍯" },
+  { label: "Cobertura", key: "cobertura", emoji: "🧁" },
+  { label: "Topping / Decoración", key: "topping", emoji: "🍓" },
 ];
 
 export default function ConfigurarTortaPage() {

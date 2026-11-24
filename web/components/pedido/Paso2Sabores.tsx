@@ -309,7 +309,7 @@ export function Paso2Sabores({
     const sectionNum = activeSections.length + 1;
     activeSections.push({
       key: "bizcochuelo",
-      title: "Bizcochuelo Base",
+      title: "Bizcochuelo",
       subtitle: baseObj ? baseObj.nombre : "Elegí tu masa",
       isDone: doneAccordions.has(sectionNum as AccordionStep) && !!selectedBase,
       canConfirm: !!selectedBase,
@@ -356,7 +356,7 @@ export function Paso2Sabores({
     const sectionNum = activeSections.length + 1;
     activeSections.push({
       key: "relleno",
-      title: "Rellenos Artesanales",
+      title: "Relleno",
       subtitle:
         rellenosObjs.length > 0
           ? rellenosObjs.map((r) => r.nombre).join(" + ")
@@ -422,11 +422,11 @@ export function Paso2Sabores({
     const sectionNum = activeSections.length + 1;
     activeSections.push({
       key: "cobertura",
-      title: "Cobertura Exterior",
+      title: "Cobertura",
       subtitle:
         coberturaObj
           ? coberturaObj.nombre
-          : "Elegí la cobertura exterior",
+          : "Elegí la cobertura",
       isDone: doneAccordions.has(sectionNum as AccordionStep) && coberturaOk,
       canConfirm: coberturaOk,
       renderContent: () => (
@@ -472,11 +472,11 @@ export function Paso2Sabores({
     const sectionNum = activeSections.length + 1;
     activeSections.push({
       key: "topping",
-      title: "Topping / Frutas",
+      title: "Topping / Decoración",
       subtitle:
         toppingObj
           ? toppingObj.nombre
-          : "Elegí el topping o fruta de terminación",
+          : "Elegí el topping o decoración",
       isDone: doneAccordions.has(sectionNum as AccordionStep) && toppingOk,
       canConfirm: toppingOk,
       renderContent: () => (
