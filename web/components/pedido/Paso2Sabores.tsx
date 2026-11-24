@@ -161,7 +161,6 @@ export interface Paso2Props {
   onNext: () => void;
   isFixedRecipe?: boolean;
   tortaNombre?: string;
-  tortaSlug?: string;
   onConfirmFixedRecipe?: () => void;
 }
 
@@ -183,7 +182,6 @@ export function Paso2Sabores({
   onNext,
   isFixedRecipe = false,
   tortaNombre,
-  tortaSlug,
   onConfirmFixedRecipe,
 }: Paso2Props) {
   // Si es receta fija o si la torta no tiene insumos configurados en el taller
@@ -354,8 +352,6 @@ export function Paso2Sabores({
     });
   }
 
-  const isFrutosRojos = tortaSlug === "torta-frutos-rojos";
-
   if (canCustomizeRellenos) {
     const sectionNum = activeSections.length + 1;
     activeSections.push({
@@ -364,10 +360,8 @@ export function Paso2Sabores({
       subtitle:
         rellenosObjs.length > 0
           ? rellenosObjs.map((r) => r.nombre).join(" + ")
-          : isFrutosRojos
-          ? "Elegí tu relleno"
           : "Elegí hasta 2 sabores",
-      badge: !isFrutosRojos ? (
+      badge: (
         <div
           className={`rounded-full border px-[9px] py-[3px] flex items-center gap-[4px] ${
             selectedFillings.length > 0 ? "bg-[#fdf2f8] border-[#fbcfe8]" : "bg-[#f1f5f9] border-[#e2e8f0]"
@@ -378,14 +372,14 @@ export function Paso2Sabores({
             {selectedFillings.length}/{MAX_RELLENOS}
           </span>
         </div>
-      ) : undefined,
+      ),
       isDone: doneAccordions.has(sectionNum as AccordionStep) && rellenosOk,
       canConfirm: rellenosOk,
       renderContent: () => (
         <div className={`grid ${rellenos.length <= 2 ? "grid-cols-2" : "grid-cols-3"} gap-[10px] mb-[8px]`}>
           {rellenos.map((r) => {
             const sel = selectedFillings.includes(r.id);
-            const disabled = !sel && !isFrutosRojos && selectedFillings.length >= MAX_RELLENOS;
+            const disabled = !sel && selectedFillings.length >= MAX_RELLENOS;
             return (
               <button
                 key={r.id}

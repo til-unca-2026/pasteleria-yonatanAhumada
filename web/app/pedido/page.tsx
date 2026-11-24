@@ -390,9 +390,6 @@ function PedidoWizardContent() {
 
   const handleToggleFilling = (id: string) => {
     setSelectedFillings((prev) => {
-      if (tortaSlug === "torta-frutos-rojos") {
-        return [id];
-      }
       if (prev.includes(id)) return prev.filter((r) => r !== id);
       if (prev.length >= 2) return prev;
       return [...prev, id];
@@ -466,11 +463,7 @@ function PedidoWizardContent() {
           return;
         }
         if (rellenosInsumos.length > 1 && selectedFillings.length === 0) {
-          showToast(
-            tortaSlug === "torta-frutos-rojos"
-              ? "Por favor selecciona la base / relleno en el Paso 2."
-              : "Por favor selecciona al menos 1 relleno artesanal en el Paso 2."
-          );
+          showToast("Por favor selecciona al menos 1 relleno artesanal en el Paso 2.");
           return;
         }
         if (coberturasInsumos.length > 1 && !selectedCoverage) {
@@ -714,7 +707,6 @@ function PedidoWizardContent() {
                   onNext={handleNext}
                   isFixedRecipe={isFixedRecipe}
                   tortaNombre={tortaNombre}
-                  tortaSlug={tortaSlug}
                   onConfirmFixedRecipe={() => {
                     setCurrentStep(3);
                     window.scrollTo({ top: 0, behavior: "smooth" });
