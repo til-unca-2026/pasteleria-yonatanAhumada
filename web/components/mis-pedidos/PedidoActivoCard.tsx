@@ -3,6 +3,7 @@
 import React from "react";
 import { TransferenciaInfo } from "./TransferenciaInfo";
 import { ComprobanteUploader } from "./ComprobanteUploader";
+import { getEstadoBadgeConfig } from "@/lib/services/pedidos";
 
 export interface PedidoActivoData {
   id: string;
@@ -50,13 +51,8 @@ export function PedidoActivoCard({
   const isExpired = pedido.estadoOperativo === "Expirado";
   const hasReceipt = Boolean(pedido.comprobanteUrl);
 
-  const badgeStyle = isExpired
-    ? { bg: "bg-rose-50 border-rose-200", dot: "bg-rose-500", text: "text-rose-800" }
-    : isPaid
-    ? { bg: "bg-emerald-50 border-emerald-200", dot: "bg-emerald-500", text: "text-emerald-800" }
-    : hasReceipt
-    ? { bg: "bg-blue-50 border-blue-200", dot: "bg-blue-500", text: "text-blue-800" }
-    : { bg: "bg-[#fff7ed] border-[#fed7aa]", dot: "bg-[#f59e0b]", text: "text-[#92400e]" };
+  const badgeCfg = getEstadoBadgeConfig(pedido.estadoOperativo, hasReceipt);
+  const badgeStyle = { bg: badgeCfg.bg, dot: badgeCfg.dot, text: "" };
 
   return (
     <div className="bg-white rounded-[12px] border border-[#e2e8f0] shadow-[0px_2px_8px_rgba(15,23,42,0.07)] overflow-hidden">

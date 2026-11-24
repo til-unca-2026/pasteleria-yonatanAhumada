@@ -8,6 +8,63 @@ export type EstadoPedido =
   | "En producción"
   | "Listo";
 
+export interface EstadoBadgeConfig {
+  bg: string;
+  dot: string;
+  labelAdmin: string;
+  labelCliente: string;
+  labelGrid: string;
+}
+
+export function getEstadoBadgeConfig(
+  estado: EstadoPedido | string | undefined,
+  hasReceipt: boolean
+): EstadoBadgeConfig {
+  if (estado === "Expirado") {
+    return {
+      bg: "bg-rose-50 text-rose-800 border-rose-200",
+      dot: "bg-rose-500",
+      labelAdmin: "Expirado / Rechazado",
+      labelCliente: "RESERVA EXPIRADA",
+      labelGrid: "Expirado",
+    };
+  }
+  if (estado === "Listo") {
+    return {
+      bg: "bg-emerald-50 text-emerald-800 border-emerald-200",
+      dot: "bg-emerald-500",
+      labelAdmin: "Listo para Retiro",
+      labelCliente: "LISTO PARA RETIRO",
+      labelGrid: "Listo",
+    };
+  }
+  if (estado === "Señado" || estado === "En producción") {
+    return {
+      bg: "bg-indigo-50 text-indigo-800 border-indigo-200",
+      dot: "bg-indigo-500",
+      labelAdmin: "Para Elaborar",
+      labelCliente: "EN ELABORACIÓN",
+      labelGrid: "En Elaboración",
+    };
+  }
+  if (hasReceipt) {
+    return {
+      bg: "bg-blue-50 text-blue-800 border-blue-200",
+      dot: "bg-blue-500",
+      labelAdmin: "En Revisión",
+      labelCliente: "PAGO EN REVISIÓN",
+      labelGrid: "En Revisión",
+    };
+  }
+  return {
+    bg: "bg-amber-50 text-amber-800 border-amber-200",
+    dot: "bg-amber-500",
+    labelAdmin: "Pago Pendiente",
+    labelCliente: "PAGO PENDIENTE",
+    labelGrid: "Pendiente",
+  };
+}
+
 export interface PedidoConDetalles {
   id: string;
   cliente_nombre: string;

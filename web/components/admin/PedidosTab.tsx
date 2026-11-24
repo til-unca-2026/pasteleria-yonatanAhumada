@@ -5,6 +5,7 @@ import {
   getPedidos,
   updatePedidoEstado,
   rechazarPedido,
+  getEstadoBadgeConfig,
   PedidoConDetalles,
   EstadoPedido,
 } from "@/lib/services/pedidos";
@@ -272,34 +273,9 @@ export function PedidosTab() {
   const activeSelected =
     sortedPedidos.find((p) => p.id === selectedId) || sortedPedidos[0] || null;
 
-  const getStatusBadge = (estado: EstadoPedido) => {
-    switch (estado) {
-      case "Pendiente":
-        return {
-          bg: "bg-amber-50 text-amber-700 border-amber-200",
-          dot: "bg-amber-500",
-          text: "Pago Pendiente",
-        };
-      case "Señado":
-      case "En producción":
-        return {
-          bg: "bg-emerald-50 text-emerald-700 border-emerald-200",
-          dot: "bg-emerald-500",
-          text: "Pagado",
-        };
-      case "Listo":
-        return {
-          bg: "bg-purple-50 text-purple-700 border-purple-200",
-          dot: "bg-purple-500",
-          text: "Listo para Retiro",
-        };
-      case "Expirado":
-        return {
-          bg: "bg-slate-100 text-slate-500 border-slate-200",
-          dot: "bg-slate-400",
-          text: "Rechazado / Expirado",
-        };
-    }
+  const getStatusBadge = (estado: EstadoPedido, hasReceipt = false) => {
+    const cfg = getEstadoBadgeConfig(estado, hasReceipt);
+    return { bg: cfg.bg, dot: cfg.dot, text: cfg.labelAdmin };
   };
 
   return (
@@ -407,7 +383,7 @@ export function PedidosTab() {
             sortedPedidos.map((p) => {
               const isSelected = activeSelected?.id === p.id;
               const isExpandedMobile = expandedIds.has(p.id);
-              const badge = getStatusBadge(p.estado);
+              const badge = getStatusBadge(p.estado, Boolean(p.comprobante_url));
               const { modeloNombre, tortaImagen, dedicatoria } = parseModeloYNotas(p.notas);
               const hasReceiptPending = p.estado === "Pendiente" && Boolean(p.comprobante_url);
 
