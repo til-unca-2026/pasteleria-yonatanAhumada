@@ -14,6 +14,7 @@ import {
   getPedidoById,
   getPedidosPorIds,
   getPedidosPorUsuario,
+  getEstadoBadgeConfig,
   adjuntarComprobanteAPedido,
   PedidoConDetalles,
 } from "@/lib/services/pedidos";
@@ -369,15 +370,7 @@ function MisPedidosContent() {
         })
       : "Fecha a confirmar";
 
-    const getEstadoLabel = () => {
-      if (p.estado === "Expirado") {
-        return "RESERVA EXPIRADA";
-      }
-      if (p.estado === "Señado" || p.estado === "En producción" || p.estado === "Listo") {
-        return "PAGO CONFIRMADO";
-      }
-      return p.comprobante_url ? "PAGO EN REVISIÓN" : "PAGO PENDIENTE";
-    };
+    const badgeCfg = getEstadoBadgeConfig(p.estado, Boolean(p.comprobante_url));
 
     return {
       id: p.id,
@@ -386,7 +379,7 @@ function MisPedidosContent() {
       modeloNombre,
       tortaImagen,
       peso: `${p.peso_kg} kg`,
-      estado: getEstadoLabel(),
+      estado: badgeCfg.labelCliente,
       estadoOperativo: p.estado,
       fechaEntregaTexto: fechaTexto,
       countdownFormatted,
@@ -634,6 +627,7 @@ function MisPedidosContent() {
                   const isPaid = p.estado === "Señado" || p.estado === "En producción" || p.estado === "Listo";
                   const isExpired = p.estado === "Expirado";
                   const hasReceipt = Boolean(p.comprobante_url);
+                  const badgeCfg = getEstadoBadgeConfig(p.estado, hasReceipt);
 
                   return (
                     <div
@@ -658,17 +652,9 @@ function MisPedidosContent() {
                           </div>
 
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0 ${
-                              isExpired
-                                ? "bg-rose-100 text-rose-800 border border-rose-200"
-                                : isPaid
-                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                                : hasReceipt
-                                ? "bg-blue-100 text-blue-800 border border-blue-200"
-                                : "bg-amber-100 text-amber-800 border border-amber-200"
-                            }`}
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0 border ${badgeCfg.bg}`}
                           >
-                            {p.estado}
+                            {badgeCfg.labelGrid}
                           </span>
                         </div>
 

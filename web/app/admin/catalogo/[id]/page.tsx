@@ -965,8 +965,11 @@ export default function ConfigurarTortaPage() {
                             {featuredInsumo.nombre}
                           </span>
                           {isFeaturedDefault && (
-                            <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold border border-amber-300 shrink-0">
-                              ★ Base
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold border border-amber-300 shrink-0"
+                              title="Aparece preseleccionado por defecto al cliente"
+                            >
+                              ✓ Predeterminado
                             </span>
                           )}
                         </div>
@@ -1038,10 +1041,16 @@ export default function ConfigurarTortaPage() {
                           ? "bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200"
                           : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
                       }`}
-                      title={isFeaturedDefault ? "Quitar de receta base" : "Marcar como receta base / default para esta torta"}
+                      title={
+                        isFeaturedDefault
+                          ? "Quitar como opción predeterminada"
+                          : "Aparecerá preseleccionado por defecto para el cliente"
+                      }
                     >
-                      <span className={isFeaturedDefault ? "text-amber-600" : "text-slate-400"}>★</span>
-                      <span>{isFeaturedDefault ? "Receta base" : "Hacer base"}</span>
+                      <span className={isFeaturedDefault ? "text-amber-600" : "text-slate-400"}>
+                        {isFeaturedDefault ? "✓" : "○"}
+                      </span>
+                      <span>{isFeaturedDefault ? "Predeterminado" : "Marcar predeterminado"}</span>
                     </button>
                     <button
                       type="button"
@@ -1115,7 +1124,7 @@ export default function ConfigurarTortaPage() {
                           />
                           {defaultInsumoIds.has(insumo.id) && (
                             <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full bg-amber-100 border border-amber-300 text-[8px] font-bold text-amber-800 shadow-2xs">
-                              ★ Base
+                              ✓ Default
                             </span>
                           )}
                         </div>
