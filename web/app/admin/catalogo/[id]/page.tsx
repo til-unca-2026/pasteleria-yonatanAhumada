@@ -137,11 +137,14 @@ export default function ConfigurarTortaPage() {
         );
         if (frutasParaTopping.length > 0) {
           for (const item of frutasParaTopping) {
-            try {
-              await supabase.from("insumos").update({ tipo: "topping" }).eq("id", item.id);
+            const { error } = await supabase
+              .from("insumos")
+              .update({ tipo: "topping" })
+              .eq("id", item.id);
+            if (!error) {
               item.tipo = "topping";
-            } catch (e) {
-              console.warn("Aviso migrando insumo a topping:", e);
+            } else {
+              console.warn("No se pudo migrar insumo a topping en DB:", error.message);
             }
           }
         }
